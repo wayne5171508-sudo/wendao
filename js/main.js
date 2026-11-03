@@ -24,7 +24,11 @@ const Game = {
     $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') UI.close(); });
     // 字型與首批素材同時下載
     await Promise.all([document.fonts ? Promise.race([document.fonts.load('700 24px "LXGW WenKai TC"', '問道青冥入道續緣'), U.wait(2000)]).catch(() => {}) : 0, this.preload()]);
-    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+    // 進到標題後才在背景下載其餘素材並註冊離線快取，不跟首批素材搶頻寬
+    setTimeout(() => {
+      (this.later || []).forEach((s, i) => setTimeout(() => { const im = new Image(); im.src = s; }, i * 80));
+      if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+    }, 2500);
     this.title(had && S.d.root);
     requestAnimationFrame((t) => { this.last = t; this.loop(t); });
     addEventListener('visibilitychange', () => { if (document.hidden) S.save(); else if (S.d.root && !Battle.on) { const o = S.offline(); if (o) { UI.offlineModal(o); UI.hud(); } } });
@@ -37,12 +41,12 @@ const Game = {
     const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/|wuxing|pillar_/;
     const list = all.filter((s) => first.test(s)), bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
     const later = all.filter((s) => !first.test(s));
-    setTimeout(() => later.forEach((s, i) => setTimeout(() => { const im = new Image(); im.src = s; }, i * 60)), 1500);
     let done = 0;
     const tick = () => { done++; const p = Math.round((100 * done) / list.length); bar.style.width = p + '%'; txt.textContent = `載入中 ${p}%`; };
     const one = (src) => new Promise((res) => { const i = new Image(); i.onload = i.onerror = () => { tick(); res(); }; i.src = src; });
     for (let k = 0; k < list.length; k += 6) await Promise.all(list.slice(k, k + 6).map(one));   // 同時 6 個，手機網路較穩
     box.classList.add('done'); setTimeout(() => box.remove(), 600);
+    this.later = later;
   },
 
   title(hasSave) {
