@@ -452,7 +452,7 @@ const UI = {
       '#expBack': () => this.settings(),
     });
   },
-  importSave() {
+  importSave(fromTitle) {
     this.modal('匯入存檔', `<p class="note">選擇匯出的存檔檔案，或把存檔文字貼在下面。<b style="color:#ff9a9a">目前的進度會被覆蓋。</b></p>
       <input type="file" id="impFile" accept=".json,application/json,text/plain" class="save-file">
       <textarea id="impTxt" class="save-txt" placeholder="或貼上存檔文字"></textarea>
@@ -463,7 +463,7 @@ const UI = {
         if (r !== true) { this.toast(r, '#ff9a9a'); return; }
         this.toast('存檔已匯入，重新載入中', '#9fe8d8'); setTimeout(() => location.reload(), 700);
       },
-      '#impBack': () => this.settings(),
+      '#impBack': () => (fromTitle ? this.close() : this.settings()),
     });
   },
 

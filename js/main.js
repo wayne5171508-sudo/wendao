@@ -22,8 +22,8 @@ const Game = {
     document.querySelectorAll('#nav button').forEach((b) => (b.onclick = () => { Audio2.play('page'); UI.go(b.dataset.tab); }));
     $('#btnSet').onclick = () => UI.settings();
     $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') UI.close(); });
-    if (document.fonts) await Promise.race([document.fonts.load('700 24px "LXGW WenKai TC"', '問道青冥入道續緣'), U.wait(2000)]).catch(() => {});
-    await this.preload();
+    // 字型與首批素材同時下載
+    await Promise.all([document.fonts ? Promise.race([document.fonts.load('700 24px "LXGW WenKai TC"', '問道青冥入道續緣'), U.wait(2000)]).catch(() => {}) : 0, this.preload()]);
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
     this.title(had && S.d.root);
     requestAnimationFrame((t) => { this.last = t; this.loop(t); });
@@ -31,9 +31,13 @@ const Game = {
     addEventListener('beforeunload', () => S.save());
   },
 
-  // 首次載入：預先下載全部素材並顯示進度條（之後由離線快取提供，幾乎瞬間完成）
+  // 首次載入：先下載標題與開場劇情要用的素材並顯示進度條，其餘（戰鬥、丹房、法寶等）進遊戲後在背景下載
+  // 之後由離線快取提供，幾乎瞬間完成
   async preload() {
-    const list = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
+    const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/|wuxing|pillar_/;
+    const list = all.filter((s) => first.test(s)), bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
+    const later = all.filter((s) => !first.test(s));
+    setTimeout(() => later.forEach((s, i) => setTimeout(() => { const im = new Image(); im.src = s; }, i * 60)), 1500);
     let done = 0;
     const tick = () => { done++; const p = Math.round((100 * done) / list.length); bar.style.width = p + '%'; txt.textContent = `載入中 ${p}%`; };
     const one = (src) => new Promise((res) => { const i = new Image(); i.onload = i.onerror = () => { tick(); res(); }; i.src = src; });
@@ -46,12 +50,14 @@ const Game = {
     UI.scene(`<div class="tlogo"><h1><span>問</span><span>道</span><span>青</span><span>冥</span></h1><p>一劍霜寒　逆天問道</p></div>
       <div class="tbtns">${hasSave ? `<span id="saveInfo">${lvName(S.d.lv)}・${ROOTS[S.d.root].name}（${S.d.grade || '黃'}品）</span>` : ''}
         <button class="seal${hasSave ? ' ghost' : ''}" id="tNew">入道<span class="cap">新的修行</span></button>
-        ${hasSave ? '<button class="seal" id="tCont">續緣<span class="cap">繼續修行</span></button>' : ''}</div>`);
+        ${hasSave ? '<button class="seal" id="tCont">續緣<span class="cap">繼續修行</span></button>' : ''}</div>
+      <button class="t-imp" id="tImp">匯入存檔</button>`);
     $('#tNew').onclick = () => {
       if (hasSave) { UI.modal('新的修行', '<p class="big">將覆蓋現有存檔，確定嗎？</p><div class="row center"><button class="seal" id="nY">重新入道</button><button class="seal ghost sm" id="nN">取消</button></div>', { '#nY': () => { UI.close(); this.begin(); }, '#nN': () => UI.close() }); return; }
       this.begin();
     };
     const c = $('#tCont'); if (c) c.onclick = () => this.resume();
+    $('#tImp').onclick = () => UI.importSave(true);
   },
   async begin() {
     Audio2.unlock(); S.reset(); S.d = S.fresh(); S.save();
