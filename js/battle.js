@@ -1,0 +1,298 @@
+'use strict';
+// ════════════════════════════════════════════
+//  戰鬥：上方妖物、下方主角背影；自動普攻，四個技能手動或自動施放；精英與首領會蓄力，首領三階段
+// ════════════════════════════════════════════
+
+const Battle = {
+  on: false,
+  // cont：從上一關「下一關」接續，秘境不再扣每日次數
+  start(rid, idx, cont) {
+    const R = REGIONS.find((r) => r.id === rid), st = R.stages[idx];
+    if (R.daily && !cont) { if (S.dailyLeft() <= 0) { UI.toast('今日秘境次數已用盡，明日再來'); UI.stages(rid); return; } S.d.daily.realm++; S.save(); }
+    const s = S.stats();
+    $('#app').classList.remove('tall'); $('#app').classList.add('fighting');
+    this.R = R; this.idx = idx; this.st = st; this.on = true; this.wave = 0; this.pause = 0.6; this.result = null;
+    this.hero = { hp: s.hp, max: s.hp, mp: s.mp, maxmp: s.mp, regen: s.mpRegen, atk: s.atk, def: s.def, crit: s.crit, interval: s.interval, t: 0.3, shield: 0, shieldT: 0, pill: false, yiT: 0 };
+    this.wpn = S.wTop();
+    this.cd = Object.fromEntries(SKILLS.map((k) => [k.id, 0]));
+    this.loot = { exp: 0, stone: 0 };
+    Audio2.setMood(R.mood === 'dungeon' ? 'battle' : R.mood);
+    UI.setBg(R.bg, R.grade || 'dim');
+    FX.clear(); FX.ambient = R.grade === 'realm' ? 'realm' : 'qi';
+    UI.scene(`
+      <div class="battle-top"><button class="seal sm ghost" id="bRun">撤</button><span class="wave-tag" id="bWave"></span></div>
+      <div class="mon-hud"><h5 id="mName"></h5><div class="bar ${st.waves.some((w) => w.includes('yaojiang')) ? 'boss' : 'hp'}"><i id="mBar"></i><span id="mTxt"></span></div><div id="mCharge"></div></div>
+      <div class="mon" id="mon"><img id="monImg" alt=""></div>
+      <div class="hero-b" id="heroB">${heroArmed(S.wTop(), 'bhold', 'pose')}${heroArmed(S.wTop(), 'bstance', 'pose')}</div>
+      <div class="shield hidden" id="shield"></div>`);
+    UI.controls(`<div class="bstat">
+        <div class="lbl"><span>氣血</span><span id="hTxtB"></span></div><div class="bar hp"><i id="hBarB"></i></div>
+        <div class="lbl"><span>靈力</span><span id="pTxtB"></span></div><div class="bar mp"><i id="pBarB"></i></div></div>
+      <div class="skills" style="--n:${this.skillList().length}">${this.skillList().map((k) => `<button class="skill" data-k="${k.id}" style="--c:${k.color}"><b>${k.icon}</b><i class="cd"></i><span class="cdt"></span><small>${k.name}</small></button>`).join('')}</div>
+      <div class="row center" style="margin-top:18px"><button class="seal sm ${S.d.auto ? '' : 'ghost'}" id="bAuto">${S.d.auto ? '自動施法・開' : '自動施法・關'}</button></div>`);
+    document.querySelectorAll('.skill').forEach((b) => (b.onclick = () => this.cast(b.dataset.k)));
+    $('#bRun').onclick = () => this.end(false, true);
+    $('#bAuto').onclick = () => { S.d.auto = !S.d.auto; S.save(); $('#bAuto').classList.toggle('ghost', !S.d.auto); $('#bAuto').textContent = S.d.auto ? '自動施法・開' : '自動施法・關'; };
+    this.spawn();
+    // 神器：天象異變
+    if (this.wpn && this.wpn.tier >= 4) setTimeout(() => this.on && this.heaven(), 500);
+  },
+  // 兵器技能只在達到階級後出現在技能列
+  skillList() { return SKILLS.filter((k) => k.wt === undefined || S.skillOpen(k)); },
+  heaven() {
+    FX.stormT = 1; Audio2.play('thunder'); FX.flash = 0.8; FX.shake($('#scene'), 10);
+    const p = this.heroPos(); FX.bolt(p.x + 40, p.y - 160, '#ffb08a', 6, 0.4);
+    UI.banner('逆天劍鳴', '神兵出鞘，天象異變');
+    setTimeout(() => { FX.stormT = 0; }, 2600);
+  },
+  // 施法立繪：短暫切入
+  cutin(id) {
+    if (!CAST_IMG[id]) return;
+    const old = $('.cutin'); if (old) old.remove();
+    const el = document.createElement('div'); el.className = 'cutin'; el.style.setProperty('--c', SKILLS.find((k) => k.id === id).color);
+    el.innerHTML = `<img src="${CAST_IMG[id]}" alt="">`;
+    $('#sceneContent').appendChild(el); setTimeout(() => el.remove(), 900);
+  },
+
+  spawn() {
+    const key = this.st.waves[this.wave], elite = key.endsWith('*'), type = key.replace('*', ''), M = MONSTERS[type];
+    const s = monStats(type, this.st.p, elite);
+    this.mon = { type, M, elite, boss: !!M.boss, ...s, max: s.hp, t: s.interval * 0.8, charge: 0, chargeMax: 0, chargeCd: M.boss ? 6 : 8, phase: 1, stun: 0, dr: 0, leech: 0, ph: M.phases ? M.phases[0] : null };
+    const img = $('#monImg'); img.src = `assets/mon/${M.img}.webp`;
+    const box = $('#mon'); box.className = 'mon enter' + (M.boss ? ' boss' : ''); setTimeout(() => box.classList.remove('enter'), 520);
+    $('#mName').innerHTML = `${M.name}${elite ? '<em>精英</em>' : ''}${M.boss ? '<em>第一相</em>' : ''}`;
+    $('#bWave').textContent = `${this.st.name}　${this.wave + 1} / ${this.st.waves.length}`;
+    if (M.boss) { UI.banner(M.name, '秘境之主，自血池中站起'); Audio2.play('roar'); FX.shake($('#scene'), 8); }
+    this.render();
+  },
+
+  monPos() { return { x: FX.w / 2, y: FX.h * (this.mon && this.mon.boss ? 0.36 : 0.34) }; },
+  heroPos() { return { x: FX.w / 2, y: FX.h * 0.84 }; },
+
+  dmgMon(base, color, opts = {}) {
+    const m = this.mon; if (!m || m.hp <= 0) return;
+    const crit = Math.random() < this.hero.crit + (this.hero.yiT > 0 ? 0.2 : 0), pierce = S.wFx('pierce');
+    const dmg = Math.max(1, Math.round(base * U.rand(0.92, 1.08) * (crit ? 1.8 : 1) * (pierce && m.boss ? 1.25 : 1) - (pierce ? 0 : m.def * 0.5)));
+    const real = Math.max(1, Math.round(dmg * (1 - m.dr)));
+    m.hp -= real;
+    const p = this.monPos();
+    FX.text(p.x + U.rand(-30, 30), p.y - 30, (crit ? '暴擊 ' : '') + U.fmt(real), crit ? '#ffd76a' : m.dr ? '#ffb4b4' : color || '#ffffff', crit || opts.big ? 30 : 23);
+    const box = $('#mon'); box.classList.add('hit'); setTimeout(() => box.classList.remove('hit'), 90);
+    if (crit || opts.big) FX.shake($('#scene'), opts.big ? 10 : 5);
+    Audio2.play(crit || opts.big ? 'hitHeavy' : 'hit');
+    if (m.hp <= 0) this.kill();
+  },
+
+  kill() {
+    const m = this.mon, p = this.monPos();
+    m.hp = 0; $('#mon').classList.add('dead');
+    FX.burst(p.x, p.y, m.boss ? '#ff6a7a' : '#9fe8ff', 36, 260, 3.5, 1);
+    FX.ring(p.x, p.y, 'rgba(255,255,255,0.7)', 20, 160, 0.5, 4);
+    this.loot.exp += m.exp; this.loot.stone += m.stone;
+    FX.text(p.x, p.y + 30, `修為 +${U.fmt(m.exp)}`, '#b8f0c8', 18);
+    if (m.boss) { Audio2.play('boom'); FX.shake($('#scene'), 14); }
+    this.wave++; this.pause = 1.0;
+    if (this.wave >= this.st.waves.length) { this.pause = 99; setTimeout(() => this.end(true), 1100); }
+    else setTimeout(() => { if (this.on) this.spawn(); }, 900);
+  },
+
+  hurtHero(raw, label, src) {
+    const h = this.hero; if (h.hp <= 0) return;
+    let dmg = Math.max(1, Math.round(raw * U.rand(0.9, 1.1) - h.def * 0.5));
+    const hp0 = this.heroPos();
+    if (h.shield > 0) { const a = Math.min(h.shield, dmg); h.shield -= a; dmg -= a; FX.ring(hp0.x, hp0.y - 60, '#8ff0d8', 40, 110, 0.35, 3); if (dmg <= 0) { FX.text(hp0.x, hp0.y - 120, '靈罩吸收', '#8ff0d8', 18); return; } }
+    h.hp -= dmg;
+    // 首領第三相：以血養血
+    if (src && src.leech && src.hp > 0) { const heal = Math.round(dmg * src.leech); src.hp = Math.min(src.max, src.hp + heal); const mp = this.monPos(); FX.text(mp.x + 60, mp.y, '+' + U.fmt(heal), '#ff6a7a', 16); }
+    FX.text(hp0.x + U.rand(-30, 30), hp0.y - 130, (label ? label + ' ' : '-') + U.fmt(dmg), '#ff7a7a', label ? 28 : 22);
+    const hb = $('#heroB'); hb.classList.remove('hurt'); void hb.offsetWidth; hb.classList.add('hurt');
+    FX.sparks(hp0.x, hp0.y - 80, '#ff8a8a', 8, 260); Audio2.play('hurt');
+    if (label) FX.shake($('#scene'), 12);
+    if (h.hp < h.max * 0.3 && !h.pill && S.take('p_heal')) { h.pill = true; h.hp = Math.min(h.max, h.hp + h.max * 0.4); FX.text(hp0.x, hp0.y - 170, '服下回春丹', '#ff8a8a', 18); FX.burst(hp0.x, hp0.y - 80, '#ff8a8a', 18, 140); }
+    if (h.hp <= 0) { h.hp = 0; this.pause = 99; setTimeout(() => this.end(false), 700); }
+  },
+
+  cast(id) {
+    if (!this.on || this.pause > 0 || !this.mon || this.mon.hp <= 0) return;
+    const k = SKILLS.find((x) => x.id === id), h = this.hero;
+    if (!S.skillOpen(k)) { UI.toast(`尚未習得「${ARTS.find((a) => a.id === k.from).name}」`); return; }
+    if (this.cd[id] > 0 || h.mp < k.mp) return;
+    h.mp -= k.mp; this.cd[id] = k.cd;
+    const lv = S.artLv(k.from), m = this.monPos(), hp = this.heroPos();
+    FX.array(hp.x, hp.y - 4, 110, k.color, 0.7);
+    this.cutin(id);
+    if (id === 'yujian') {
+      Audio2.play('wave');
+      for (let i = 0; i < 3; i++) setTimeout(() => { if (!this.on || !this.mon || this.mon.hp <= 0) return; const sx = hp.x + (i - 1) * 70; FX.wave(sx, hp.y - 120, m.x + (i - 1) * 20, m.y, k.color, 0.28); setTimeout(() => this.on && this.mon && this.mon.hp > 0 && (FX.slash(m.x, m.y, 100, -0.4 + i * 0.4, k.color, 0.25), this.dmgMon(h.atk * k.mult, k.color)), 160); }, i * 170);
+    } else if (id === 'jianyi') {
+      h.yiT = 8; Audio2.play('gong');
+      FX.pillar(hp.x, FX.h, 'rgba(255,207,122,0.45)', 80, 1.4); FX.converge(hp.x, hp.y - 80, 'rgba(255,207,122,0.9)', 24, 180, 0.7);
+      FX.text(hp.x, hp.y - 190, '劍意凜然', k.color, 22);
+    } else if (id === 'jianqi') {
+      FX.wave(hp.x, hp.y - 90, m.x, m.y, k.color, 0.3); Audio2.play('wave');
+      setTimeout(() => { this.dmgMon(h.atk * k.mult, k.color); FX.slash(m.x, m.y, 110, -0.5, k.color, 0.3); FX.sparks(m.x, m.y, '#dff6ff', 12); }, 200);
+    } else if (id === 'leifa') {
+      const boost = (1 + 0.15 * (lv - 1)) * (1 + (S.rootFx().thunder || 0));
+      Audio2.play('thunder'); FX.flash = 0.6;
+      for (let i = 0; i < 3; i++) setTimeout(() => FX.bolt(m.x + U.rand(-30, 30), m.y + 20, '#e6d6ff', 5 - i, 0.3), i * 70);
+      setTimeout(() => { this.dmgMon(h.atk * k.mult * boost, k.color, { big: true }); FX.ring(m.x, m.y, '#c9a6ff', 20, 170, 0.45, 5); this.mon.stun = 1; this.mon.charge = 0; }, 120);
+    } else if (id === 'huti') {
+      h.shield = Math.round(h.max * k.mult * (1 + 0.1 * (lv - 1))); h.shieldT = 8; Audio2.play('shield');
+      FX.ring(hp.x, hp.y - 70, '#8ff0d8', 20, 140, 0.5, 4); FX.converge(hp.x, hp.y - 70, 'rgba(143,240,216,0.9)', 22, 160, 0.6);
+    } else if (id === 'wanjian') {
+      Audio2.play('wave'); FX.swordRain(m.x, m.y, '#ffe7a0'); FX.flash = 0.4;
+      for (let i = 0; i < 5; i++) setTimeout(() => this.on && this.mon.hp > 0 && this.dmgMon((h.atk * k.mult * (1 + 0.15 * (lv - 1))) / 5, k.color, { big: i === 4 }), 380 + i * 90);
+    }
+  },
+
+  // 起手式劍尖在畫面上的位置（劍光與出劍特效從這裡發出）
+  swordTip() {
+    const el = document.querySelector('#heroB .hfig.bstance'), sc = $('#scene').getBoundingClientRect();
+    if (!el) return { x: this.heroPos().x, y: this.heroPos().y - 90 };
+    const r = el.getBoundingClientRect(), [x1, y1, x2, y2] = HERO_SWORD.bstance.blade;
+    return { x: r.left - sc.left + x2 * r.width, y: r.top - sc.top + y2 * r.height, hx: r.left - sc.left + x1 * r.width, hy: r.top - sc.top + y1 * r.height };
+  },
+  // 一次普攻：兵器階級越高，劍光軌跡與命中特效越華麗
+  swing(mult, tag) {
+    const h = this.hero, m = this.mon;
+    if (!this.on || !m || m.hp <= 0) return;
+    const p = this.monPos(), w = this.wpn, t = w ? w.tier : -1, c = w ? WTIERS[t].color : S.d.root ? ROOTS[S.d.root].color : '#9fe8ff';
+    const tip = this.swordTip();
+    FX.slash((tip.x + tip.hx) / 2 || tip.x, (tip.y + tip.hy) / 2 || tip.y, 42 + Math.max(0, t) * 5, -0.15, c, 0.18);
+    FX.sparks(tip.x, tip.y, c, 4 + Math.max(0, t) * 2, 160);
+    if (t >= 1) FX.wave(tip.x, tip.y, p.x, p.y, c, 0.22);
+    FX.slash(p.x + U.rand(-20, 20), p.y + U.rand(-30, 30), 90 + t * 12, U.rand(-0.8, 0.2), c);
+    FX.sparks(p.x, p.y, t >= 2 ? c : '#dff6ff', 6 + Math.max(0, t) * 3);
+    if (t >= 3) FX.ring(p.x, p.y, c, 16, 120, 0.3, 3);
+    if (t >= 4) FX.burst(p.x, p.y, '#ffd76a', 12, 180, 3, 0.5);
+    if (tag) FX.text(p.x + 40, p.y - 70, tag, c, 16);
+    if (S.wFx('slow') && !m.slowed) { m.slowed = true; m.interval *= 1.25; FX.text(p.x - 50, p.y - 60, '霜寒', '#bfe8ff', 16); }
+    this.dmgMon(h.atk * mult * (h.yiT > 0 ? 1.6 : 1));
+  },
+
+  tick(dt) {
+    if (!this.on) return;
+    const h = this.hero, m = this.mon;
+    for (const k in this.cd) this.cd[k] = Math.max(0, this.cd[k] - dt);
+    h.mp = Math.min(h.maxmp, h.mp + h.regen * dt);
+    if (h.shieldT > 0) { h.shieldT -= dt; if (h.shieldT <= 0) h.shield = 0; }
+    if (h.yiT > 0) h.yiT -= dt;
+    if (this.pause > 0) { this.pause -= dt; this.render(); return; }
+    if (!m || m.hp <= 0) { this.render(); return; }
+    // 自動施法
+    if (S.d.auto) {
+      const ready = (id) => { const k = SKILLS.find((x) => x.id === id); return S.skillOpen(k) && this.cd[id] <= 0 && h.mp >= k.mp; };
+      if (ready('huti') && h.shield <= 0 && (h.hp < h.max * 0.55 || m.charge > 0)) this.cast('huti');
+      else if (ready('wanjian')) this.cast('wanjian');
+      else if (ready('jianyi')) this.cast('jianyi');
+      else if (ready('yujian') && h.mp > 50) this.cast('yujian');
+      else if (ready('leifa') && (m.charge > 0 || h.mp > h.maxmp * 0.6)) this.cast('leifa');
+      else if (ready('jianqi') && h.mp > 40) this.cast('jianqi');
+    }
+    // 主角普攻
+    h.t -= dt;
+    if (h.t <= 0) {
+      h.t = h.interval;
+      // 普攻：切到起手式出劍，再收回持劍
+      const hb = $('#heroB'); hb.classList.add('strike'); clearTimeout(this.strikeT); this.strikeT = setTimeout(() => hb.classList.remove('strike'), 360);
+      Audio2.play(U.pick(['swing1', 'swing2']));
+      setTimeout(() => this.swing(1), 120);
+      if (S.wFx('combo') && U.chance(0.3)) setTimeout(() => this.swing(0.6, '連擊'), 330);
+    }
+    // 首領換相
+    if (m.boss) {
+      const P = m.M.phases, r = m.hp / m.max;
+      let np = 1; P.forEach((p, i) => { if (i && r < p.at) np = i + 1; });
+      if (np > m.phase) {
+        m.phase = np; const ph = (m.ph = P[np - 1]);
+        Audio2.play('roar'); FX.shake($('#scene'), 14); FX.ring(this.monPos().x, this.monPos().y, '#ff3a3a', 30, 300, 0.7, 6);
+        UI.banner(ph.banner[0], ph.banner[1]);
+        $('#mName').innerHTML = `${m.M.name}<em>${ph.name}</em>`;
+        if (ph.atk) m.atk = Math.round(m.atk * ph.atk);
+        if (ph.spd) m.interval /= ph.spd;
+        m.dr = ph.dr || 0; m.leech = ph.leech || 0;
+        $('#mon').classList.toggle('warded', m.dr > 0); $('#mon').classList.toggle('enrage', np === P.length);
+        m.chargeCd = Math.min(m.chargeCd, 2);
+      }
+    }
+    // 妖物攻擊與蓄力大招
+    if (m.stun > 0) { m.stun -= dt; this.render(); return; }
+    if (m.charge > 0) {
+      m.charge -= dt;
+      if (m.charge <= 0) { const p = this.monPos(); FX.slash(this.heroPos().x, this.heroPos().y - 80, 140, -0.3, '#ff4a4a', 0.35); FX.ring(p.x, p.y, '#ff4a4a', 30, 220, 0.4, 5); this.hurtHero(m.atk * (m.ph ? m.ph.chargeMult : 2.4), m.boss ? '血刃斬' : '重擊', m); m.chargeCd = m.ph ? m.ph.chargeCd : 9; }
+    } else if (m.elite || m.boss) {
+      m.chargeCd -= dt;
+      if (m.chargeCd <= 0) { m.chargeMax = m.charge = m.ph ? m.ph.chargeT : 2.8; Audio2.play('array'); }
+    }
+    if (m.charge <= 0) {
+      m.t -= dt;
+      if (m.t <= 0) {
+        m.t = m.interval;
+        const mon = $('#mon'); mon.animate([{ transform: 'translateX(-50%) translateY(0)' }, { transform: 'translateX(-50%) translateY(10%) scale(1.05)' }, { transform: 'translateX(-50%) translateY(0)' }], { duration: 260 });
+        setTimeout(() => this.on && this.mon === m && m.hp > 0 && this.hurtHero(m.atk, null, m), 140);
+      }
+    }
+    this.render();
+  },
+
+  render() {
+    if (!this.on || !$('#hBarB')) return;
+    const h = this.hero, m = this.mon;
+    $('#hBarB').style.width = (100 * h.hp / h.max) + '%'; $('#hTxtB').textContent = `${U.fmt(h.hp)} / ${U.fmt(h.max)}${h.shield > 0 ? `　靈罩 ${U.fmt(h.shield)}` : ''}`;
+    $('#pBarB').style.width = (100 * h.mp / h.maxmp) + '%'; $('#pTxtB').textContent = `${Math.floor(h.mp)} / ${h.maxmp}`;
+    $('#shield').classList.toggle('hidden', !(h.shield > 0));
+    if (m) {
+      $('#mBar').style.width = (100 * Math.max(0, m.hp) / m.max) + '%'; $('#mTxt').textContent = `${U.fmt(Math.max(0, m.hp))} / ${U.fmt(m.max)}`;
+      $('#mCharge').innerHTML = m.charge > 0 ? `<div class="charge"><i style="width:${100 * (1 - m.charge / m.chargeMax)}%"></i></div><div class="charge-tip">${m.boss ? '妖將蓄力「血刃斬」——快開護體或以雷法打斷' : '蓄力重擊——護體或雷法可化解'}</div>` : '';
+    }
+    $('#heroB').classList.toggle('yi', h.yiT > 0);
+    for (const k of SKILLS) {
+      const b = document.querySelector(`.skill[data-k="${k.id}"]`); if (!b) continue;
+      const open = S.skillOpen(k), cd = this.cd[k.id];
+      b.classList.toggle('locked', !open); b.classList.toggle('nomp', open && h.mp < k.mp);
+      b.classList.toggle('ready', open && cd <= 0 && h.mp >= k.mp);
+      b.querySelector('.cd').style.setProperty('--p', (open ? (360 * cd) / k.cd : 0) + 'deg');
+      b.querySelector('.cdt').textContent = open && cd > 0 ? Math.ceil(cd) : '';
+    }
+  },
+
+  end(win, fled) {
+    if (!this.on) return;
+    this.on = false; FX.ambient = 'qi';
+    const R = this.R, key = `${R.id}-${this.idx}`, first = win && !S.d.cleared[key];
+    if (fled) { UI.toast('暫且撤退，回到歷練地圖'); UI.go('map'); return; }
+    if (!win) {
+      S.addExp(this.loot.exp * 0.3); S.save();
+      UI.modal('敗退', `<p class="big">道行尚淺，暫避鋒芒</p><p class="note" style="text-align:center">回洞府修煉、煉丹、精進功法與法寶後再來。<br>本次保留三成修為 +${U.fmt(this.loot.exp * 0.3)}</p>
+        <div class="row center"><button class="seal" id="eHome">回洞府</button><button class="seal ghost sm" id="eAgain">再戰</button></div>`,
+        { '#eHome': () => { UI.close(); UI.go('home'); }, '#eAgain': () => { UI.close(); this.start(R.id, this.idx); } });
+      return;
+    }
+    // 結算
+    S.addExp(this.loot.exp); S.add('stone', this.loot.stone);
+    const got = [];
+    for (const [id, pr, a, b] of DROPS[R.id]) if (U.chance(pr * (first ? 1.5 : 1))) { const n = U.randi(a, b); S.add(id, n); got.push(`${ico(id)}<span>${ITEMS[id].name} ×${n}</span>`); }
+    // 秘境妖將掉落兵器
+    if (this.st.waves.some((w) => MONSTERS[w.replace('*', '')].boss)) {
+      const wid = first && !S.d.weapons[BOSS_WEAPON.first] ? BOSS_WEAPON.first : U.chance(BOSS_WEAPON.rareP) ? BOSS_WEAPON.rare : null;
+      if (wid) {
+        const w = WEAPONS.find((x) => x.id === wid), note = S.gainWeapon(wid), sub = S.subNotice(wid);
+        got.push(`<i class="ico" style="--c:${WTIERS[w.tier].color}">兵</i><span style="color:${WTIERS[w.tier].color}">${note || `${w.name}（${WTIERS[w.tier].name}）`}${sub ? '<small class="subnote">已放入副手，可到法寶頁與主手互換</small>' : ''}</span>`);
+        if (sub) setTimeout(() => UI.toast(sub, WTIERS[w.tier].color), 400);
+      }
+    }
+    S.d.cleared[key] = (S.d.cleared[key] || 0) + 1;
+    const lastStage = this.idx === R.stages.length - 1;
+    S.save();
+    Audio2.play('up');
+    UI.modal(first ? '初勝' : '得勝', `<p class="big">${this.st.name}</p>
+      <div class="list"><div class="li"><i class="ico" style="--c:#f2dc94">修</i><div><h4>修為 +${U.fmt(this.loot.exp)}</h4></div><span></span></div>
+      <div class="li">${ico('stone')}<div><h4>靈石 +${U.fmt(this.loot.stone)}</h4></div><span></span></div>
+      ${got.map((g) => `<div class="li">${g.split('</i>')[0]}</i><div><h4>${g.split('</i>')[1]}</h4></div><span></span></div>`).join('')}</div>
+      <div class="row center"><button class="seal" id="wNext">${lastStage ? '返回' : '下一關'}</button><button class="seal ghost sm" id="wHome">洞府</button></div>`,
+      {
+        '#wNext': () => { UI.close(); if (!Story.afterClear(R.id, this.idx, first)) { if (lastStage) UI.stages(R.id); else this.start(R.id, this.idx + 1, true); } },
+        '#wHome': () => { UI.close(); if (!Story.afterClear(R.id, this.idx, first)) UI.go('home'); },
+      });
+  },
+};

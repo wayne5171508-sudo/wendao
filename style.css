@@ -1,0 +1,609 @@
+:root {
+  --ink: #0b121c; --ink2: #121c29; --paper: #e9e4d6; --dim: #93a0a8; --gold: #d8c48a; --gold2: #f2e2b0; --goldline: rgba(216,196,138,.42);
+  --cinnabar: #b3261e; --cinnabar2: #d8443a; --qi: #8fd6e8;
+  --brush: "LXGW WenKai TC","Kaiti TC","STKaiti","BiauKai","DFKai-SB","Songti TC",serif;
+  --serif: "Songti TC","Noto Serif TC","PMingLiU",serif;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #05080d; color: var(--paper); font-family: var(--serif); -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+button { font-family: var(--brush); color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
+.hidden { display: none !important; }
+
+/* ───── 版面：直式上下疊、橫式左右並排 ───── */
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: var(--ink); }
+#scene { position: relative; overflow: hidden; min-height: 0; }
+#controls { position: relative; display: flex; flex-direction: column; min-height: 0; max-height: 58vh; background: linear-gradient(#101925, #0b121c); border-top: 1px solid var(--goldline); }
+#ctrlContent { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 8px; }
+@media (orientation: landscape) {
+  #app { grid-template-rows: none; grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr); }
+  #controls { max-height: none; border-top: none; border-left: 1px solid var(--goldline); }
+}
+#app.title-mode, #app.story-mode { grid-template-rows: 1fr 0; grid-template-columns: 1fr 0; }
+#app.title-mode #controls, #app.story-mode #controls, #app.title-mode #hud, #app.story-mode #hud { display: none; }
+
+.bg { position: absolute; inset: 0; background: center / cover no-repeat; transition: opacity 1s ease; }
+.bg.grade-wild { filter: brightness(.82); }
+.bg.grade-realm { filter: brightness(.78); }
+.bg.grade-dim { filter: brightness(.55) saturate(.8); }
+#scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 55%, transparent 55%, rgba(4,7,12,.55)); }
+#sceneContent { position: absolute; inset: 0; }   /* 不設 z-index：讓光環、法相的螢幕混色能疊到背景圖上 */
+#fx { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+
+/* ───── 頂部狀態 ───── */
+#hud { position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: flex; justify-content: space-between; align-items: center; padding: max(10px, env(safe-area-inset-top)) 12px 18px; background: linear-gradient(rgba(5,8,14,.78), rgba(5,8,14,0)); }
+#hudRealm { display: flex; gap: 8px; align-items: center; }
+#hudRealm b { display: block; font-family: var(--brush); font-size: 19px; color: var(--gold2); letter-spacing: 2px; text-shadow: 0 1px 3px #000; }
+#hudRealm small { display: block; font-size: 11px; color: var(--dim); }
+#hudRes { display: flex; align-items: center; gap: 10px; }
+#hudRes span { display: flex; align-items: center; gap: 5px; font-family: var(--brush); font-size: 16px; color: var(--paper); text-shadow: 0 1px 3px #000; }
+.seal-sm { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--brush); font-size: 18px; font-weight: 700; color: #fff4ea; background: var(--cinnabar); border-radius: 3px; box-shadow: inset 0 0 0 2px var(--cinnabar), inset 0 0 0 3px rgba(255,230,210,.5); transform: rotate(-3deg); }
+.ico { display: inline-flex; width: 22px; height: 22px; border-radius: 50%; align-items: center; justify-content: center; font-style: normal; font-family: var(--brush); font-size: 12px; font-weight: 700; color: #0b121c; background: radial-gradient(circle at 35% 30%, #fff, var(--c) 55%, rgba(0,0,0,.55)); box-shadow: 0 0 8px var(--c); flex: none; }
+.sealBtn { width: 38px; height: 38px; border: 2px solid var(--cinnabar2); color: var(--cinnabar2); font-size: 19px; font-weight: 700; border-radius: 5px; background: rgba(8,12,20,.55); transform: rotate(-2deg); box-shadow: inset 0 0 0 2px rgba(8,12,20,.8), inset 0 0 0 3px rgba(216,68,58,.4); }
+
+/* ───── 底部印章導覽（拇指區） ───── */
+#nav { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 6px 8px calc(6px + var(--safe-b)); border-top: 1px solid rgba(216,196,138,.2); background: rgba(5,8,14,.6); }
+#nav button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; min-height: 56px; }
+#nav b { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 1.5px solid rgba(216,68,58,.55); color: rgba(216,68,58,.85); border-radius: 4px; transition: background .2s, color .2s; }
+#nav small { font-size: 11px; color: var(--dim); font-family: var(--serif); }
+#nav button.on b { background: var(--cinnabar); color: #fff4ea; border-color: var(--cinnabar); box-shadow: inset 0 0 0 2px var(--cinnabar), inset 0 0 0 3px rgba(255,230,210,.5); transform: rotate(-3deg); }
+#nav button.on small { color: var(--gold2); }
+#nav button.locked { opacity: .3; pointer-events: none; }
+#nav button .dot { position: absolute; }
+
+/* ───── 主要印章按鈕 ───── */
+.seal { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 96px; min-height: 64px; padding: 10px 20px; font-size: 24px; font-weight: 700; letter-spacing: .2em; color: #fff4ea; border-radius: 6px;
+  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.1), transparent 55%), var(--cinnabar);
+  box-shadow: inset 0 0 0 3px var(--cinnabar), inset 0 0 0 5px rgba(255,230,210,.55), 0 6px 18px rgba(0,0,0,.55); transform: rotate(-2deg); transition: transform .15s, filter .15s; }
+.seal::after { content: ""; position: absolute; inset: 0; border-radius: 6px; pointer-events: none; background: radial-gradient(circle at 15% 80%, rgba(0,0,0,.2) 0 3px, transparent 4px), radial-gradient(circle at 82% 22%, rgba(0,0,0,.16) 0 2px, transparent 3px), radial-gradient(circle at 60% 88%, rgba(255,255,255,.12) 0 2px, transparent 3px); }
+.seal small { font-family: var(--serif); font-size: 12px; letter-spacing: 1px; font-weight: 400; opacity: .9; margin-top: 2px; }
+.seal:active { transform: rotate(0) scale(.96); }
+.seal:disabled { filter: grayscale(.85) brightness(.55); }
+.seal.ghost { background: rgba(8,12,20,.5); color: var(--cinnabar2); box-shadow: inset 0 0 0 2px var(--cinnabar2), inset 0 0 0 4px rgba(8,12,20,.8), inset 0 0 0 5px rgba(216,68,58,.45); }
+.seal.sm { min-width: 58px; min-height: 44px; padding: 6px 12px; font-size: 18px; letter-spacing: .1em; }
+.seal.glow { animation: sealGlow 1.3s ease-in-out infinite alternate; }
+@keyframes sealGlow { to { filter: drop-shadow(0 0 14px rgba(255,200,140,.85)); } }
+
+/* ───── 洞府 ───── */
+.hero-stage { position: absolute; left: 50%; bottom: 4%; height: 64%; transform: translateX(-50%); display: flex; align-items: flex-end; justify-content: center; }
+.hero-stage img { height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.6)); animation: breathe 4.2s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes breathe { 50% { transform: translateY(-4px) scale(1.008); } }
+.aura { position: absolute; left: 50%; bottom: 6%; width: 120%; aspect-ratio: 1; transform: translate(-50%, 25%); border-radius: 50%; background: radial-gradient(circle, rgba(143,214,232,.32), rgba(143,214,232,0) 60%); animation: auraPulse 3s ease-in-out infinite; pointer-events: none; }
+@keyframes auraPulse { 50% { opacity: .55; transform: translate(-50%, 25%) scale(1.06); } }
+.cult { display: grid; gap: 10px; }
+.cult-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.cult-head h2 { margin: 0; font-family: var(--brush); font-size: 26px; color: var(--gold2); letter-spacing: 3px; }
+.cult-head span { font-size: 13px; color: var(--qi); white-space: nowrap; }
+.bar { position: relative; height: 14px; border: 1px solid var(--goldline); background: linear-gradient(#04070c, #0d141e); }
+.bar::before, .bar::after { content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; background: var(--gold); transform: rotate(45deg); z-index: 2; }
+.bar::before { left: -4px; } .bar::after { right: -4px; }
+.bar > i { position: absolute; left: 0; top: 0; bottom: 0; transition: width .3s; }
+.bar > i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(255,255,255,.28), transparent 50%, rgba(0,0,0,.2)); }
+.bar > span { position: absolute; inset: 0; font-size: 10px; line-height: 13px; text-align: center; font-family: system-ui, sans-serif; text-shadow: 0 1px 2px #000; z-index: 1; }
+.bar.xp > i { background: linear-gradient(90deg, #5d4a1c, #c9a24a 70%, #f2dc94); box-shadow: 0 0 10px rgba(230,200,120,.5); }
+.bar.hp > i { background: linear-gradient(90deg, #5e1018, #c23a44); }
+.bar.mp > i { background: linear-gradient(90deg, #0f3460, #3f8fd0); }
+.bar.boss > i { background: linear-gradient(90deg, #4a0710, #c0283c 70%, #ff6a7a); }
+.row { display: flex; gap: 10px; align-items: center; }
+.row.center { justify-content: center; }
+.row.spread { justify-content: space-between; }
+.note { font-size: 13px; color: var(--dim); line-height: 1.6; margin: 0; }
+.primary-zone { display: flex; justify-content: center; align-items: center; gap: 14px; padding: 6px 0 2px; }
+.stats-line { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.stats-line div { font-size: 11px; color: var(--dim); }
+.stats-line b { display: block; font-family: var(--brush); font-size: 17px; color: var(--paper); font-weight: 400; }
+
+/* ───── 清單（卷軸條列，不用卡片格） ───── */
+.list { display: grid; }
+.li { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px 2px; border-bottom: 1px solid rgba(216,196,138,.14); }
+.li:last-child { border-bottom: none; }
+.li h4 { margin: 0 0 2px; font-family: var(--brush); font-size: 19px; color: var(--gold2); font-weight: 400; letter-spacing: 1px; }
+.li h4 em { font-style: normal; font-family: var(--serif); font-size: 12px; color: var(--dim); margin-left: 8px; letter-spacing: 0; }
+.li p { margin: 0; font-size: 12.5px; color: var(--dim); line-height: 1.5; }
+.li .ico { width: 38px; height: 38px; font-size: 16px; }
+.li.locked { opacity: .45; }
+.li.done h4::after { content: "  ✓"; color: #9fe8b8; font-size: 14px; }
+.mat { display: inline-block; font-size: 12px; margin: 4px 6px 0 0; padding: 1px 7px; color: #b8f0c8; border: 1px solid rgba(184,240,200,.3); }
+.mat.lack { color: #ff9a9a; border-color: rgba(255,120,120,.3); }
+.sec-title { display: flex; align-items: center; gap: 10px; margin: 4px 0 6px; font-family: var(--brush); font-size: 22px; color: var(--gold2); letter-spacing: 6px; }
+.sec-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--goldline), transparent); }
+.tabs { display: flex; gap: 8px; margin-bottom: 6px; }
+.tabs button { flex: 1; padding: 8px 0; font-size: 16px; color: var(--dim); border-bottom: 2px solid transparent; }
+.tabs button.on { color: var(--gold2); border-color: var(--cinnabar2); }
+
+/* ───── 地圖 ───── */
+.region { position: relative; display: block; width: 100%; height: 92px; margin-bottom: 10px; border: 1px solid var(--goldline); background: center / cover no-repeat; text-align: left; overflow: hidden; }
+.region::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(5,8,14,.9), rgba(5,8,14,.35) 70%, rgba(5,8,14,.15)); }
+.region > * { position: relative; }
+.region h4 { margin: 14px 0 2px 16px; font-family: var(--brush); font-size: 26px; color: #f4efe0; font-weight: 400; letter-spacing: 6px; text-shadow: 0 2px 4px #000; }
+.region p { margin: 0 0 0 16px; font-family: var(--serif); font-size: 12.5px; color: var(--gold); }
+.region .prog { position: absolute; right: 14px; bottom: 10px; font-family: var(--serif); font-size: 12px; color: var(--paper); }
+.region.locked { filter: grayscale(1) brightness(.55); pointer-events: none; }
+.region.locked .prog::before { content: "未解鎖　"; }
+.region.cur { box-shadow: 0 0 0 1px var(--gold2), 0 0 16px rgba(242,226,176,.3); }
+
+/* ───── 戰鬥 ───── */
+.mon { position: absolute; left: 50%; top: 9%; height: 52%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.mon img { height: 100%; filter: drop-shadow(0 12px 22px rgba(0,0,0,.7)); animation: monIdle 2.6s ease-in-out infinite; transform-origin: 50% 100%; transition: filter .08s; }
+.mon.boss { height: 60%; top: 6%; }
+.mon.hit img { filter: brightness(2.6) drop-shadow(0 0 18px #fff); }
+.mon.dead img { animation: monDie .7s ease-in forwards; }
+.mon.enter img { animation: monEnter .5s ease-out; }
+.mon.enrage img { filter: drop-shadow(0 0 22px rgba(255,40,50,.85)) drop-shadow(0 12px 22px rgba(0,0,0,.7)); }
+@keyframes monIdle { 50% { transform: translateY(-6px) scale(1.01); } }
+@keyframes monDie { to { opacity: 0; transform: translateY(20px) scale(.92); filter: brightness(0) blur(6px); } }
+@keyframes monEnter { from { opacity: 0; transform: translateY(-24px) scale(.94); filter: blur(6px); } }
+.mon-hud { position: absolute; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 52px); width: min(78%, 360px); transform: translateX(-50%); z-index: 3; text-align: center; }
+.mon-hud h5 { margin: 0 0 4px; font-family: var(--brush); font-size: 19px; color: #ffb0b0; letter-spacing: 3px; font-weight: 400; text-shadow: 0 1px 4px #000; }
+.mon-hud h5 em { font-style: normal; font-size: 12px; color: var(--gold); margin-left: 6px; }
+.charge { margin-top: 6px; height: 6px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,90,90,.6); }
+.charge i { display: block; height: 100%; background: linear-gradient(90deg, #ff4a4a, #ffb08a); }
+.charge-tip { display: inline-block; font-size: 13px; color: #ffb4b4; margin-top: 5px; padding: 3px 10px; font-family: var(--brush); background: rgba(40,6,8,.78); border: 1px solid rgba(255,90,90,.45); border-radius: 3px; }
+.hero-b { position: absolute; left: 50%; bottom: -2%; height: 40%; transform: translateX(-50%); }
+.hero-b img { height: 100%; filter: drop-shadow(0 6px 14px rgba(0,0,0,.7)); transform-origin: 50% 100%; }
+.hero-b.atk img { animation: lunge .22s ease-out; }
+@keyframes lunge { 40% { transform: translateY(-16%) scale(.97); } }
+.hero-b.hurt img { animation: hurt .25s; }
+@keyframes hurt { 30% { transform: translateX(-6px); filter: brightness(1.8) sepia(1) hue-rotate(-40deg) saturate(4); } 70% { transform: translateX(5px); } }
+.shield { position: absolute; left: 50%; bottom: 0; width: 64%; aspect-ratio: .8; transform: translateX(-50%); border-radius: 50%; border: 2px solid rgba(143,240,216,.7); background: radial-gradient(circle, rgba(143,240,216,.06), rgba(143,240,216,.18)); box-shadow: 0 0 22px rgba(143,240,216,.5); animation: shieldPulse 1s ease-in-out infinite alternate; }
+@keyframes shieldPulse { to { box-shadow: 0 0 34px rgba(143,240,216,.8); } }
+.bstat { display: grid; gap: 6px; }
+.bstat .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); }
+.skills { display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); gap: 10px; padding: 8px 2px 4px; }
+.skill { position: relative; aspect-ratio: 1; max-width: 84px; justify-self: center; width: 100%; border-radius: 50%; font-size: 26px; color: var(--c); font-weight: 700;
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.08), #0a111b 70%); border: 1px solid rgba(216,196,138,.6);
+  box-shadow: 0 0 0 3px rgba(8,13,21,.85), 0 0 0 4px rgba(216,196,138,.28), 0 4px 14px rgba(0,0,0,.6); }
+.skill b { position: relative; z-index: 1; text-shadow: 0 0 12px var(--c); }
+.skill small { position: absolute; left: 0; right: 0; bottom: -18px; font-family: var(--serif); font-size: 11px; color: var(--dim); font-weight: 400; }
+.skill .cd { position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: conic-gradient(rgba(4,7,12,.8) var(--p, 0deg), transparent 0); }
+.skill .cdt { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; font-family: system-ui; font-size: 16px; color: #fff; text-shadow: 0 0 4px #000; }
+.skill.ready { border-color: var(--c); box-shadow: 0 0 0 3px rgba(8,13,21,.85), 0 0 0 4px var(--c), 0 0 16px var(--c); }
+.skill.nomp b { opacity: .35; }
+.skill.locked { background: #121820; color: #4a5562; border-color: rgba(120,130,140,.4); box-shadow: none; }
+.skill.locked b { text-shadow: none; }
+.battle-top { position: absolute; left: 12px; top: calc(max(10px, env(safe-area-inset-top))); z-index: 4; display: flex; gap: 8px; align-items: center; }
+.wave-tag { font-family: var(--brush); font-size: 14px; color: var(--gold2); text-shadow: 0 1px 3px #000; }
+
+/* ───── 煉丹 ───── */
+
+/* ───── 法寶 ───── */
+.slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+.slot-box { text-align: center; padding: 10px 4px; border: 1px solid var(--goldline); background: rgba(5,8,14,.4); }
+.slot-box small { display: block; font-size: 11px; color: var(--dim); }
+.slot-box b { display: block; font-family: var(--brush); font-size: 16px; font-weight: 400; margin-top: 4px; }
+.tier { font-size: 11px; padding: 0 5px; border: 1px solid currentColor; margin-left: 6px; font-family: var(--serif); font-style: normal; }
+
+/* ───── 對話與劇情 ───── */
+#dlg { position: absolute; left: 50%; bottom: calc(18px + var(--safe-b)); transform: translateX(-50%); width: min(94%, 760px); min-height: 136px; z-index: 6; padding: 22px 22px 18px; background: linear-gradient(rgba(10,16,28,.94), rgba(6,10,18,.96)); border-top: 1px solid var(--goldline); border-bottom: 1px solid var(--goldline); box-shadow: 0 10px 30px rgba(0,0,0,.6); cursor: pointer; }
+#dlgName { position: absolute; top: -16px; left: 16px; padding: 3px 14px; font-family: var(--brush); font-size: 18px; font-weight: 700; color: #fff4ea; background: var(--cinnabar); box-shadow: inset 0 0 0 2px var(--cinnabar), inset 0 0 0 3px rgba(255,230,210,.5); letter-spacing: 3px; transform: rotate(-1.5deg); }
+#dlgName:empty { display: none; }
+#dlgText { font-family: var(--brush); font-size: clamp(17px, 4.4vw, 21px); line-height: 1.75; letter-spacing: 1px; color: #f1ede2; min-height: 3.5em; }
+#dlg.narr #dlgText { text-align: center; font-size: clamp(18px, 4.8vw, 23px); color: #dfe8ee; }
+#dlgNext { position: absolute; right: 16px; bottom: 8px; font-style: normal; font-size: 12px; color: var(--gold); animation: bob 1s infinite alternate; }
+@keyframes bob { to { transform: translateY(4px); } }
+@keyframes swirl { to { transform: rotate(360deg); } }
+.char { transition: opacity .3s, filter .3s; }
+.char.listen { opacity: 1; filter: saturate(.55) brightness(.48); }
+.char { position: absolute; bottom: 0; height: 62%; transition: opacity .6s; }
+.char img { height: 100%; filter: drop-shadow(0 8px 16px rgba(0,0,0,.6)); }
+.card { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse, rgba(10,16,28,.88), rgba(2,4,8,.97)); animation: cardIn 3.2s ease forwards; pointer-events: none; }
+.card b { font-family: var(--brush); font-size: clamp(30px, 8vw, 54px); letter-spacing: .4em; color: var(--gold2); text-shadow: 0 0 26px rgba(216,196,138,.6); font-weight: 400; }
+.card span { margin-top: 14px; padding: 6px 30px; font-family: var(--brush); font-size: clamp(24px, 6.5vw, 42px); letter-spacing: .3em; border-top: 1px solid var(--goldline); border-bottom: 1px solid var(--goldline); }
+@keyframes cardIn { 0% { opacity: 0; } 15% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ───── 標題 ───── */
+.tlogo { position: absolute; top: 8%; right: 9%; display: flex; flex-direction: row-reverse; gap: 14px; }
+.tlogo h1 { margin: 0; writing-mode: vertical-rl; font-family: var(--brush); font-weight: 700; font-size: clamp(54px, 11vh, 110px); letter-spacing: .12em; color: #f4f6f2; line-height: 1; }
+.tlogo h1 span { display: inline-block; opacity: 0; filter: blur(12px); text-shadow: 0 0 22px rgba(170,220,255,.55), 3px 4px 0 rgba(0,0,0,.35); animation: ink 2.2s cubic-bezier(.2,.7,.2,1) forwards; }
+.tlogo h1 span:nth-child(2) { animation-delay: .4s; } .tlogo h1 span:nth-child(3) { animation-delay: .8s; } .tlogo h1 span:nth-child(4) { animation-delay: 1.2s; }
+@keyframes ink { 0% { opacity: 0; filter: blur(14px); transform: scale(1.2); } 100% { opacity: 1; filter: blur(0); transform: none; } }
+.tlogo p { writing-mode: vertical-rl; margin: 1em 0 0; font-family: var(--brush); font-size: clamp(15px, 2.4vh, 22px); letter-spacing: .5em; color: var(--gold); opacity: 0; animation: fadeIn 2s 2s forwards; text-shadow: 0 1px 6px #000; }
+@keyframes fadeIn { to { opacity: 1; } }
+.tbtns { position: absolute; left: 8%; bottom: calc(10% + var(--safe-b)); display: flex; gap: 18px; align-items: flex-end; opacity: 0; animation: fadeIn 1.4s 2.4s forwards; }
+.tbtns .seal { width: 104px; height: 104px; padding: 0; font-size: 34px; writing-mode: vertical-rl; letter-spacing: .05em; }
+.tbtns .seal.ghost { width: 86px; height: 86px; font-size: 28px; }
+.tbtns .cap { position: absolute; bottom: -24px; left: 0; right: 0; text-align: center; writing-mode: horizontal-tb; font-family: var(--serif); font-size: 12px; letter-spacing: 3px; color: var(--gold2); text-shadow: 0 1px 4px #000; transform: rotate(2deg); }
+#saveInfo { position: absolute; left: 0; top: -30px; white-space: nowrap; font-size: 12px; color: var(--dim); text-shadow: 0 1px 4px #000; }
+@media (orientation: landscape) { .tlogo { right: auto; left: 9%; } .tbtns { left: 34%; bottom: calc(12% + var(--safe-b)); } }
+
+/* ───── 卷軸彈窗 ───── */
+#modal { position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(3,5,9,.66); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.scroll { position: relative; width: min(100%, 440px); max-height: 86%; display: flex; flex-direction: column; padding: 22px 20px 20px; background: linear-gradient(#0d1520, #141e2b); box-shadow: inset 0 0 0 1px var(--goldline), inset 0 0 0 5px rgba(8,13,21,.9), inset 0 0 0 6px rgba(216,196,138,.18), 0 0 50px rgba(0,0,0,.8); animation: unroll .4s cubic-bezier(.2,.8,.2,1); }
+@keyframes unroll { from { clip-path: inset(48% 0 48% 0); } to { clip-path: inset(0); } }
+.scroll .roller { position: absolute; left: -8px; right: -8px; height: 14px; border-radius: 7px; background: linear-gradient(#5a3a20, #8a6034 45%, #3a2412); }
+.scroll .roller:first-child { top: -6px; } .scroll .roller:last-child { bottom: -6px; }
+#mTitle { margin: 0 0 10px; text-align: center; font-family: var(--brush); font-size: 26px; letter-spacing: 10px; color: var(--gold2); font-weight: 400; }
+#mBody { overflow-y: auto; font-size: 14px; line-height: 1.7; }
+#mBody .big { font-family: var(--brush); font-size: 22px; text-align: center; color: var(--paper); margin: 6px 0; }
+#mBody .row { margin-top: 14px; }
+
+/* ───── 提示 ───── */
+#toasts { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); z-index: 9; display: grid; gap: 6px; justify-items: center; width: 92%; pointer-events: none; }
+.toast { padding: 7px 30px; font-family: var(--brush); font-size: 16px; background: linear-gradient(90deg, transparent, rgba(6,10,18,.9) 15%, rgba(6,10,18,.9) 85%, transparent); border-top: 1px solid rgba(216,196,138,.3); border-bottom: 1px solid rgba(216,196,138,.3); text-align: center; animation: toastIn .3s ease; transition: opacity .5s; }
+.toast.out { opacity: 0; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(-8px); } }
+.banner { position: absolute; left: 0; right: 0; top: 30%; z-index: 5; text-align: center; pointer-events: none; animation: banner 3.4s ease forwards; }
+.banner b { display: block; font-family: var(--brush); font-size: clamp(34px, 9vw, 64px); letter-spacing: .3em; color: #f8f0d4; text-shadow: 0 0 28px rgba(216,196,138,.75), 0 2px 4px #000; font-weight: 700; }
+.banner span { display: inline-block; margin-top: 8px; padding: 4px 26px; font-size: 14px; letter-spacing: 3px; border-top: 1px solid var(--goldline); color: #dfe6ea; text-shadow: 0 1px 3px #000; }
+@keyframes banner { 0% { opacity: 0; transform: scale(1.15); filter: blur(8px); } 12% { opacity: 1; transform: none; filter: none; } 78% { opacity: 1; } 100% { opacity: 0; } }
+#fade { position: absolute; inset: 0; z-index: 10; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s; }
+#fade.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* 直式標題：把山巔宮闕推到畫面偏左，讓右側直書標題不壓圖 */
+@media (orientation: portrait) { #app.title-mode .bg { background-position: 97% 42% !important; } }
+/* 捲軸內的捲動條：細墨線，不出現系統白條 */
+#mBody, #ctrlContent { scrollbar-width: thin; scrollbar-color: rgba(216,196,138,.35) transparent; overflow-x: hidden; }
+#mBody::-webkit-scrollbar, #ctrlContent::-webkit-scrollbar { width: 4px; }
+#mBody::-webkit-scrollbar-thumb, #ctrlContent::-webkit-scrollbar-thumb { background: rgba(216,196,138,.35); border-radius: 2px; }
+#mBody::-webkit-scrollbar-track, #ctrlContent::-webkit-scrollbar-track { background: transparent; }
+#mBody { padding: 4px 6px 10px; }
+/* 清單畫面：控制區拉高，畫作留在上方三分之一 */
+@media (orientation: portrait) { #app.tall #controls { max-height: 68vh; height: 68vh; } }
+/* 戰鬥中改用戰鬥自己的頂列，避免與 HUD 重疊 */
+#app.fighting #hud { display: none; }
+#app.fighting .battle-top { padding: 4px 10px 4px 4px; background: linear-gradient(90deg, rgba(5,8,14,.7), rgba(5,8,14,0)); border-radius: 4px; }
+/* 亮背景時 HUD 副標不被吃掉 */
+#hudRoot { text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+
+/* ───── 補充素材：打坐、施法、NPC 立繪 ───── */
+.hero-stage.sit { height: 46%; bottom: 27%; }
+.hero-stage.sit img { animation-duration: 5.5s; }
+.hero-stage.cast { height: 76%; bottom: 0; }
+.hero-stage.cast img { animation: none; filter: drop-shadow(0 10px 18px rgba(0,0,0,.6)); }
+.hero-stage.gear { left: 40%; }
+.char.npc { right: 2%; left: auto; }
+.char { z-index: 2; }
+.char.listen { z-index: 1; }
+@media (orientation: portrait) { #app.story-mode .char { height: 52%; } #app.story-mode .char.hero { left: -2% !important; } #app.story-mode .char.npc { right: -4%; } }
+.char.npc.enter img { animation: npcIn .45s ease-out; }
+@keyframes npcIn { from { opacity: 0; transform: translateX(24px); } }
+.cutin { position: absolute; left: -12%; bottom: 2%; height: 58%; z-index: 4; pointer-events: none; animation: cutin .9s cubic-bezier(.2,.8,.2,1) forwards; }
+.cutin::before { content: ""; position: absolute; left: -10%; right: -40%; top: 28%; bottom: 18%; background: linear-gradient(90deg, rgba(5,8,14,0), rgba(5,8,14,.55) 30%, rgba(5,8,14,0)); border-top: 1px solid var(--c); border-bottom: 1px solid var(--c); transform: skewY(-6deg); }
+.cutin img { position: relative; height: 100%; filter: drop-shadow(0 0 18px var(--c)); }
+@keyframes cutin { 0% { opacity: 0; transform: translateX(-40%); } 18% { opacity: 1; transform: translateX(0); } 70% { opacity: 1; transform: translateX(4%); } 100% { opacity: 0; transform: translateX(10%); } }
+.hero-b.yi img { filter: drop-shadow(0 0 16px #ffcf7a) drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
+
+/* ───── 兵器：五階顏色與邊框（白、綠、藍、紫金、赤金） ───── */
+.wframe { position: relative; width: 52px; height: 52px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 2px solid var(--e, rgba(216,196,138,.3)); border-radius: 4px; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c, #333) 28%, transparent), rgba(5,8,14,.9) 72%); box-shadow: inset 0 0 0 2px rgba(5,8,14,.9), 0 0 8px color-mix(in srgb, var(--c, transparent) 45%, transparent); overflow: hidden; }
+.wframe img { height: 88%; transform: rotate(calc(var(--r) + 35deg)); filter: drop-shadow(0 0 4px var(--c)); }
+.wframe.t3, .wframe.t4 { border-image: linear-gradient(135deg, var(--c), var(--e), var(--c)) 1; }
+.wframe.t4 { box-shadow: inset 0 0 0 2px rgba(5,8,14,.9), 0 0 14px var(--c), 0 0 4px var(--e); }
+.wframe.unknown img { filter: brightness(0) drop-shadow(0 0 1px rgba(255,255,255,.4)); opacity: .7; }
+.wslots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 8px; }
+.wslot { display: flex; align-items: center; gap: 10px; padding: 8px; text-align: left; border: 1px solid var(--goldline); background: rgba(5,8,14,.4); min-height: 68px; }
+.wslot small { display: block; font-family: var(--serif); font-size: 11px; color: var(--dim); }
+.wslot b { display: block; font-size: 17px; font-weight: 400; }
+.wslot.empty b { color: #5a6470; }
+.wfx { font-weight: 400; font-family: var(--brush); }
+.qstate { font-size: 12px; color: var(--dim); white-space: nowrap; }
+.tabs button { position: relative; min-height: 44px; }
+.pip { position: absolute; top: 4px; right: 18%; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; font: 700 10px/16px system-ui; font-style: normal; color: #fff; background: var(--cinnabar2); }
+#nav button { position: relative; }
+#nav button.badge b::after { content: ""; position: absolute; top: 4px; right: calc(50% - 22px); width: 8px; height: 8px; border-radius: 50%; background: var(--cinnabar2); box-shadow: 0 0 6px var(--cinnabar2); }
+.wshow { position: relative; height: 210px; display: flex; align-items: center; justify-content: center; }
+.wshow.sm { height: 150px; }
+.wshow::before { content: ""; position: absolute; width: 170px; height: 170px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--c) 45%, transparent), transparent 68%); }
+.wshow.t3::after, .wshow.t4::after { content: ""; position: absolute; width: 180px; height: 180px; border-radius: 50%; border: 1px solid var(--e); box-shadow: 0 0 20px var(--c); animation: swirl 9s linear infinite; border-style: dashed; }
+.wshow img { position: relative; height: 92%; transform: rotate(calc(var(--r) + 20deg)); filter: drop-shadow(0 0 12px var(--c)); z-index: 1; }
+/* 兵器光效：環繞主角的光暈與粒子 */
+.waura { position: absolute; inset: -6% -30%; z-index: -1; pointer-events: none; }
+.wglow { position: absolute; inset: 10% -10%; border-radius: 50%; }
+.wring { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: scaleY(2.1); }
+.wring i { position: absolute; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c), 0 0 2px #fff; animation: orbit var(--d) linear infinite; }
+@keyframes orbit { from { transform: rotate(var(--a)) translateX(var(--orb, 90px)); } to { transform: rotate(calc(var(--a) + 360deg)) translateX(var(--orb, 90px)); } }
+@keyframes wbob { 50% { transform: translateY(-10px); } }
+.waura.t1 .wglow { background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--c) 22%, transparent), transparent 65%); }
+.waura.t2 .wglow { background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--c) 32%, transparent), transparent 65%); animation: auraPulse2 2.6s ease-in-out infinite; }
+.waura.t3 .wglow { background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--e) 30%, transparent), color-mix(in srgb, var(--c) 20%, transparent) 40%, transparent 68%); animation: auraPulse2 2.2s ease-in-out infinite; }
+.waura.t4 .wglow { inset: -10% -50%; background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--e) 22%, transparent), color-mix(in srgb, var(--c) 10%, transparent) 50%, transparent); filter: blur(6px); animation: auraPulse2 1.6s ease-in-out infinite; }
+.waura.t4 .wring i { width: 6px; height: 6px; background: #ffd76a; box-shadow: 0 0 10px #ff6a4a, 0 0 3px #fff; }
+@keyframes auraPulse2 { 50% { opacity: .55; transform: scale(1.08); } }
+.heaven { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 70% -10%, rgba(255,90,50,.42), rgba(255,180,80,.12) 40%, transparent 70%); mix-blend-mode: screen; animation: auraPulse2 4s ease-in-out infinite; }
+/* 卷軸開啟時提示改到下方，不壓標題 */
+#modal:not(.hidden) ~ #toasts { top: auto; bottom: 7%; }
+/* 橫式對話：對話框收窄置中，立繪放大站在兩側 */
+@media (orientation: landscape) {
+  #app.story-mode .char { height: 92%; }
+  #app.story-mode .char.hero { left: 1% !important; }
+  #app.story-mode .char.npc { right: 1%; }
+  #dlg { width: min(60%, 760px); }
+}
+/* 佩劍立繪：劍光疊在劍身／劍柄上 */
+.hfig { position: relative; height: 100%; }
+.hfig > img { height: 100%; display: block; }
+.char .hfig > img { filter: drop-shadow(0 8px 16px rgba(0,0,0,.6)); }
+.hero-stage .hfig > img { animation: none; }
+.hero-stage.gear .hfig { animation: breathe 4.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.hero-stage.gear { left: 50%; height: 84%; bottom: 0; }
+.hfig .waura { --orb: 70px; }
+.blade { position: absolute; height: 5px; margin-top: -2.5px; transform-origin: 0 50%; border-radius: 3px; pointer-events: none; mix-blend-mode: screen; background: linear-gradient(90deg, transparent, var(--c) 12%, #fff 45%, var(--c) 80%, transparent); opacity: .55; filter: blur(1.5px); }
+.hfig.t1 .blade { opacity: .75; box-shadow: 0 0 8px 1px var(--c); }
+.hfig.t2 .blade, .hfig.t3 .blade, .hfig.t4 .blade { opacity: .95; box-shadow: 0 0 12px 3px var(--c); animation: bladeGlow 1.8s ease-in-out infinite; }
+.hfig.t3 .blade { box-shadow: 0 0 12px 3px var(--c), 0 0 22px 6px color-mix(in srgb, var(--e) 55%, transparent); }
+.hfig.t4 .blade { height: 7px; margin-top: -3.5px; box-shadow: 0 0 14px 4px var(--c), 0 0 28px 8px color-mix(in srgb, var(--e) 60%, transparent); }
+.blade::after { content: ""; position: absolute; top: -2px; bottom: -2px; width: 22%; left: -22%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent); filter: blur(1px); }
+.hfig.t2 .blade::after, .hfig.t3 .blade::after, .hfig.t4 .blade::after { animation: bladeSweep 2.4s ease-in-out infinite; }
+@keyframes bladeGlow { 50% { opacity: .6; } }
+@keyframes bladeSweep { 0% { left: -22%; } 60%, 100% { left: 100%; } }
+.hilt { position: absolute; width: 26px; height: 26px; margin: -13px; border-radius: 50%; pointer-events: none; mix-blend-mode: screen; background: radial-gradient(circle, #fff 0 8%, var(--c) 30%, transparent 70%); opacity: .55; }
+.hfig.t2 .hilt, .hfig.t3 .hilt, .hfig.t4 .hilt { width: 40px; height: 40px; margin: -20px; opacity: .9; animation: bladeGlow 1.8s ease-in-out infinite; }
+.char .hfig .waura { --orb: 60px; }
+.hfig.t2 .wglow { background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--c) 26%, transparent), transparent); }
+.hfig.t3 .wglow { background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--e) 26%, transparent), color-mix(in srgb, var(--c) 22%, transparent) 45%, transparent); }
+.hfig.t4 .wglow { inset: -4% -20%; background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--e) 34%, transparent), color-mix(in srgb, var(--c) 26%, transparent) 45%, transparent); filter: blur(4px); }
+/* 打坐佩劍 */
+.hero-stage.sit .hfig { animation: breathe 5.5s ease-in-out infinite; transform-origin: 50% 100%; }
+/* 戰鬥背影：持劍與起手式兩張疊放，普攻時切換 */
+#heroB { height: 46%; bottom: -1%; aspect-ratio: .74; }
+#heroB .hfig.pose { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); transition: opacity .06s; }
+#heroB .hfig.pose > img { filter: drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
+#heroB .hfig.bstance { opacity: 0; left: 40%; }
+#heroB.strike .hfig.bhold { opacity: 0; }
+#heroB.strike .hfig.bstance { opacity: 1; }
+#heroB .waura { --orb: 80px; }
+#heroB .hfig.bhold { left: 58%; }
+#heroB.strike .hfig.bstance > img { animation: lunge .22s ease-out; }
+/* 全程試玩修正 */
+#toasts { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }            /* 提示放在頂列下方，不壓主角臉 */
+#app.story-mode #toasts, #app.title-mode #toasts { top: 14%; }
+.sealBtn { width: 44px; height: 44px; }
+#controls.busy #ctrlContent, #controls.busy #nav { opacity: .4; transition: opacity .3s; }
+/* 卷軸的按鈕列固定在底部，清單再長也看得到 */
+#mBody > .row:last-child { position: sticky; bottom: -10px; z-index: 2; margin: 10px -6px -10px; padding: 12px 6px 14px; background: linear-gradient(rgba(16,24,35,0), #111a26 30%); }
+/* 新得兵器放入副手：高亮並可一鍵換主手 */
+.wslot.fresh { padding: 6px 6px 6px 8px; gap: 6px; border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); animation: freshGlow 1.6s ease-in-out infinite; }
+.wslot-in { display: flex; align-items: center; gap: 8px; text-align: left; flex: 1; min-width: 0; }
+.wslot-in .wframe { width: 44px; height: 44px; }
+.wslot.fresh .seal.sm { min-width: 48px; padding: 4px 8px; font-size: 14px; letter-spacing: 0; }
+.li.fresh { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 14%, transparent), transparent 70%); box-shadow: inset 3px 0 0 var(--c); }
+@keyframes freshGlow { 50% { box-shadow: 0 0 0 1px var(--c), 0 0 4px color-mix(in srgb, var(--c) 20%, transparent); } }
+.subnote { display: block; font-family: var(--serif); font-size: 12px; color: var(--dim); letter-spacing: 0; }
+.char.gift img { animation: giftIn .8s ease-out; }
+@keyframes giftIn { from { filter: brightness(2.2) drop-shadow(0 0 20px #fff); } }
+.mon.warded img { filter: drop-shadow(0 0 10px rgba(255,60,60,.9)) drop-shadow(0 0 26px rgba(160,0,30,.7)) drop-shadow(0 12px 22px rgba(0,0,0,.7)); }
+.wslot.fresh { padding: 8px; gap: 10px; }
+.fresh-bar { display: flex; align-items: center; gap: 10px; margin: -2px 0 10px; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); background: color-mix(in srgb, var(--c) 10%, rgba(5,8,14,.6)); }
+.fresh-bar p { flex: 1; margin: 0; font-size: 13px; line-height: 1.5; color: var(--paper); }
+.fresh-bar b { color: var(--c); font-weight: 400; font-family: var(--brush); font-size: 15px; margin: 0 2px; }
+.fresh-bar .seal.sm { flex: none; font-size: 15px; letter-spacing: 0; padding: 6px 10px; }
+
+/* ───── 測靈石：各圖層用石碑原圖的百分比座標對齊 ───── */
+.stele { position: absolute; left: 50%; bottom: 0; height: 100%; aspect-ratio: 1168 / 784; transform: translateX(-50%); --lit: 0; }
+.stele > img, .st-glow img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+/* 符文發光：反相後刻痕變亮、石身變暗，螢幕混色只加亮刻痕；外框裁成石碑輪廓，再由下往上揭開 */
+.st-glow { position: absolute; inset: 0; mix-blend-mode: screen; opacity: 0; transition: opacity .5s; clip-path: polygon(50% 5%, 59% 17%, 60% 62%, 58% 70%, 42% 70%, 40% 62%, 41% 17%); }
+.st-glow img { filter: invert(1) contrast(3.6) brightness(.85) sepia(1) hue-rotate(150deg) saturate(6); clip-path: inset(calc(72% - var(--lit) * 68%) 0 0 0); transition: clip-path .4s ease-out; }
+.stele.touch .st-glow { opacity: 1; }
+.st-dusk { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 60%, rgba(8,14,26,.35), rgba(4,8,16,.8)); opacity: 0; transition: opacity 1.2s; }
+.stele.rise .st-dusk { opacity: 1; }
+/* 靈光：先把原圖暗底壓成純黑（螢幕混色下才不會出現灰色邊框），底部漸隱接到石台 */
+.st-light { mix-blend-mode: screen; opacity: 0; filter: brightness(.92) contrast(1.7); -webkit-mask-image: linear-gradient(to top, transparent 24%, #000 34%); mask-image: linear-gradient(to top, transparent 24%, #000 34%); transform-origin: 49% 76%; transition: opacity 1.2s; }
+.stele > .st-light { width: 97%; height: 97%; left: 2.5%; top: .3%; }
+.stele.rise .st-light { opacity: .55; }
+.stele.shoot .st-light { opacity: 1; animation: stShoot 1s cubic-bezier(.2,.8,.2,1) forwards; }
+@keyframes stShoot { from { transform: scaleY(.15); } to { transform: scaleY(1.1); } }
+.st-hand { position: absolute; left: 41.5%; top: 45%; width: 12%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,.95), rgba(150,230,255,.6) 30%, transparent 70%); mix-blend-mode: screen; transition: opacity .4s; z-index: 3; }
+.stele.touch .st-hand { position: absolute; left: 41.5%; top: 45%; width: 12%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,.95), rgba(150,230,255,.6) 30%, transparent 70%); mix-blend-mode: screen; transition: opacity .4s; z-index: 3; }
+/* 走向石碑：由畫面下方往石碑左前方走，越走越遠（縮小）；上下半身分兩層，下半身擺動當作衣袍 */
+.st-hero { position: absolute; left: 50%; bottom: -45%; height: 56%; aspect-ratio: 437 / 1082; transform: translateX(-50%); transition: left 2.2s ease-out, bottom 2.2s ease-out, height 2.2s ease-out, opacity .35s; z-index: 2; }
+.st-hero.arrive { left: 31%; bottom: 23%; height: 40%; }
+.st-hero img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.sh-top { clip-path: inset(0 0 44% 0); }
+.sh-bot { clip-path: inset(56% 0 0 0); transform-origin: 50% 56%; }
+.st-hero.walking { animation: walkBob .5s ease-in-out infinite; }
+.st-hero.walking .sh-bot { animation: robeSwing .5s ease-in-out infinite alternate; }
+@keyframes walkBob { 0%, 100% { translate: 0 0; rotate: -1deg; } 50% { translate: 0 -1.6%; rotate: 1deg; } }
+@keyframes robeSwing { from { transform: skewX(-4deg); } to { transform: skewX(4deg); } }
+/* 手按石碑：側身圖的掌心（圖內 98.8%, 21%）對準石碑左側面 */
+.stele > .st-press { position: absolute; left: 24.15%; top: 36.6%; width: auto; height: 40%; aspect-ratio: 688 / 1052; opacity: 0; translate: 2% 0; transition: opacity .35s, translate .5s ease-out; z-index: 2; }
+.stele.touch .st-hero { opacity: 0; }
+.stele.touch .st-press { opacity: 1; translate: 0 0; }
+/* 雷、冰專屬光柱：圖內光柱根部（50%, 80%）對準石台中心 */
+.stele > .st-pillar { left: 29.2%; top: 0; width: auto; height: 92.5%; aspect-ratio: 784 / 1168; mix-blend-mode: screen; opacity: 0; filter: brightness(.92) contrast(1.6);
+  -webkit-mask-image: radial-gradient(ellipse 48% 52% at 50% 38%, #000 55%, transparent); mask-image: radial-gradient(ellipse 48% 52% at 50% 38%, #000 55%, transparent); transform-origin: 50% 80%; }   /* 橢圓漸隱，四邊都不露出圖框 */
+.stele.shoot-img .st-pillar { opacity: 1; animation: stShoot 1s cubic-bezier(.2,.8,.2,1) forwards; }
+.stele.shoot-img .st-light { opacity: 0; }
+.root-card { position: absolute; left: 50%; bottom: calc(4% + var(--safe-b)); width: min(92%, 420px); transform: translateX(-50%); z-index: 6; padding: 18px 18px 16px; text-align: center;
+  background: linear-gradient(rgba(10,16,28,.95), rgba(6,10,18,.97)); box-shadow: inset 0 0 0 1px var(--goldline), 0 12px 30px rgba(0,0,0,.6); animation: unroll .5s ease-out; }
+.rc-head { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.rc-head b { font-family: var(--brush); font-size: 36px; letter-spacing: 8px; font-weight: 400; text-shadow: 0 0 18px currentColor; }
+.rc-grade { padding: 4px 10px; font-family: var(--brush); font-size: 22px; color: var(--g); border: 2px solid var(--g); border-radius: 4px; transform: rotate(-4deg); box-shadow: 0 0 12px color-mix(in srgb, var(--g) 50%, transparent); }
+.rc-desc { margin: 10px 0 4px; font-size: 15px; line-height: 1.7; color: var(--paper); }
+.rc-desc em { font-style: normal; color: var(--gold2); }
+.rc-note { margin: 0 0 4px; font-size: 12px; color: var(--dim); }
+/* ───── 突破三段 ───── */
+.bt-faxiang { position: absolute; left: 50%; bottom: 0; height: 100%; transform: translateX(-50%) scale(.6); opacity: 0; mix-blend-mode: screen; transition: opacity 1.2s ease-out, transform 1.8s cubic-bezier(.2,.8,.2,1); }
+.bt-faxiang.on { opacity: .95; transform: translateX(-50%) scale(1.04); }
+.bt-ring { position: absolute; width: min(80%, 420px); aspect-ratio: 1; transform: translate(-50%, -50%) scaleY(.32) scale(0); opacity: 0; mix-blend-mode: screen; pointer-events: none; transition: transform 1.2s cubic-bezier(.2,.8,.2,1), opacity .6s; }
+.bt-ring img { width: 100%; height: 100%; animation: swirl 7s linear infinite; }
+.bt-ring.on { opacity: 1; transform: translate(-50%, -50%) scaleY(.32) scale(1); }
+.bt-ring.burst { opacity: 0; transform: translate(-50%, -50%) scaleY(.32) scale(3.2); transition: transform 1.4s ease-out, opacity 1.4s ease-in; }
+.bt-ring.broken { opacity: 0; filter: grayscale(1) brightness(.5); transform: translate(-50%, -50%) scaleY(.32) scale(.5); }
+#scene.bt-white::before { content: ""; position: absolute; inset: 0; z-index: 4; background: #fff; pointer-events: none; animation: btWhite 1.2s ease-out forwards; }
+@keyframes btWhite { 0% { opacity: 0; } 12% { opacity: .95; } 100% { opacity: 0; } }
+.bt-panel { position: absolute; left: 50%; bottom: 4%; width: min(92%, 380px); transform: translateX(-50%); z-index: 6; padding: 16px 18px 14px; text-align: center;
+  background: linear-gradient(rgba(10,16,28,.94), rgba(6,10,18,.97)); box-shadow: inset 0 0 0 1px var(--goldline), 0 12px 30px rgba(0,0,0,.6); animation: unroll .5s ease-out; }
+.bt-panel h3 { margin: 0 0 8px; font-family: var(--brush); font-size: 28px; font-weight: 400; letter-spacing: 6px; color: var(--gold2); }
+.bt-panel h3.fail { color: #ff9a9a; font-size: 22px; letter-spacing: 2px; }
+.bt-panel p { margin: 0 0 6px; font-size: 14px; line-height: 1.7; color: var(--paper); }
+.bt-stats { display: grid; gap: 4px; margin-bottom: 4px; }
+.bt-stats div { display: grid; grid-template-columns: 4em 1fr auto 1fr; align-items: baseline; gap: 6px; font-size: 14px; }
+.bt-stats span { color: var(--dim); text-align: left; }
+.bt-stats b { font-family: var(--brush); font-weight: 400; font-size: 17px; text-align: right; }
+.bt-stats b.up { color: #b8f0c8; text-align: left; }
+.bt-stats i { font-style: normal; color: var(--gold); }
+/* 直式畫面窄：石碑場景縮到 72% 高，左右才看得到走位與按碑的主角；頂端漸隱接夜空 */
+@media (orientation: portrait) {
+  .stele { height: 72%; transform: translateX(-46%); }
+  .stele { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%); mask-image: linear-gradient(to bottom, transparent, #000 30%); }
+  .st-hero.arrive { left: 34%; }
+}
+/* 跳過劇情／演出 */
+#skipBtn { position: absolute; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 4px); z-index: 9; min-width: 64px; }
+/* 機緣 */
+.gacha-ring { position: absolute; left: 50%; top: 58%; width: min(72%, 340px); aspect-ratio: 1; transform: translate(-50%, -50%); mix-blend-mode: screen; transition: transform .6s, filter .4s; }
+.gacha-ring img { width: 100%; height: 100%; animation: swirl 24s linear infinite; opacity: .8; }
+.gacha-ring.gather img { animation-duration: 2.5s; opacity: 1; }
+.gacha-ring.lit { transform: translate(-50%, -50%) scale(1.15); }
+.gacha-ring.lit img { filter: grayscale(1) brightness(1.4); }
+.gacha-ring.lit::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--c); mix-blend-mode: multiply; opacity: .9; -webkit-mask: url(assets/fx/ring.webp) center / 100% 100%; mask: url(assets/fx/ring.webp) center / 100% 100%; }   /* 光陣依最高品階換色 */
+.gacha-sky { position: absolute; inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: screen; transition: opacity .5s; z-index: 1; background: radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--e, #fff) 60%, transparent), color-mix(in srgb, var(--c, #fff) 45%, transparent) 45%, transparent 85%); }
+.gacha-sky.on { opacity: 1; }
+.pity { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 2px 0 8px; font-size: 13px; color: var(--dim); }
+.pity b { font-family: var(--brush); font-size: 30px; font-weight: 400; color: var(--gold2); }
+.gacha-btns { margin: 12px 0 10px; gap: 16px; }
+.gacha-btns .seal { min-width: 120px; }
+.new { display: inline-block; margin-left: 6px; padding: 0 5px; font-style: normal; font-family: var(--serif); font-size: 11px; line-height: 17px; color: #fff; background: var(--cinnabar2); border-radius: 3px; vertical-align: 2px; }
+.gres.t3, .gres.t4 { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 16%, transparent), transparent 70%); }
+/* ───── 雷劫 ───── */
+.bt-dark { position: absolute; inset: 0; background: #05040c; opacity: 0; transition: opacity 1.6s; pointer-events: none; }
+.bt-dark.on { opacity: .55; }
+.bt-cloud { position: absolute; left: -15%; right: -15%; top: 0; height: 62%; opacity: 0; transform: translateY(-55%); transition: transform 1.8s cubic-bezier(.2,.7,.3,1), opacity 1.4s; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); pointer-events: none; }
+.bt-cloud img { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: screen; animation: swirl 40s linear infinite; transform-origin: 50% 45%; }
+.bt-cloud.on { opacity: 1; transform: translateY(0); }
+.bt-cloud.clear { opacity: 0; transform: translateY(-40%) scale(1.3); transition-duration: 1.2s; }
+.bt-core { position: absolute; left: 50%; top: 42%; width: 40%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, #fff, rgba(214,190,255,.7) 25%, transparent 65%); mix-blend-mode: screen; opacity: 0; }
+.bt-cloud.warn .bt-core { animation: core .5s ease-in; }
+@keyframes core { 0% { opacity: 0; } 30% { opacity: .9; } 45% { opacity: .2; } 70% { opacity: 1; } 100% { opacity: .6; } }
+.bt-warn { position: absolute; width: 150px; height: 46px; transform: translate(-50%, -50%) scale(2.2); border: 3px solid #ff3b3b; border-radius: 50%; box-shadow: 0 0 14px #ff3b3b, inset 0 0 10px rgba(255,60,60,.6); opacity: 0; pointer-events: none; }
+.bt-warn::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; border: 2px solid rgba(255,120,120,.8); }
+.bt-warn.go { animation: warn .5s linear forwards; }
+@keyframes warn { from { opacity: .4; transform: translate(-50%, -50%) scale(2.4); } 60% { opacity: 1; } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+/* 天雷：只取原圖中央的雷柱（object-fit 裁切＋橢圓遮罩），不露出雲與山景的方框 */
+.bt-bolt { position: absolute; top: 0; width: calc(130px * var(--w)); object-fit: cover; object-position: 50% 35%; transform: translateX(-50%); transform-origin: 50% 0; mix-blend-mode: screen; filter: brightness(var(--b)) contrast(1.5); pointer-events: none; animation: bolt .5s ease-out forwards;
+  -webkit-mask-image: radial-gradient(ellipse 42% 60% at 50% 45%, #000 45%, transparent); mask-image: radial-gradient(ellipse 42% 60% at 50% 45%, #000 45%, transparent); }
+@keyframes bolt { 0% { clip-path: inset(0 0 100% 0); opacity: 1; } 18% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { clip-path: inset(0 0 0 0); opacity: 0; } }
+.bt-impact { position: absolute; width: 100%; transform: translate(-50%, -50%) scale(var(--s)); mix-blend-mode: screen; pointer-events: none; animation: impact .6s ease-out forwards;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 55%, #000 50%, transparent); mask-image: radial-gradient(ellipse 50% 50% at 50% 55%, #000 50%, transparent); }
+@keyframes impact { 0% { opacity: 0; transform: translate(-50%, -50%) scale(calc(var(--s) * .6)); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--s)); } }
+#scene.bt-hit::before { content: ""; position: absolute; inset: 0; z-index: 4; background: #fff; pointer-events: none; animation: btHit .35s ease-out forwards; }
+@keyframes btHit { 0% { opacity: 0; } 10% { opacity: .55; } 100% { opacity: 0; } }
+.bt-bolt, .bt-impact { z-index: 5; }   /* 天雷疊在白閃之上 */
+.bt-shield { position: absolute; transform: translate(-50%, -50%) scale(.6); opacity: 0; border-radius: 50%; border: 2px solid rgba(143,240,216,.75); background: radial-gradient(ellipse, rgba(143,240,216,.06) 40%, rgba(143,240,216,.25)); box-shadow: 0 0 22px rgba(143,240,216,.5), inset 0 0 18px rgba(143,240,216,.35); transition: transform .6s, opacity .6s; pointer-events: none; --crack: 0; }
+.bt-shield.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.bt-shield.hit { animation: shHit .35s; }
+@keyframes shHit { 30% { box-shadow: 0 0 40px #fff, inset 0 0 30px #fff; } }
+.bt-shield svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bt-shield .ck { fill: none; stroke: #e8fffb; stroke-width: 1.1; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px #8ff0d8); opacity: 0; }
+.bt-shield .ck1 { opacity: calc((var(--crack) - .1) * 4); } .bt-shield .ck2 { opacity: calc((var(--crack) - .3) * 4); }
+.bt-shield .ck3 { opacity: calc((var(--crack) - .45) * 4); } .bt-shield .ck4 { opacity: calc((var(--crack) - .6) * 4); }
+.bt-shield.fade { opacity: 0; }
+.bt-shield.shatter { opacity: 0; transform: translate(-50%, -50%) scale(1.4); transition-duration: .4s; }
+.hero-stage.down { transition: transform 1s ease-in, filter 1s; transform: translateX(-50%) translateY(6%) rotate(-8deg); filter: grayscale(.8) brightness(.45); }
+.bt-hud { position: absolute; left: 50%; top: calc(max(10px, env(safe-area-inset-top)) + 54px); transform: translateX(-50%); width: min(86%, 360px); z-index: 5; display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; color: var(--paper); background: rgba(5,8,14,.72); border: 1px solid var(--goldline); }
+.bt-hud b { font-family: var(--brush); font-weight: 400; font-size: 17px; color: var(--gold2); }
+.bt-hud .bar { height: 10px; }
+.bt-tap { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%) rotate(-2deg); z-index: 6; min-width: 150px; min-height: 76px; font-size: 28px; }
+.bt-tap.pressed { transform: translateX(-50%) scale(.94); filter: brightness(1.3); }
+/* ───── 丹爐：待機／煉製／成丹／炸爐 ───── */
+.furnace { position: absolute; left: 50%; bottom: 3%; height: 74%; aspect-ratio: .66; transform: translateX(-50%); }
+.furnace .fz { position: absolute; left: 50%; bottom: 0; height: 100%; transform: translateX(-50%); transition: opacity .35s; filter: drop-shadow(0 12px 18px rgba(0,0,0,.6)); }
+.furnace .fz.idle { height: 97%; animation: fzBreath 3.2s ease-in-out infinite; }
+.furnace .fz.ok, .furnace .fz.fail { opacity: 0; }
+.furnace.done-ok .fz.idle, .furnace.done-fail .fz.idle { opacity: 0; }
+.furnace.done-ok .fz.ok, .furnace.done-fail .fz.fail { opacity: 1; }
+@keyframes fzBreath { 50% { filter: drop-shadow(0 12px 18px rgba(0,0,0,.6)) brightness(1.12) saturate(1.15); } }
+.fz-fire { position: absolute; left: 50%; bottom: 0; width: 90%; height: 22%; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(255,110,50,.75), rgba(255,60,30,.3) 45%, transparent 70%); mix-blend-mode: screen; animation: fzFire 1.6s ease-in-out infinite alternate; pointer-events: none; }
+@keyframes fzFire { to { opacity: .55; transform: translateX(-50%) scale(.92); } }
+.furnace.brewing .fz-fire { animation-duration: .18s; transform: translateX(-50%) scale(1.5); background: radial-gradient(ellipse, rgba(255,200,90,.95), rgba(255,90,30,.6) 45%, transparent 72%); }
+.furnace.brewing .fz.idle { animation: fzShake .12s linear infinite; }
+@keyframes fzShake { 25% { transform: translateX(calc(-50% - 3px)) rotate(-.6deg); } 75% { transform: translateX(calc(-50% + 3px)) rotate(.6deg); } }
+.fz-pill { position: absolute; left: 50%; top: 30%; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; opacity: 0; pointer-events: none; background: radial-gradient(circle at 35% 30%, #fff, var(--c, #ffe7a0) 55%, rgba(0,0,0,.4)); box-shadow: 0 0 20px var(--c, #ffe7a0), 0 0 50px #ffe7a0; }
+.furnace.done-ok .fz-pill { animation: pillRise 1.6s ease-out forwards; }
+@keyframes pillRise { 0% { opacity: 0; transform: translateY(40px) scale(.4); } 25% { opacity: 1; } 100% { opacity: 1; transform: translateY(-70px) scale(1.15); } }
+/* ───── 持逆天劍：赤金光輪、雷光、粒子；換圖時閃光 ───── */
+.hfig.nitian { --c: #ff6a4a; --e: #ffd76a; isolation: isolate; }
+.nt-halo { position: absolute; left: 50%; top: 13%; width: 62%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; z-index: -1;
+  background: radial-gradient(circle, transparent 54%, rgba(255,215,106,.85) 57%, rgba(255,90,60,.9) 61%, transparent 66%), repeating-conic-gradient(rgba(255,215,106,.5) 0 2deg, transparent 2deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 40%, #000 52%, #000 70%, transparent 72%); mask-image: radial-gradient(circle, transparent 40%, #000 52%, #000 70%, transparent 72%);
+  filter: drop-shadow(0 0 12px #ff6a4a); animation: swirl 12s linear infinite; }
+.nt-bolt { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 30% 40% at 25% 70%, rgba(200,170,255,.55), transparent 70%); mix-blend-mode: screen; opacity: 0; animation: ntBolt 2.6s steps(1) infinite; }
+@keyframes ntBolt { 0%, 60%, 66%, 100% { opacity: 0; } 62% { opacity: 1; } 64% { opacity: .3; } 65% { opacity: 1; } }
+.hfig.nitian > img { animation: ntGlow 2.6s ease-in-out infinite; }
+@keyframes ntGlow { 50% { filter: drop-shadow(0 0 10px rgba(255,90,60,.6)); } 62% { filter: drop-shadow(0 0 18px rgba(220,190,255,.9)) brightness(1.12); } }
+.hero-stage.swap::after { content: ""; position: absolute; left: -40%; right: -40%; top: 0; bottom: 0; background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,.95), rgba(255,215,106,.4) 35%, transparent 65%); pointer-events: none; animation: swapFlash .6s ease-out forwards; }
+@keyframes swapFlash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+/* 炸爐黑煙（FX 粒子是加亮混色，畫不出黑色，改用 CSS） */
+.fz-smoke { position: absolute; left: 50%; top: 18%; width: 70%; aspect-ratio: 1; margin-left: -35%; border-radius: 50%; opacity: 0; pointer-events: none; background: radial-gradient(circle, rgba(18,15,16,.85), rgba(30,26,28,.5) 40%, transparent 70%); filter: blur(6px); }
+.furnace.done-fail .fz-smoke { animation: smoke 1.7s ease-out forwards; }
+.furnace.done-fail .fz-smoke.s2 { animation-delay: .25s; left: 38%; }
+@keyframes smoke { 0% { opacity: 0; transform: translateY(20%) scale(.5); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-80%) scale(1.6); } }
+.hfig.nitian .wring { transform: scaleY(1.3); }
+.hfig.nitian .waura { --orb: 120px; }
+.hfig.nitian .wring i { width: 4px; height: 4px; margin: -2px; }
+/* ───── 丹爐仙氣：一律以丹爐中心為錨點、左右對稱 ─────
+   外層座標：寬 = 丹爐 2.5 倍、高 = 丹爐 1.4 倍；丹爐中心 x = 50%，爐口 y ≈ 45.7%，爐底 y ≈ 94.3% */
+.furnace { --spd: 1; }
+.furnace.brewing { --spd: .35; }
+.fz-back, .fz-plume, .fz-front { position: absolute; left: -75%; right: -75%; top: -32%; bottom: -8%; pointer-events: none; }
+.fz-front { width: 250%; height: 140%; z-index: 3; }
+/* 爐後仙霧：每份寬約一個丹爐，左右各一（右側鏡像）合計約 2.1 倍爐寬；緩慢上飄、淡入淡出，兩組錯開 */
+.xw { position: absolute; bottom: 22%; height: 66%; mix-blend-mode: screen; opacity: 0; transition: filter 1s;
+  -webkit-mask-image: radial-gradient(ellipse 46% 50% at 50% 50%, #000 40%, transparent); mask-image: radial-gradient(ellipse 46% 50% at 50% 50%, #000 40%, transparent); }
+.xw.l { left: 28%; } .xw.r { left: 72%; }
+.xw.l { animation: xwRiseL calc(14s * var(--spd)) linear infinite; }
+.xw.r { animation: xwRiseR calc(14s * var(--spd)) linear infinite; }
+.xw.b { animation-delay: calc(-7s * var(--spd)); }
+@keyframes xwRiseL { 0% { transform: translate(-50%, 14%) scale(.92); opacity: 0; } 30% { opacity: .34; } 70% { opacity: .26; } 100% { transform: translate(-50%, -16%) scale(1.06); opacity: 0; } }
+@keyframes xwRiseR { 0% { transform: translate(-50%, 14%) scaleX(-1) scale(.92); opacity: 0; } 30% { opacity: .34; } 70% { opacity: .26; } 100% { transform: translate(-50%, -16%) scaleX(-1) scale(1.06); opacity: 0; } }
+/* 爐後淡光：把丹爐托出背景 */
+.fz-back::before { content: ""; position: absolute; left: 50%; top: 52%; width: 44%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(150,250,230,.22), rgba(90,200,220,.08) 45%, transparent 70%); mix-blend-mode: screen; animation: mouth 4.2s ease-in-out infinite; }
+/* 爐底淡青金光環與地霧：讓爐身融入地面 */
+.fz-ring { position: absolute; left: 50%; top: 93%; width: 54%; height: 9%; transform: translate(-50%, -50%); border-radius: 50%; mix-blend-mode: screen;
+  background: radial-gradient(ellipse, transparent 52%, rgba(240,220,150,.7) 62%, rgba(150,240,225,.5) 70%, transparent 78%); filter: blur(1.5px); animation: ringBreath 4.6s ease-in-out infinite; }
+@keyframes ringBreath { 50% { opacity: .6; transform: translate(-50%, -50%) scale(1.05); } }
+.fz-ground { position: absolute; left: 50%; top: 94%; width: 36%; height: 10%; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(190,245,235,.34), rgba(140,220,210,.12) 50%, transparent 72%); filter: blur(4px); animation: ground calc(7s * var(--spd)) ease-out infinite; }
+.fz-ground.g2 { animation-delay: calc(-3.5s * var(--spd)); }
+@keyframes ground { 0% { transform: translate(-50%, -50%) scale(.6); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2.4, 1.5); opacity: 0; } }
+/* 前景薄霧蓋住爐腳：爐身與地面融合，不像貼上去 */
+.fz-floor { position: absolute; left: -35%; right: -35%; bottom: -3%; height: 16%; z-index: 2; pointer-events: none; border-radius: 50%; background: radial-gradient(ellipse at 50% 70%, rgba(170,225,220,.30), rgba(120,190,200,.12) 45%, transparent 70%); filter: blur(5px); }
+/* 爐口青煙：往上擴散成傘狀，頂部融入後方仙霧 */
+.fz-plume { z-index: 2; }
+.pl { position: absolute; left: 50%; bottom: 54%; height: 46%; mix-blend-mode: screen; transform-origin: 50% 100%; opacity: 0; filter: brightness(1.45) saturate(1.15);
+  -webkit-mask-image: radial-gradient(ellipse 50% 60% at 50% 60%, #000 35%, transparent); mask-image: radial-gradient(ellipse 50% 60% at 50% 60%, #000 35%, transparent);
+  animation: plume calc(6s * var(--spd)) ease-out infinite; }
+.pl.b { animation-delay: calc(-3s * var(--spd)); transform: scaleX(-1); animation-name: plumeB; }
+@keyframes plume { 0% { transform: translate(-50%, 6%) scale(.32, .3); opacity: 0; } 18% { opacity: .75; } 60% { opacity: .5; } 100% { transform: translate(-50%, -14%) scale(1.5, 1.05); opacity: 0; } }
+@keyframes plumeB { 0% { transform: translate(-50%, 6%) scale(-.32, .3); opacity: 0; } 18% { opacity: .7; } 60% { opacity: .45; } 100% { transform: translate(-50%, -14%) scale(-1.5, 1.05); opacity: 0; } }
+/* 爐口光暈呼吸 */
+.fz-mouth { position: absolute; left: 50%; top: 32%; width: 58%; height: 13%; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(200,255,240,.6), rgba(120,240,210,.22) 40%, transparent 70%); mix-blend-mode: screen; z-index: 2; animation: mouth 3.4s ease-in-out infinite; pointer-events: none; }
+@keyframes mouth { 50% { opacity: .45; transform: translateX(-50%) scale(.85); } }
+/* 煉丹中：霧氣加速轉金，爐口煙收細變旺 */
+.furnace.brewing .xw, .furnace.brewing .pl { filter: sepia(1) hue-rotate(5deg) saturate(2.4) brightness(1.2); }
+.furnace.brewing .fz-mouth { background: radial-gradient(ellipse, rgba(255,240,190,.9), rgba(255,190,80,.45) 40%, transparent 70%); animation-duration: .6s; }
+.furnace.brewing .fz-ground, .furnace.brewing .fz-floor { background: radial-gradient(ellipse, rgba(255,220,140,.4), rgba(255,180,80,.14) 50%, transparent 72%); }
+.furnace.brewing .fz-ring { background: radial-gradient(ellipse, transparent 52%, rgba(255,214,130,.7) 62%, rgba(255,170,70,.4) 70%, transparent 78%); animation-duration: 1s; }
+/* 成丹：光環爆發、仙霧外擴 */
+.fz-burst { position: absolute; left: 50%; top: 40%; width: 60%; aspect-ratio: 1; transform: translate(-50%, -50%) scale(.2); border-radius: 50%; border: 3px solid rgba(255,231,160,.95); box-shadow: 0 0 24px #ffe7a0, inset 0 0 24px rgba(255,231,160,.6); opacity: 0; z-index: 3; pointer-events: none; }
+.furnace.done-ok .fz-burst { animation: fzBurst 1.1s ease-out forwards; }
+@keyframes fzBurst { 0% { opacity: 1; transform: translate(-50%, -50%) scale(.2); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(3.4); } }
+.furnace.done-ok .fz-back { animation: mistOut 1.6s ease-out forwards; transform-origin: 50% 60%; }
+@keyframes mistOut { to { transform: scale(1.5); } }
+.furnace.done-ok .xw, .furnace.done-ok .pl { animation-play-state: paused; opacity: 0 !important; transition: opacity 1.4s ease-in; }
+.furnace.done-ok::after { content: ""; position: absolute; left: -40%; right: -40%; top: -20%; height: 90%; background: radial-gradient(ellipse at 50% 45%, rgba(255,231,160,.45), transparent 65%); mix-blend-mode: screen; animation: fadeIn .4s; pointer-events: none; }
+/* 炸爐：仙霧轉灰黑煙（改一般混色，暗色才看得見） */
+.furnace.done-fail .xw { mix-blend-mode: normal; filter: grayscale(1) brightness(.16) contrast(1.6); transition: filter .5s; }
+.furnace.done-fail .pl { animation-play-state: paused; opacity: 0 !important; }
+/* 炸爐黑煙：用仙霧圖的亮度當遮罩，填灰黑色，只留下煙縷本身（不會有黑色方框） */
+.smk { position: absolute; left: 50%; bottom: 54%; height: 46%; aspect-ratio: 784 / 1168; transform-origin: 50% 100%; opacity: 0; pointer-events: none; background: #1d1a1c;
+  -webkit-mask: url(assets/fx/xianwu.webp) center / 100% 100% no-repeat; mask: url(assets/fx/xianwu.webp) center / 100% 100% no-repeat luminance; -webkit-mask-source-type: luminance; }
+.furnace.done-fail .smk { animation: failSmoke 1.8s ease-out forwards; }
+.furnace.done-fail .smk.b { animation: failSmokeB 1.8s .15s ease-out forwards; }
+@keyframes failSmoke { 0% { transform: translate(-50%, 8%) scale(.6, .4); opacity: 0; } 15% { opacity: .95; } 70% { opacity: .8; } 100% { transform: translate(-50%, -10%) scale(2.6, 1.5); opacity: 0; } }
+@keyframes failSmokeB { 0% { transform: translate(-50%, 8%) scale(-.6, .4); opacity: 0; } 15% { opacity: .9; } 70% { opacity: .75; } 100% { transform: translate(-50%, -10%) scale(-2.6, 1.5); opacity: 0; } }
+.furnace.done-fail .fz-back { animation: smokeUp 1.8s ease-out forwards; }
+@keyframes smokeUp { to { transform: translateY(-6%) scale(1.1); } }
+.furnace.done-fail .fz-mouth, .furnace.done-fail .fz-ground, .furnace.done-fail .fz-ring, .furnace.done-fail .fz-back::before { opacity: 0; transition: opacity .4s; }
+@media (prefers-reduced-motion: reduce) { .xw, .pl, .fz-ground { animation-duration: 120s !important; } }
+/* ───── 首次載入進度條 ───── */
+#loader { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(ellipse at 50% 45%, #13202c, #05080d 70%); transition: opacity .5s; }
+#loader.done { opacity: 0; pointer-events: none; }
+#loader b { font-family: var(--brush); font-size: 40px; font-weight: 400; letter-spacing: .3em; color: var(--gold2); text-shadow: 0 0 20px rgba(216,196,138,.5); }
+.ld-bar { width: min(70%, 280px); height: 6px; border: 1px solid var(--goldline); background: rgba(0,0,0,.4); }
+.ld-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5d4a1c, #f2dc94); box-shadow: 0 0 10px rgba(242,220,148,.6); transition: width .2s; }
+#loader span { font-size: 13px; color: var(--dim); }
+/* 存檔備份 */
+.save-txt { width: 100%; height: 110px; margin: 10px 0 4px; padding: 8px; font: 11px/1.4 ui-monospace, monospace; color: var(--paper); background: rgba(0,0,0,.35); border: 1px solid var(--goldline); resize: none; -webkit-user-select: text; user-select: text; }
+.save-file { width: 100%; margin-top: 10px; font-size: 13px; color: var(--paper); }

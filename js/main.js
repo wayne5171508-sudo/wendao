@@ -1,0 +1,85 @@
+'use strict';
+// ════════════════════════════════════════════
+//  主程式：標題、迴圈（修為自動增長、戰鬥、特效）、自動存檔
+// ════════════════════════════════════════════
+
+const Game = {
+  last: 0, saveT: 0, hudT: 0,
+
+  async init() {
+    FX.init($('#fx'));
+    // 顯示尺寸不超過原圖像素：圖片載入後以原生高度為上限（佩劍立繪的外框一起限制，劍光座標才對得上）
+    document.addEventListener('load', (e) => { const i = e.target; if (i.tagName !== 'IMG' || !i.naturalHeight || !/\/(hero|npc|cast|mon|weapon)\//.test(i.src)) return; i.style.maxHeight = i.naturalHeight + 'px'; if (i.parentElement.classList.contains('hfig')) i.parentElement.style.maxHeight = i.naturalHeight + 'px'; }, true);
+    addEventListener('resize', () => FX.resize());
+    const had = S.load();
+    Audio2.musOn = S.d.settings.music !== false; Audio2.sfxOn = S.d.settings.sfx !== false; FX.noShake = S.d.settings.shake === false;
+    // 點擊推進對話；按鈕
+    $('#dlg').addEventListener('click', () => Story.advance());
+    $('#skipBtn').onclick = (e) => { e.stopPropagation(); Story.skipNow(); };
+    $('#scene').addEventListener('click', (e) => { if (Story.waiting && !e.target.closest('button')) Story.advance(); });
+    addEventListener('keydown', (e) => { if ([' ', 'Enter'].includes(e.key) && Story.waiting) { e.preventDefault(); Story.advance(); } });
+    addEventListener('pointerdown', () => Audio2.unlock(), { once: true });
+    document.querySelectorAll('#nav button').forEach((b) => (b.onclick = () => { Audio2.play('page'); UI.go(b.dataset.tab); }));
+    $('#btnSet').onclick = () => UI.settings();
+    $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') UI.close(); });
+    if (document.fonts) await Promise.race([document.fonts.load('700 24px "LXGW WenKai TC"', '問道青冥入道續緣'), U.wait(2000)]).catch(() => {});
+    await this.preload();
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+    this.title(had && S.d.root);
+    requestAnimationFrame((t) => { this.last = t; this.loop(t); });
+    addEventListener('visibilitychange', () => { if (document.hidden) S.save(); else if (S.d.root && !Battle.on) { const o = S.offline(); if (o) { UI.offlineModal(o); UI.hud(); } } });
+    addEventListener('beforeunload', () => S.save());
+  },
+
+  // 首次載入：預先下載全部素材並顯示進度條（之後由離線快取提供，幾乎瞬間完成）
+  async preload() {
+    const list = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
+    let done = 0;
+    const tick = () => { done++; const p = Math.round((100 * done) / list.length); bar.style.width = p + '%'; txt.textContent = `載入中 ${p}%`; };
+    const one = (src) => new Promise((res) => { const i = new Image(); i.onload = i.onerror = () => { tick(); res(); }; i.src = src; });
+    for (let k = 0; k < list.length; k += 6) await Promise.all(list.slice(k, k + 6).map(one));   // 同時 6 個，手機網路較穩
+    box.classList.add('done'); setTimeout(() => box.remove(), 600);
+  },
+
+  title(hasSave) {
+    UI.mode('title'); UI.setBg('title'); Audio2.setMood('title'); FX.ambient = 'qi'; FX.cranesOn = true; FX.craneT = 1.5;
+    UI.scene(`<div class="tlogo"><h1><span>問</span><span>道</span><span>青</span><span>冥</span></h1><p>一劍霜寒　逆天問道</p></div>
+      <div class="tbtns">${hasSave ? `<span id="saveInfo">${lvName(S.d.lv)}・${ROOTS[S.d.root].name}（${S.d.grade || '黃'}品）</span>` : ''}
+        <button class="seal${hasSave ? ' ghost' : ''}" id="tNew">入道<span class="cap">新的修行</span></button>
+        ${hasSave ? '<button class="seal" id="tCont">續緣<span class="cap">繼續修行</span></button>' : ''}</div>`);
+    $('#tNew').onclick = () => {
+      if (hasSave) { UI.modal('新的修行', '<p class="big">將覆蓋現有存檔，確定嗎？</p><div class="row center"><button class="seal" id="nY">重新入道</button><button class="seal ghost sm" id="nN">取消</button></div>', { '#nY': () => { UI.close(); this.begin(); }, '#nN': () => UI.close() }); return; }
+      this.begin();
+    };
+    const c = $('#tCont'); if (c) c.onclick = () => this.resume();
+  },
+  async begin() {
+    Audio2.unlock(); S.reset(); S.d = S.fresh(); S.save();
+    await UI.fade(true); UI.fade(false);
+    Story.intro();
+  },
+  async resume() {
+    Audio2.unlock();
+    await UI.fade(true);
+    const o = S.offline();
+    UI.mode('game'); UI.go('home'); UI.fade(false);
+    if (o) UI.offlineModal(o);
+    if (S.migrated) setTimeout(() => UI.toast(`法寶改為兵器系統，舊法寶 ${S.migrated} 件已折成靈石`, '#ffe7a0'), 600);
+    S.save();
+  },
+
+  loop(t) {
+    const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t;
+    // 洞府靈氣自行運轉
+    if (S.d && S.d.root && !S.full()) S.addExp(S.rate() * dt);
+    Battle.tick(dt);
+    FX.frame(dt);
+    this.hudT += dt;
+    if (this.hudT > 0.25) { this.hudT = 0; if (S.d && S.d.root) { UI.homeRefresh(false); if (!$('#app').classList.contains('title-mode')) UI.hud(); } }
+    this.saveT += dt;
+    if (this.saveT > 10) { this.saveT = 0; if (S.d && S.d.root) S.save(); }
+    requestAnimationFrame((tt) => this.loop(tt));
+  },
+};
+
+window.addEventListener('load', () => Game.init());
