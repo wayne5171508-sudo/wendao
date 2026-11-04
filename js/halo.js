@@ -54,9 +54,10 @@ const Knock = {
 
 // 光圈素材（選用）：檔案放進 assets/halo/ 並出現在素材清單時自動改用素材，否則用程式繪製
 //  sit_outer 打坐外圈法陣、sit_inner 打坐內圈八卦、back_ring 背後光環；黑底圖會自動去黑
-const HALO_IMG = { sitOuter: 'assets/halo/sit_outer.webp', sitInner: 'assets/halo/sit_inner.webp', back: 'assets/halo/back_ring.webp' };
+//  sit_ribbon 打坐靈氣絲帶（不是圓形，去黑時不做圓形羽化）
+const HALO_IMG = { sitOuter: ['assets/halo/sit_outer.webp', true], sitInner: ['assets/halo/sit_inner.webp', true], back: ['assets/halo/back_ring.webp', true], ribbon: ['assets/halo/sit_ribbon.webp', false] };
 const haloImgs = {};
-for (const [k, src] of Object.entries(HALO_IMG)) if (typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(src)) Knock.load(src).then((u) => { const im = new Image(); im.onload = () => (haloImgs[k] = im); im.src = u; }).catch(() => {});
+for (const [k, [src, round]] of Object.entries(HALO_IMG)) if (typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(src)) Knock.load(src, { round }).then((u) => { const im = new Image(); im.onload = () => (haloImgs[k] = im); im.src = u; }).catch(() => {});
 
 const Halo = {
   list: [], raf: 0, low: null, slow: 0, ft: [],
@@ -105,6 +106,14 @@ const Halo = {
     this.raf = requestAnimationFrame((n) => this.loop(n));
   },
 
+  // 光圈素材依境界或品階上色：保留透明度，把顏色往目標色推 amt
+  tint(I, key, amt) {
+    const ck = 'tint_' + key + I.c;
+    if (I.sprites[ck]) return I.sprites[ck];
+    const im = haloImgs[key], cv = document.createElement('canvas'); cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+    const c = cv.getContext('2d'); c.drawImage(im, 0, 0); c.globalCompositeOperation = 'source-atop'; c.fillStyle = hexA(I.c, amt); c.fillRect(0, 0, cv.width, cv.height);
+    return (I.sprites[ck] = cv);
+  },
   // ───────── 離屏圖層 ─────────
   sprite(I, key, R, fn) {
     if (I.sprites[key]) return I.sprites[key];
@@ -174,14 +183,23 @@ const Halo = {
     // 地面光暈
     blob(c, cx, cy, R * 1.1, hexA(I.c, 0.18 * br));
     c.translate(cx, cy); c.scale(1, 0.3);
-    const outer = haloImgs.sitOuter || this.sprite(I, 'rune', R, (cc, r) => this.runeRing(I, cc, r));
+    const outer = haloImgs.sitOuter ? this.tint(I, 'sitOuter', 0.4) : this.sprite(I, 'rune', R, (cc, r) => this.runeRing(I, cc, r));
     c.globalAlpha = 0.85 * br; c.save(); c.rotate(t * 0.18); c.drawImage(outer, -R, -R, R * 2, R * 2); c.restore();
     if (!low) {
-      const inner = haloImgs.sitInner || this.sprite(I, 'bagua', R, (cc, r) => this.bagua(I, cc, r));
+      const inner = haloImgs.sitInner ? this.tint(I, 'sitInner', 0.4) : this.sprite(I, 'bagua', R, (cc, r) => this.bagua(I, cc, r));
       c.globalAlpha = 0.9 * br; c.save(); c.rotate(-t * 0.28); c.drawImage(inner, -R, -R, R * 2, R * 2); c.restore();
     }
     c.restore();
     if (low) return;
+    // 靈氣絲帶素材：左右翻轉模擬繞身旋轉；後層整條，前層只畫下半段（不遮臉）
+    if (haloImgs.ribbon) {
+      const rb = this.tint(I, 'ribbon', 0.3), H2 = h * 1.05, W2 = (H2 * rb.width) / rb.height, fc = I.front.getContext('2d');
+      const sx = Math.cos(t * 0.7), k = Math.sign(sx || 1) * Math.max(0.3, Math.abs(sx)), base = cy + R * 0.12;
+      const draw = (cv, scale, a, clipTop) => { cv.save(); cv.globalCompositeOperation = 'lighter'; cv.globalAlpha = a; if (clipTop) { cv.beginPath(); cv.rect(0, clipTop, I.W, I.H); cv.clip(); } cv.translate(cx, base); cv.scale(scale, 1); cv.drawImage(rb, -W2 / 2, -H2, W2, H2); cv.restore(); };
+      draw(c, k, 0.55 + 0.2 * Math.sin(t * 1.3), 0);
+      draw(fc, -k * 0.9, 0.35 + 0.15 * Math.sin(t * 1.1 + 1), cy - h * 0.42);
+      return;
+    }
     // 靈氣絲帶：從地面螺旋上升繞身；在身前的段落畫到前層畫布
     const fc = I.front.getContext('2d'), N = 3 + I.sub, SEG = 34, top = h * 0.95;
     for (const cv of [c, fc]) { cv.save(); cv.globalCompositeOperation = 'lighter'; cv.lineCap = 'round'; }
@@ -216,7 +234,7 @@ const Halo = {
       draw(this.sprite(I, 'rays', R * 1.5, (cc, r) => this.rays(I, cc, r)), t * 0.08, 0.55 * br + 0.15, 1 + 0.04 * br);
       draw(this.sprite(I, 'dash', R * 1.18, (cc, r) => this.dashRing(I, cc, r * 0.97)), -t * 0.25, 0.75 * br + 0.2);
     }
-    if (haloImgs.back) { c.globalAlpha = 0.6 + 0.4 * br; c.rotate(t * 0.12); c.drawImage(haloImgs.back, -R * 1.2, -R * 1.2, R * 2.4, R * 2.4); c.restore(); return; }
+    if (haloImgs.back) { c.globalAlpha = 0.55 + 0.45 * br; c.rotate(t * 0.12); c.drawImage(this.tint(I, 'back', 0.45), -R * 1.25, -R * 1.25, R * 2.5, R * 2.5); c.restore(); return; }
     // 實圈：粗光環＋內細環
     c.globalAlpha = 0.55 + 0.45 * br; c.strokeStyle = I.c; c.shadowColor = I.c; c.shadowBlur = 18; c.lineWidth = 4;
     c.beginPath(); c.arc(0, 0, R, 0, 7); c.stroke();

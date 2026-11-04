@@ -698,3 +698,12 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .gs-count { position: absolute; left: 0; right: 0; bottom: 5%; text-align: center; font-size: 13px; letter-spacing: 2px; color: var(--paper); text-shadow: 0 1px 3px #000; }
 .li.tap { cursor: pointer; }
 #app.gacha-show #controls, #app.gacha-show #hud { display: none; }
+
+/* ───── 法寶（鐘鏡塔）───── */
+.wframe.fb img { height: 84%; transform: none; filter: drop-shadow(0 0 4px var(--c)); }
+.wslots.one { grid-template-columns: 1fr; }
+.wc-stats.one { grid-template-columns: 1fr; width: min(100%, 160px); }
+.wcase.fb .wc-spin { height: 70%; }
+.wcase.fb .wc-spin img { transform: none; }
+.loot.loot-glow { filter: drop-shadow(0 0 10px var(--c)) drop-shadow(0 0 3px var(--e)); }
+.loot-sm .loot.loot-glow { filter: drop-shadow(0 0 3px var(--c)); }

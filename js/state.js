@@ -12,7 +12,7 @@ const S = {
       ver: 2, created: Date.now(), last: Date.now(),
       lv: 0, exp: 0, root: null, grade: null,
       inv: { stone: 50, herb_q: 2, herb_c: 2, p_heal: 1 },
-      arts: {}, weapons: {}, wslot: [null, null], quests: {},
+      arts: {}, weapons: {}, wslot: [null, null], fabao: {}, fslot: null, quests: {},
       bonus: { atk: 0, hp: 0 },
       cleared: {}, unlocked: { sect: false, village: false, wild: false, realm: false },
       daily: { date: U.today(), realm: 0, free: false, sign: false }, pityArtifact: 0, pityTechnique: 0,
@@ -31,7 +31,7 @@ const S = {
     delete d.bag; delete d.equip; delete d.nextId; d.ver = 2;
   },
   // 佩戴欄只能放已擁有的兵器
-  fixSlots() { this.d.wslot = this.d.wslot.map((id) => (id && this.d.weapons[id] ? id : null)); },
+  fixSlots() { this.d.wslot = this.d.wslot.map((id) => (id && this.d.weapons[id] ? id : null)); if (!this.d.fabao || typeof this.d.fabao !== 'object') this.d.fabao = {}; if (this.d.fslot && !this.d.fabao[this.d.fslot]) this.d.fslot = null; },
   // 保底計數：兩池各自一個欄位。舊存檔的 gacha.{wpn,art} 搬過來；非數字或異常大數字一律修正到 0～89
   fixPity() {
     const d = this.d, old = d.gacha || {};
@@ -55,6 +55,17 @@ const S = {
 
   // ───────── 屬性 ─────────
   artLv(id) { return this.d.arts[id] || 0; },
+  // 裝備通用：id 可能是兵器或法寶
+  gDef(id) { return WEAPONS.find((x) => x.id === id) || FABAO.find((x) => x.id === id); },
+  gOwn(id) { return this.d.weapons[id] || this.d.fabao[id]; },
+  isFb(id) { return FABAO.some((x) => x.id === id); },
+  // 法寶加成：強化每級 +8%，突破每次 +25%（鏡的暴擊點數同樣放大）
+  fStat(id) {
+    const f = FABAO.find((x) => x.id === id), o = this.d.fabao[id]; if (!f || !o) return null;
+    return Math.round(f.val * (1 + 0.08 * o.lv) * (1 + 0.25 * o.brk) * 10) / 10;
+  },
+  fMain() { const id = this.d.fslot; return id && this.d.fabao[id] ? FABAO.find((f) => f.id === id) : null; },
+  fBonus(stat) { const f = this.fMain(); return f && FB_TYPES[f.type].stat === stat ? this.fStat(f.id) : 0; },
   // 兵器數值：強化每級 +8%，突破每次 +25%
   wStat(id) {
     const w = WEAPONS.find((x) => x.id === id), o = this.d.weapons[id]; if (!w || !o) return null;
@@ -69,11 +80,11 @@ const S = {
   stats() {
     const d = this.d, L = d.lv, k = Math.pow(1.45, L), r = this.rootFx();
     const art = (key) => ARTS.reduce((a, A) => a + (A.stat[key] || 0) * this.artLv(A.id), 0);
-    const hp = Math.round(120 * k * (1 + art('hp') + (r.hp || 0) + d.bonus.hp));
+    const hp = Math.round(120 * k * (1 + art('hp') + (r.hp || 0) + d.bonus.hp + this.fBonus('hp') / 100));
     const atk = Math.round((15 * k + this.wSum('atk')) * (1 + art('atk') + (r.atk || 0) + d.bonus.atk));
-    const def = Math.round(3 * k * (1 + art('def') + (r.def || 0)));
+    const def = Math.round(3 * k * (1 + art('def') + (r.def || 0) + this.fBonus('def') / 100));
     const mp = Math.round((80 + 20 * L) * (1 + (r.mp || 0)));
-    return { hp, atk, def, mp, mpRegen: 4 + L * 0.6 + (r.mp ? 2 : 0) + this.wSum('regen'), crit: 0.08 + (r.crit || 0) + this.wSum('crit') / 100, interval: 1.0, power: Math.round(hp * 0.2 + atk * 3 + def * 2) };
+    return { hp, atk, def, mp, mpRegen: 4 + L * 0.6 + (r.mp ? 2 : 0) + this.wSum('regen'), crit: 0.08 + (r.crit || 0) + (this.wSum('crit') + this.fBonus('crit')) / 100, interval: 1.0, power: Math.round(hp * 0.2 + atk * 3 + def * 2) };
   },
   // 靈根加成乘上品階倍率
   rootFx() {
@@ -141,8 +152,10 @@ const S = {
     this.save(); return res;
   },
   grantWeapon(tier) {
-    const w = WEAPONS.find((x) => x.tier === tier), isNew = !this.d.weapons[w.id];
-    return { tier, type: 'w', id: w.id, name: w.name, base: w.name, qty: '×1', isNew, note: this.gainWeapon(w.id) };
+    const pool = [...WEAPONS.filter((x) => x.tier === tier), ...FABAO.filter((x) => x.tier === tier)], g = U.pick(pool);
+    if (g.type) { const isNew = !this.d.fabao[g.id]; return { tier, type: 'f', id: g.id, name: g.name, base: g.name, qty: '×1', isNew, note: this.gainFabao(g.id) }; }
+    const isNew = !this.d.weapons[g.id];
+    return { tier, type: 'w', id: g.id, name: g.name, base: g.name, qty: '×1', isNew, note: this.gainWeapon(g.id) };
   },
   grantArt(tier) {
     const R = ART_GACHA[tier];
@@ -217,6 +230,16 @@ const S = {
     else if (!this.d.wslot[1]) { this.d.wslot[1] = id; this.d.freshW = id; }
     return null;
   },
+  // 取得法寶；法寶欄空著就直接佩上；重複則折成玄鐵與少量靈石
+  gainFabao(id) {
+    const f = FABAO.find((x) => x.id === id);
+    if (this.d.fabao[id]) { const ore = 5 * (f.tier + 1), st = 20 * (f.tier + 1); this.add('ore', ore); this.add('stone', st); return `${f.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
+    this.d.fabao[id] = { lv: 0, brk: 0, fail: 0 };
+    if (!this.d.fslot) this.d.fslot = id;
+    return null;
+  },
+  fEquip(id) { this.d.fslot = id; this.save(); },
+  fUnequip() { this.d.fslot = null; this.save(); },
   // 剛自動放入副手的兵器，提示一次
   subNotice(id) { return this.d.freshW === id && this.d.wslot[1] === id ? `${WEAPONS.find((w) => w.id === id).name}已放入副手` : null; },
   wSwap() { this.d.wslot = [this.d.wslot[1], this.d.wslot[0]]; this.d.freshW = null; this.save(); },
@@ -227,24 +250,24 @@ const S = {
     this.d.wslot[slot] = id; this.save();
   },
   wUnequip(slot) { this.d.wslot[slot] = null; this.save(); },
-  wCap(id) { return 10 * (1 + this.d.weapons[id].brk); },
+  wCap(id) { return 10 * (1 + this.gOwn(id).brk); },
   // 強化：失敗只扣靈石，連敗三次後必成
   wEnhance(id) {
-    const w = WEAPONS.find((x) => x.id === id), o = this.d.weapons[id], cost = wEnhCost(w, o.lv);
+    const w = this.gDef(id), o = this.gOwn(id), cost = wEnhCost(w, o.lv);
     if (o.lv >= this.wCap(id) || !this.take('stone', cost)) return null;
     const pity = o.fail >= W_PITY, ok = pity || Math.random() < wEnhRate(o.lv);
     if (ok) { o.lv++; o.fail = 0; } else o.fail++;
     this.save(); return { ok, pity };
   },
   wCanBreak(id) {
-    const w = WEAPONS.find((x) => x.id === id), o = this.d.weapons[id];
+    const w = this.gDef(id), o = this.gOwn(id);
     if (o.brk >= W_BRK_MAX || o.lv < this.wCap(id)) return false;
     const { need, stone } = wBrkNeed(w, o.brk);
     return Object.entries(need).every(([k, n]) => this.has(k, n)) && this.has('stone', stone);
   },
   wBreak(id) {
     if (!this.wCanBreak(id)) return false;
-    const w = WEAPONS.find((x) => x.id === id), o = this.d.weapons[id], { need, stone } = wBrkNeed(w, o.brk);
+    const w = this.gDef(id), o = this.gOwn(id), { need, stone } = wBrkNeed(w, o.brk);
     for (const [k, n] of Object.entries(need)) this.take(k, n);
     this.take('stone', stone); o.brk++; this.save(); return true;
   },

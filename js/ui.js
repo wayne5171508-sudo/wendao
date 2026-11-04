@@ -15,8 +15,9 @@ const CAST_IMG = { jianqi: 'assets/cast/jianqi.webp', leifa: 'assets/cast/leifa.
 const W_IMG = (id) => `assets/weapon/${id}.webp`;
 const NPC_IMG = (key) => `assets/npc/${key}.webp`;
 // 兵器圖示：階級以顏色與邊框區分
-const wVars = (w) => `--c:${WTIERS[w.tier].color};--e:${WTIERS[w.tier].edge};--r:${w.rot}deg`;
-const wFrame = (w, cls = '') => `<span class="wframe t${w.tier} ${cls}" style="${wVars(w)}"><img src="${W_IMG(w.id)}" alt="${w.name}"></span>`;
+const wVars = (w) => `--c:${WTIERS[w.tier].color};--e:${WTIERS[w.tier].edge};--r:${w.rot || 0}deg`;
+const gImg = (g) => (g.type ? FB_IMG(g) : W_IMG(g.id));   // 兵器或法寶（鐘鏡塔）的圖
+const wFrame = (w, cls = '') => `<span class="wframe t${w.tier} ${w.type ? 'fb' : ''} ${cls}" style="${wVars(w)}"><img src="${gImg(w)}" alt="${w.name}"></span>`;
 // 主角佩劍立繪：持劍（法寶頁）、背劍（劇情）。座標為圖內比例，用來把劍光疊在劍身與劍柄上
 const HERO_SWORD = {
   hold: { img: 'assets/hero/hold_sword.webp', ar: 575 / 1093, blade: [0.264, 0.549, 0.013, 0.91] },
@@ -65,7 +66,20 @@ const ico = (id) => id === 'stone' ? `<i class="ico img">${stoneIco()}</i>` : `<
 // 框內空洞位置（圖內比例）：左右 26%～74%，上下 14%～74%
 const CASE_IMG = 'assets/ui/case_frame.webp';
 const wCase = (w, o) => {
-  const T = WTIERS[w.tier], st = o ? S.wStat(w.id) : { atk: w.atk, crit: w.crit, regen: w.regen };
+  const T = WTIERS[w.tier];
+  if (w.type) {   // 法寶：單一加成
+    const F = FB_TYPES[w.type], v = o ? S.fStat(w.id) : w.val;
+    return `<div class="wcase t${w.tier} fb" style="${wVars(w)}">
+    <div class="wc-halo"></div>
+    <div class="wc-in"><i class="wc-glow"></i><div class="wc-spin"><img src="${gImg(w)}" alt="${w.name}"></div></div>
+    ${w.tier >= 4 ? `<canvas class="wc-cv" data-t="${w.tier}" data-c="${T.color}" data-e="${T.edge}"></canvas>` : ''}
+    <img class="wc-frame" src="${CASE_IMG}" alt="">
+  </div>
+  <div class="wc-plate" style="--c:${T.color};--e:${T.edge}"><b>${w.name}${o && o.lv ? ' +' + o.lv : ''}</b><i>${T.name}・${F.name}${o && o.brk ? `・${'一二三'[o.brk - 1]}重` : ''}</i></div>
+  <div class="wc-stats one" style="--c:${T.color}"><span><small>${F.label}</small><b>+${v}${F.unit}</b></span></div>
+  <p class="wc-fx">${w.desc}</p>`;
+  }
+  const st = o ? S.wStat(w.id) : { atk: w.atk, crit: w.crit, regen: w.regen };
   return `<div class="wcase t${w.tier}" style="${wVars(w)}">
     <div class="wc-halo"></div>
     <div class="wc-in"><i class="wc-glow"></i><div class="wc-spin"><img src="${W_IMG(w.id)}" alt="${w.name}"></div></div>
@@ -80,8 +94,11 @@ const wCase = (w, o) => {
 // 沒有該品階的圖就用同類型凡階圖加品階濾鏡；凡階圖也載入失敗時換成內建卷軸 SVG，不會退回白球
 const LOOT_SVG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160"><rect x="30" y="18" width="60" height="124" fill="#e9dcb8" stroke="#7a5a2e" stroke-width="3"/><rect x="20" y="10" width="80" height="12" rx="6" fill="#6b4421"/><rect x="20" y="138" width="80" height="12" rx="6" fill="#6b4421"/><path d="M60 40v70M48 56h24M50 84h20" stroke="#3a2410" stroke-width="5" stroke-linecap="round"/></svg>');
 const lootImg = (r) => {
+  if (r.type === 'f') { const f = FABAO.find((x) => x.id === r.id); return `<img class="loot t${r.tier}" src="${FB_IMG(f)}" data-fb="${LOOT_SVG}" alt="${f.name}">`; }
   if (r.type === 'w') { const w = WEAPONS.find((x) => x.id === r.id); return `<span class="loot-w" style="${wVars(w)}"><img class="loot t${r.tier}" src="${W_IMG(w.id)}" data-fb="${LOOT_SVG}" alt="${w.name}"></span>`; }
-  const type = r.type === 'art' ? 'art' : 'scroll', own = `assets/loot/${type}_t${r.tier}.webp`, base = `assets/loot/${type}_t0.webp`;
+  // 殘卷各品階共用同一張破卷（只加品階光暈）；功法依品階用不同卷軸
+  if (r.type !== 'art') return `<img class="loot loot-glow t${r.tier}" src="assets/loot/scroll_t0.webp" data-fb="${LOOT_SVG}" alt="${r.base || r.name}">`;
+  const type = 'art', own = `assets/loot/${type}_t${r.tier}.webp`, base = `assets/loot/${type}_t0.webp`;
   const exact = r.tier === 0 || Knock.has(own);
   return `<img class="loot ${exact ? '' : 'loot-fb'} t${r.tier}" src="${exact ? own : base}" data-fb="${exact && r.tier ? base : LOOT_SVG}" alt="${r.base || r.name}">`;
 };
@@ -306,8 +323,8 @@ const UI = {
     const mw = S.wMain();
     Halo.mount('stand', '.hero-stage.gear > *', mw ? { c: WTIERS[mw.tier].color, e: WTIERS[mw.tier].edge } : null);   // 背後多層光環，顏色隨主手品階
     const ready = S.questsReady();
-    const tabs = [['wpn', '兵器'], ['forge', '煉器'], ['shop', '商店'], ['quest', '任務']].map(([k, n]) => `<button class="${this.gtab === k ? 'on' : ''}" data-g="${k}">${n}${k === 'quest' && ready ? `<i class="pip">${ready}</i>` : ''}</button>`).join('');
-    const body = { wpn: () => this.gearWpn(), forge: () => this.gearForge(), shop: () => this.gearShop(), quest: () => this.gearQuest() }[this.gtab]();
+    const tabs = [['wpn', '兵器'], ['fb', '法寶'], ['forge', '煉器'], ['shop', '商店'], ['quest', '任務']].map(([k, n]) => `<button class="${this.gtab === k ? 'on' : ''}" data-g="${k}">${n}${k === 'quest' && ready ? `<i class="pip">${ready}</i>` : ''}</button>`).join('');
+    const body = { wpn: () => this.gearWpn(), fb: () => this.gearFb(), forge: () => this.gearForge(), shop: () => this.gearShop(), quest: () => this.gearQuest() }[this.gtab]();
     this.controls(`<div class="sec-title">法寶</div><div class="tabs">${tabs}</div>${body}`);
     document.querySelectorAll('[data-g]').forEach((b) => (b.onclick = () => { Audio2.play('page'); this.gear(b.dataset.g); }));
     document.querySelectorAll('[data-w]').forEach((b) => (b.onclick = () => this.wDetail(b.dataset.w)));
@@ -342,6 +359,21 @@ const UI = {
     const fw = d.freshW && d.wslot[1] === d.freshW && WEAPONS.find((x) => x.id === d.freshW);
     const bar = fw ? `<div class="fresh-bar" style="--c:${WTIERS[fw.tier].color}"><p>新得<b>${fw.name}</b>已放入副手，主手仍是${WEAPONS.find((x) => x.id === d.wslot[0]).name}。</p><button class="seal sm" id="wSwap">與主手互換</button></div>` : '';
     return `<div class="wslots">${slots}</div>${bar}<p class="note">${sum}</p><div>${sk}</div><div class="list">${rows}</div>`;
+  },
+  // 法寶分頁：法寶欄（佩一件鐘、鏡或塔）＋十五件法寶
+  gearFb() {
+    const d = S.d, cur = S.fMain();
+    const slot = cur ? `<button class="wslot" data-w="${cur.id}">${wFrame(cur)}<span><small>法寶欄</small><b style="color:${WTIERS[cur.tier].color}">${cur.name}${d.fabao[cur.id].lv ? ' +' + d.fabao[cur.id].lv : ''}</b></span></button>`
+      : '<div class="wslot empty"><span class="wframe"></span><span><small>法寶欄</small><b>空</b></span></div>';
+    const sum = cur ? `${FB_TYPES[cur.type].label} +${S.fStat(cur.id)}${FB_TYPES[cur.type].unit}` : '佩上一件鐘、鏡或塔：鐘加防禦、鏡加暴擊、塔加氣血';
+    const rows = Object.keys(FB_TYPES).map((type) => FABAO.filter((f) => f.type === type).map((f) => {
+      const o = d.fabao[f.id], T = WTIERS[f.tier], F = FB_TYPES[type];
+      if (!o) return `<div class="li locked">${wFrame(f, 'unknown')}<div><h4>${f.name}<i class="tier" style="color:${T.color}">${T.name}</i></h4><p>${F.label} +${f.val}${F.unit}・取得：機緣・法寶池</p></div><span></span></div>`;
+      const on = d.fslot === f.id;
+      return `<div class="li" style="--c:${T.color}">${wFrame(f)}<div><h4 style="color:${T.color}">${f.name}${o.lv ? ' +' + o.lv : ''}<i class="tier">${T.name}${o.brk ? `・${'一二三'[o.brk - 1]}重` : ''}</i></h4><p>${F.label} +${S.fStat(f.id)}${F.unit}${on ? '<br>法寶欄佩戴中' : ''}</p></div>
+        <button class="seal sm ${on ? 'ghost' : ''}" data-w="${f.id}">養成</button></div>`;
+    }).join('')).join('');
+    return `<div class="wslots one">${slot}</div><p class="note">${sum}</p><div class="list">${rows}</div>`;
   },
   gearForge() {
     const rows = FORGE.map((f, i) => {
@@ -382,22 +414,23 @@ const UI = {
   },
   // 得到兵器的展示卷軸
   wShow(id, how, onOk, okText = '收下') {
-    const w = WEAPONS.find((x) => x.id === id), T = WTIERS[w.tier];
-    this.modal(how, `${wCase(w, S.d.weapons[id])}
+    const w = S.gDef(id), T = WTIERS[w.tier];
+    this.modal(how, `${wCase(w, S.gOwn(id))}
       <div class="row center"><button class="seal" id="wsOk">${okText}</button></div>`, { '#wsOk': () => { this.close(); if (onOk) onOk(); } });
     wCaseFx();
-    const sub = S.subNotice(id); if (sub) setTimeout(() => this.toast(sub + '，可到法寶頁與主手互換', T.color), 300);
+    const sub = !w.type && S.subNotice(id); if (sub) setTimeout(() => this.toast(sub + '，可到法寶頁與主手互換', T.color), 300);
     if (w.tier >= 4) { FX.stormT = 1; FX.flash = 0.9; Audio2.play('thunder'); FX.shake($('#scene'), 10); setTimeout(() => (FX.stormT = 0), 2600); }
   },
   // 兵器養成：佩戴、強化（失敗率與保底）、突破
   wDetail(id) {
-    const w = WEAPONS.find((x) => x.id === id), o = S.d.weapons[id], T = WTIERS[w.tier];
+    const w = S.gDef(id), o = S.gOwn(id), T = WTIERS[w.tier], fb = !!w.type;
     if (!o) return;
-    const st = S.wStat(id), cap = S.wCap(id), slot = S.d.wslot.indexOf(id), maxed = o.lv >= cap;
+    const cap = S.wCap(id), slot = fb ? -1 : S.d.wslot.indexOf(id), maxed = o.lv >= cap;
     const cost = wEnhCost(w, o.lv), rate = o.fail >= W_PITY ? 100 : Math.round(wEnhRate(o.lv) * 100);
     const brk = o.brk < W_BRK_MAX ? wBrkNeed(w, o.brk) : null;
     const brkMats = brk ? Object.entries(brk.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', brk.stone) ? '' : 'lack'}">${stoneAmt(brk.stone)}</span>` : '';
-    const eqBtns = W_SLOTS.map((n, i) => slot === i ? `<button class="seal sm ghost" data-un="${i}">卸下${n}</button>` : `<button class="seal sm ghost" data-eqs="${i}">佩於${n}</button>`).join('');
+    const eqBtns = fb ? (S.d.fslot === id ? '<button class="seal sm ghost" id="fUn">卸下法寶</button>' : '<button class="seal sm" id="fEq">佩於法寶欄</button>')
+      : W_SLOTS.map((n, i) => slot === i ? `<button class="seal sm ghost" data-un="${i}">卸下${n}</button>` : `<button class="seal sm ghost" data-eqs="${i}">佩於${n}</button>`).join('');
     this.modal(w.name, `${wCase(w, o)}
       <p class="note" style="text-align:center;margin:2px 0 0">強化 +${o.lv}／${cap}</p>
       <div class="list">
@@ -409,6 +442,8 @@ const UI = {
       '#wBrk': () => { if (S.wBreak(id)) { Audio2.play('gong'); FX.pillar(FX.w / 2, FX.h, hexA(T.color, 0.5), 90, 2); this.toast(`${w.name}突破・${'一二三'[o.brk - 1]}重`, T.color); this.wDetail(id); this.gear(); this.hud(); } },
       '[data-eqs]': (el) => { S.wEquip(id, +el.dataset.eqs); Audio2.play('pickup'); this.close(); this.gear(); this.hud(); },
       '[data-un]': (el) => { S.wUnequip(+el.dataset.un); this.close(); this.gear(); this.hud(); },
+      '#fEq': () => { S.fEquip(id); Audio2.play('pickup'); this.toast(`${w.name}佩於法寶欄`, T.color); this.close(); this.gear(); this.hud(); },
+      '#fUn': () => { S.fUnequip(); this.close(); this.gear(); this.hud(); },
     });
     wCaseFx();
   },
@@ -502,12 +537,13 @@ const UI = {
       await Story.wait(ten ? 360 + r.tier * 100 : 1100);
     }
   },
-  resIcon(x) { return x.type === 'w' ? wFrame(WEAPONS.find((w) => w.id === x.id)) : `<span class="loot-sm" style="--c:${WTIERS[x.tier].color}">${lootImg(x)}</span>`; },
+  resIcon(x) { return x.type === 'w' || x.type === 'f' ? wFrame(S.gDef(x.id)) : `<span class="loot-sm" style="--c:${WTIERS[x.tier].color}">${lootImg(x)}</span>`; },
   // 結果：單抽得到兵器直接進展示框；十連列表中的兵器可點開展示框，看完回到列表
   gachaResults(res) {
     const back = () => { this.close(); this.draw(); };
-    if (res.length === 1 && res[0].type === 'w') { this.wShow(res[0].id, '認主', back); return; }
-    const rows = res.map((x, i) => { const sub = x.type === 'w' && S.subNotice(x.id); return `<div class="li gres t${x.tier} ${x.type === 'w' ? 'tap' : ''}" ${x.type === 'w' ? `data-gi="${i}"` : ''} style="--c:${WTIERS[x.tier].color}">${this.resIcon(x)}<div><h4 style="color:${WTIERS[x.tier].color}">${x.name}${x.isNew ? '<i class="new">新</i>' : ''}<i class="tier">${WTIERS[x.tier].name}</i></h4>${x.note || sub ? `<p>${stoneText(x.note || sub)}</p>` : ''}</div><span>${x.type === 'w' ? '›' : ''}</span></div>`; }).join('');
+    const tap = (x) => x.type === 'w' || x.type === 'f';
+    if (res.length === 1 && tap(res[0])) { this.wShow(res[0].id, '認主', back); return; }
+    const rows = res.map((x, i) => { const sub = x.type === 'w' && S.subNotice(x.id); return `<div class="li gres t${x.tier} ${tap(x) ? 'tap' : ''}" ${tap(x) ? `data-gi="${i}"` : ''} style="--c:${WTIERS[x.tier].color}">${this.resIcon(x)}<div><h4 style="color:${WTIERS[x.tier].color}">${x.name}${x.isNew ? '<i class="new">新</i>' : ''}<i class="tier">${WTIERS[x.tier].name}</i></h4>${x.note || sub ? `<p>${stoneText(x.note || sub)}</p>` : ''}</div><span>${tap(x) ? '›' : ''}</span></div>`; }).join('');
     this.modal(res.length === 10 ? '十連機緣' : '機緣', `<div class="list">${rows}</div><div class="row center"><button class="seal" id="gOk">收下</button></div>`, {
       '#gOk': back,
       '[data-gi]': (el) => this.wShow(res[+el.dataset.gi].id, '認主', () => this.gachaResults(res), '返回'),
