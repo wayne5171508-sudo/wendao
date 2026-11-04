@@ -1,5 +1,5 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
-const ASSET_VER = '20261105120000';
+const ASSET_VER = '20261105150000';
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -92,4 +92,20 @@ const ASSET_LIST = [
   'assets/weapon/shuanghan.webp',
   'assets/weapon/xuantie.webp',
   'assets/weapon/zichen.webp',
+];
+// 音檔：只給 service worker 離線快取，不走圖片預載
+const AUDIO_LIST = [
+  'assets/audio/bgm_battle.mp3',
+  'assets/audio/bgm_boss.mp3',
+  'assets/audio/bgm_home.mp3',
+  'assets/audio/bgm_trib.mp3',
+  'assets/audio/bgm_trib_intro.mp3',
+  'assets/audio/sfx_cast.mp3',
+  'assets/audio/sfx_crit.mp3',
+  'assets/audio/sfx_divine.mp3',
+  'assets/audio/sfx_gather.mp3',
+  'assets/audio/sfx_hurt.mp3',
+  'assets/audio/sfx_meditate.mp3',
+  'assets/audio/sfx_slash.mp3',
+  'assets/audio/sfx_thunder.mp3',
 ];

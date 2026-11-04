@@ -150,6 +150,7 @@ const UI = {
   go(tab) {
     if (Battle.on) return;
     this.tab = tab; this.navLock();
+    if (tab !== 'home') Audio2.loop('meditate', false);
     $('#app').classList.toggle('tall', tab !== 'home'); $('#app').classList.toggle('fit', tab === 'draw');   // 機緣頁面板依內容高度，其餘給光陣 $('#app').classList.remove('fighting'); FX.clear(); FX.stormT = 0; FX.ambient = 'qi';
     ({ home: () => this.home(), map: () => this.map(), alch: () => this.alch(), arts: () => this.arts(), gear: () => this.gear(), draw: () => this.draw() }[tab] || (() => this.home()))();
     this.hud();
@@ -160,7 +161,8 @@ const UI = {
     Audio2.setMood('sect');
     this.setBg('dongfu', '');
     this.scene(`${heaven(S.wTop())}<div class="hero-stage sit">${S.wTop() ? heroArmed(S.wTop(), 'sit') : `<img src="${IMG_SRC.hero_meditate}" alt="${HERO_NAME}打坐">`}</div>`);
-    Halo.mount('sit', '.hero-stage.sit > *');   // 腳下法陣＋靈氣絲帶，顏色隨境界
+    Halo.mount('sit', '.hero-stage.sit > *');
+    Audio2.loop('meditate', true);   // 打坐循環音   // 腳下法陣＋靈氣絲帶，顏色隨境界
     this.controls(`<div class="cult">
       <div class="cult-head"><h2 id="hLv"></h2><span id="hRate"></span></div>
       <div class="bar xp"><i id="hBar"></i><span id="hTxt"></span></div>
@@ -496,6 +498,7 @@ const UI = {
     const wpn = pool === 'wpn', ten = res.length > 1;
     await this.fade(true);
     $('#app').classList.add('gacha-show'); requestAnimationFrame(() => FX.resize());   // 收起下方面板，全螢幕
+    Audio2.setMood('gacha');   // 進入法寶室／功法閣：切到抽卡音樂
     this.scene(`<div class="gs-hall ${pool}"><div class="gs-bg" style="background-image:url(assets/bg/gacha_${pool}.webp)"></div><i class="gs-dark"></i>
       <div class="gs-title">${wpn ? '法寶室' : '功法閣'}</div><div id="gsFly"></div>
       <div class="gs-orb" id="gsOrb"><img data-knock="assets/fx/qi_orb.webp" alt=""></div><div class="gs-reveal" id="gsRev"></div><div class="gs-count" id="gsCnt"></div></div>`);
@@ -517,7 +520,7 @@ const UI = {
       const dur = ten ? (r.tier >= 4 ? 1600 : 380 + r.tier * 120) : this.GS_DUR[r.tier];
       $('#gsCnt').textContent = ten ? `第 ${i + 1} 件・共 ${res.length} 件` : '';
       $('#gsRev').innerHTML = ''; orb.className = 'gs-orb on'; orb.style.setProperty('--c', '#e8f4ff'); orb.style.setProperty('--k', 0);
-      Audio2.play('qi');
+      Audio2.play('gather');   // 認主匯聚
       const t0 = Date.now(); let lastM = 0;
       while (!Story.skip) {
         const el = Date.now() - t0, k = Math.min(1, el / dur);
@@ -530,7 +533,7 @@ const UI = {
       if (Story.skip) break;
       orb.className = 'gs-orb pop';
       FX.burst(p.x, p.y, T.color, 30 + r.tier * 16, 220 + r.tier * 60, 3 + r.tier * 0.6, 1.1); FX.ring(p.x, p.y, T.color, 20, 160 + r.tier * 60, 0.7, 4 + r.tier);
-      FX.shake(sc, 4 + r.tier * 3); Audio2.play(r.tier >= 3 ? 'thunder' : 'gong');
+      FX.shake(sc, 4 + r.tier * 3); Audio2.duck(0.2, ten ? 0.6 : 1.6); Audio2.play(r.tier >= 4 ? 'divine' : 'reveal' + r.tier);   // 揭曉：音樂漸弱＋品階音效
       if (r.tier >= 4) { FX.flash = 1; sc.classList.remove('bt-white'); void sc.offsetWidth; sc.classList.add('bt-white'); }
       else if (r.tier >= 3) FX.flash = 0.45;
       // 光團爆開後，對應類型與品階的素材圖淡入；下方是名稱、數量、品階
@@ -555,8 +558,9 @@ const UI = {
     const d = S.d;
     this.modal('閣', `
       <div class="list">
-        <div class="li"><i class="ico" style="--c:#c8b48a">琴</i><div><h4>配樂</h4><p>古琴、竹笛與低鳴</p></div><button class="seal sm ${Audio2.musOn ? '' : 'ghost'}" id="sMus">${Audio2.musOn ? '開' : '關'}</button></div>
-        <div class="li"><i class="ico" style="--c:#c8b48a">音</i><div><h4>音效</h4><p>斬擊、雷鳴、丹爐</p></div><button class="seal sm ${Audio2.sfxOn ? '' : 'ghost'}" id="sSfx">${Audio2.sfxOn ? '開' : '關'}</button></div>
+        <div class="li"><i class="ico" style="--c:#c8b48a">琴</i><div><h4>配樂音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.bgm * 100)}" id="sBgm" aria-label="配樂音量"></div><b class="vol-n" id="sBgmN">${Math.round(Audio2.set.bgm * 100)}</b></div>
+        <div class="li"><i class="ico" style="--c:#c8b48a">音</i><div><h4>音效音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.sfx * 100)}" id="sSfxV" aria-label="音效音量"></div><b class="vol-n" id="sSfxN">${Math.round(Audio2.set.sfx * 100)}</b></div>
+        <div class="li"><i class="ico" style="--c:#c8b48a">靜</i><div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">震</i><div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">卷</i><div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">存</i><div><h4>匯出存檔</h4><p>下載存檔檔案，也可複製文字備份</p></div><button class="seal sm ghost" id="sExp">匯出</button></div>
@@ -564,15 +568,16 @@ const UI = {
         <div class="li"><i class="ico" style="--c:#c8b48a">歸</i><div><h4>回標題畫面</h4><p>存檔後回到標題，可再「續緣」</p></div><button class="seal sm ghost" id="sTitle">回標題</button></div>
         <div class="li"><i class="ico" style="--c:#ff8a8a">重</i><div><h4>重新修行</h4><p>刪除存檔，從青石村重新開始</p></div><button class="seal sm" id="sReset">重修</button></div>
       </div>`, {
-      '#sMus': () => { Audio2.unlock(); Audio2.setMusic(!Audio2.musOn); d.settings.music = Audio2.musOn; S.save(); this.settings(); },
+      '#sMute': () => { Audio2.toggleMute(); this.settings(); },
       '#sShake': () => { FX.noShake = !FX.noShake; d.settings.shake = !FX.noShake; S.save(); this.settings(); },
-      '#sSfx': () => { Audio2.setSfx(!Audio2.sfxOn); d.settings.sfx = Audio2.sfxOn; S.save(); this.settings(); },
       '#sStory': () => { this.close(); Story.replay(); },
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),
       '#sExp': () => this.exportSave(),
       '#sImp': () => this.importSave(),
       '#sReset': () => this.modal('重新修行', '<p class="big">確定刪除存檔？</p><div class="row center"><button class="seal" id="rY">刪除</button><button class="seal ghost sm" id="rN">取消</button></div>', { '#rY': () => { S.reset(); location.reload(); }, '#rN': () => this.settings() }),
     });
+    const vol = (id, n, kind) => { const el = $(id); if (el) el.oninput = () => { Audio2.unlock(); Audio2.setVol(kind, el.value / 100); $(n).textContent = el.value; if (kind === 'sfx') Audio2.play('swing1'); }; };
+    vol('#sBgm', '#sBgmN', 'bgm'); vol('#sSfxV', '#sSfxN', 'sfx');
   },
 
   // ───────── 存檔備份 ─────────

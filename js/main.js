@@ -21,7 +21,7 @@ const Game = {
     document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') imgFail(e.target); }, true);
     [...document.images].forEach((i) => { if (i.complete && !i.naturalWidth && i.getAttribute('src')) imgFail(i); });   // 程式啟動前就已失敗的（頂部資源列）
     const had = S.load();
-    Audio2.musOn = S.d.settings.music !== false; Audio2.sfxOn = S.d.settings.sfx !== false; FX.noShake = S.d.settings.shake === false;
+    FX.noShake = S.d.settings.shake === false;
     // 點擊推進對話；按鈕
     $('#dlg').addEventListener('click', () => Story.advance());
     $('#skipBtn').onclick = (e) => { e.stopPropagation(); Story.skipNow(); };
@@ -30,6 +30,8 @@ const Game = {
     addEventListener('pointerdown', () => Audio2.unlock(), { once: true });
     document.querySelectorAll('#nav button').forEach((b) => (b.onclick = () => { Audio2.play('page'); UI.go(b.dataset.tab); }));
     $('#btnSet').onclick = () => UI.settings();
+    $('#btnMute').onclick = (e) => { e.stopPropagation(); Audio2.toggleMute(); };   // 主畫面右上角靜音
+    Audio2.applyVol(); $('#btnMute').textContent = Audio2.set.mute ? '靜' : '聲'; $('#btnMute').classList.toggle('off', Audio2.set.mute);
     $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') UI.close(); });
     // 字型與首批素材同時下載
     await Promise.all([document.fonts ? Promise.race([document.fonts.load('700 24px "LXGW WenKai TC"', '問道青冥入道續緣'), U.wait(2000)]).catch(() => {}) : 0, this.preload()]);

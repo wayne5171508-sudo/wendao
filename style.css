@@ -714,3 +714,9 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .gpeek { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 2px; flex-wrap: wrap; }
 .gpeek small { color: var(--dim); font-size: 12px; letter-spacing: 2px; margin-right: 2px; }
 .gpeek .wframe { width: 40px; height: 40px; }
+
+/* 靜音鈕、音量滑桿 */
+#hudRes .sealBtn.mute { font-size: 16px; color: var(--gold2); border-color: var(--goldline); }
+#hudRes .sealBtn.mute.off { color: #7a8692; border-color: #3a4450; }
+.vol { width: 100%; accent-color: var(--cinnabar2); margin: 6px 0 0; }
+.vol-n { min-width: 34px; text-align: right; font-family: var(--brush); color: var(--gold2); }
