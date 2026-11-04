@@ -18,7 +18,8 @@ const Game = {
     const imgFail = (i) => {
       if (i.dataset.fb) { const f = i.dataset.fb; delete i.dataset.fb; if (!f.startsWith('data:')) i.classList.add('loot-fb'); else i.classList.remove('loot-fb'); i.src = f; return; }   // 抽中素材的備援鏈
       if (i.dataset.failed) return; i.dataset.failed = '1';
-      if (i.classList.contains('item-ico')) { const p = i.parentElement, id = (i.getAttribute('src') || '').match(/item\/(\w+)\./); p.classList.remove('img', 'item'); p.textContent = p.dataset.ball || (id && ITEMS[id[1]] ? { scroll: '卷', ore: '鐵', star: '砂' }[id[1]] || '草' : '物'); return; }   // 物品圖缺：換回圓球
+      if (i.classList.contains('item-ico')) { const p = i.parentElement; p.classList.remove('img', 'item'); p.textContent = p.dataset.ball || '?'; console.warn('[圖示] 載入失敗，改用佔位圓球：' + i.getAttribute('src')); return; }   // 圖缺：換回圓球
+      if (i.classList.contains('mat-ico')) { i.remove(); return; }
       if (i.classList.contains('stone-ico')) { const f = document.createElement('i'); f.className = 'stone-fb'; f.textContent = '石'; i.replaceWith(f); return; }
       i.style.visibility = 'hidden'; if (i.parentElement) i.parentElement.classList.add('img-fail');
     };

@@ -59,17 +59,35 @@ const stoneAmt = (n, sign = '') => `<span class="stone-amt">${stoneIco()}<b>${si
 const escHtml = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 // 純文字裡的「靈石 +120」「靈石 1800」換成圖示＋數字
 const stoneText = (t) => escHtml(t).replace(/靈石\s*([+＋\-−]?)\s*([\d,.]+[萬億]?)/g, (_, sg, n) => stoneAmt(n, sg));
-// 物品圖示表：assets/item/<id>.webp 有在素材清單（deploy 自動產生）就用圖，沒有就用彩色圓球佔位；新增素材不必改程式
-// 修為用 id 'exp'。圖檔已預先去黑（透明底），圖片載入失敗時 main.js 會換回圓球
-const ITEM_ICO_FALLBACK = { exp: ['修', '#f2dc94'] };
-const itemImg = (id) => { const p = `assets/item/${id}.webp`; return typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(p) ? p : null; };
-const ballIco = (id) => { const f = ITEM_ICO_FALLBACK[id], it = ITEMS[id]; return `<i class="ico" style="--c:${f ? f[1] : it.color}">${f ? f[0] : { stone: '石', scroll: '卷', ore: '鐵', star: '砂' }[id] || (it.pill ? '丹' : '草')}</i>`; };
-const ico = (id) => {
-  if (id === 'stone') return `<i class="ico img">${stoneIco()}</i>`;
-  const src = itemImg(id); if (!src) return ballIco(id);
-  const f = ITEM_ICO_FALLBACK[id], it = ITEMS[id];
-  return `<i class="ico img item" data-ball="${f ? f[0] : ''}" style="--c:${f ? f[1] : it.color}"><img class="item-ico" src="${src}" alt="${it ? it.name : '修為'}"></i>`;
+// ════════ 共用圖示元件 ════════
+// 圖示表：類別 + id → assets/<類別>/<id>.webp（item 物品、art 功法、ui 介面）。檔案在素材清單（deploy 自動產生）裡就用圖；
+// 新增素材只要照檔名放進去，不必改程式。找不到圖才退回「彩色圓球＋單字」並在 console 警告一次；圖片載入失敗時 main.js 也會換回圓球
+const ICON_DIR = { item: 'assets/item/', art: 'assets/art/', ui: 'assets/ui/' };
+// 圓球備援的單字與顏色（物品用 ITEMS 的顏色）
+const ICON_BALL = { exp: ['修', '#f2dc94'], stone: ['石'], scroll: ['卷'], ore: ['鐵'], star: ['砂'], sign: ['簽', '#9fe8d8'], quest: ['任', '#ffe7a0'], alch_seal: ['煉', '#ff8a6a'] };
+const iconWarned = {};
+const iconSrc = (kind, id) => {
+  const p = `${ICON_DIR[kind]}${id}.webp`;
+  if (typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(p)) return p;
+  if (!iconWarned[p]) { iconWarned[p] = 1; console.warn(`[圖示] 找不到素材 ${p}，改用佔位圓球`); }
+  return null;
 };
+const ballOf = (kind, id) => {
+  const b = ICON_BALL[id] || [], it = kind === 'item' && ITEMS[id], A = kind === 'art' && ARTS.find((x) => x.id === id);
+  return { ch: b[0] || (A ? A.name[0] : it ? (it.pill ? '丹' : '草') : '?'), c: b[1] || (it ? it.color : '#ffe7a0') };
+};
+// gIco：列表用的圓形圖示框；cls 可加 tN（品階框色）、max（已臻圓滿金光）、dim（未取得）
+const gIco = (kind, id, cls = '', color) => {
+  const b = ballOf(kind, id), c = color || b.c, src = iconSrc(kind, id);
+  if (!src) return `<i class="ico ${cls}" style="--c:${c}">${b.ch}</i>`;
+  return `<i class="ico img item ${cls}" data-ball="${b.ch}" style="--c:${c}"><img class="item-ico" src="${src}" alt=""></i>`;
+};
+// mIco：材料標籤、文字裡的小圖示，高度約等於字高
+const mIco = (id, kind = 'item') => { if (id === 'stone') return stoneIco(); const src = iconSrc(kind, id); return src ? `<img class="mat-ico" src="${src}" alt="">` : ''; };
+const ico = (id) => (id === 'stone' ? `<i class="ico img">${stoneIco()}</i>` : gIco('item', id));
+// 功法品階（決定圖示外框光色）：引氣 凡、青冥劍訣與金剛 靈、雷法與護體 法寶、萬劍歸宗 神
+const ART_TIER = { yinqi: 0, qingming: 1, jingang: 1, leifa: 2, huti: 2, wanjian: 4 };
+const artIco = (A) => { const lv = S.artLv(A.id), t = ART_TIER[A.id] ?? 0; return gIco('art', A.id, `art t${t} ${lv >= ART_MAX ? 'max' : ''} ${lv ? '' : 'dim'}`, WTIERS[t].color); };
 // 兵器展示框：玉框蓮台底座圖當外框，仙劍放在框中央緩慢旋轉、上下浮動；普通品階只有柔光，神器加電光粒子與外圈光暈
 // 框內空洞位置（圖內比例）：左右 26%～74%，上下 14%～74%
 const CASE_IMG = 'assets/ui/case_frame.webp';
@@ -105,6 +123,7 @@ const lootImg = (r) => {
   if (r.type === 'f') { const f = FABAO.find((x) => x.id === r.id); return `<img class="loot t${r.tier}" src="${FB_IMG(f)}" data-fb="${LOOT_SVG}" alt="${f.name}">`; }
   if (r.type === 'w') { const w = WEAPONS.find((x) => x.id === r.id); return `<span class="loot-w" style="${wVars(w)}"><img class="loot t${r.tier}" src="${W_IMG(w.id)}" data-fb="${LOOT_SVG}" alt="${w.name}"></span>`; }
   // 殘卷各品階共用同一張破卷（只加品階光暈）；功法依品階用不同卷軸
+  if (r.type === 'art' && r.id && iconSrc('art', r.id)) return `<img class="loot loot-glow t${r.tier}" src="${iconSrc('art', r.id)}" data-fb="${LOOT_SVG}" alt="${r.base || r.name}">`;   // 抽中功法：顯示該功法的書
   if (r.type !== 'art') return `<img class="loot loot-glow t${r.tier}" src="assets/loot/scroll_t0.webp" data-fb="${LOOT_SVG}" alt="${r.base || r.name}">`;
   const type = 'art', own = `assets/loot/${type}_t${r.tier}.webp`, base = `assets/loot/${type}_t0.webp`;
   const exact = r.tier === 0 || Knock.has(own);
@@ -270,10 +289,10 @@ const UI = {
       <i class="fz-mouth"></i><i class="fz-pill"></i><i class="fz-smoke"></i><i class="fz-smoke s2"></i><i class="fz-burst"></i>
       <canvas class="fz-front"></canvas></div>`);
     requestAnimationFrame(() => { const cv = document.querySelector('#furn .fz-front'); if (cv) Aura.start(cv); });
-    const herbs = ['herb_q', 'herb_c', 'herb_b', 'herb_l'].map((h) => `<span class="mat">${ITEMS[h].name} ${S.d.inv[h] || 0}</span>`).join('');
+    const herbs = ['herb_q', 'herb_c', 'herb_b', 'herb_l'].map((h) => `<span class="mat">${mIco(h)}${ITEMS[h].name} ${S.d.inv[h] || 0}</span>`).join('');
     const rows = RECIPES.map((r, i) => {
-      const it = ITEMS[r.out], mats = Object.entries(r.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', r.stone) ? '' : 'lack'}">${stoneAmt(r.stone)}</span>`;
-      return `<div class="li">${ico(r.out)}<div><h4>${it.name}<em>成丹 ${Math.round(S.alchRate(r) * 100)}%・持有 ${S.d.inv[r.out] || 0}</em></h4><p>${it.desc}</p><div>${mats}</div></div><button class="seal sm" data-r="${i}" ${S.canCraft(r) ? '' : 'disabled'}>煉</button></div>`;
+      const it = ITEMS[r.out], mats = Object.entries(r.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${mIco(k)}${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', r.stone) ? '' : 'lack'}">${stoneAmt(r.stone)}</span>`;
+      return `<div class="li">${ico(r.out)}<div><h4>${it.name}<em>成丹 ${Math.round(S.alchRate(r) * 100)}%・持有 ${S.d.inv[r.out] || 0}</em></h4><p>${it.desc}</p><div>${mats}</div></div>${(() => { const src = iconSrc('ui', 'alch_seal'); return src ? `<button class="seal-img" data-r="${i}" aria-label="煉丹" ${S.canCraft(r) ? '' : 'disabled'}><img src="${src}" alt="煉"></button>` : `<button class="seal sm" data-r="${i}" ${S.canCraft(r) ? '' : 'disabled'}>煉</button>`; })()}</div>`;   // 煉丹印章按鈕；沒有素材退回朱印文字
     }).join('');
     this.controls(`<div class="sec-title">丹房</div><p class="note">靈草：${herbs}</p><div class="list">${rows}</div>`);
     document.querySelectorAll('[data-r]').forEach((b) => (b.onclick = async () => {
@@ -308,11 +327,11 @@ const UI = {
     this.scene(`<div class="hero-stage cast"><img src="${CAST_IMG[best]}" alt="${HERO_NAME}施展${SKILLS.find((k) => k.id === best).name}"></div>`);
     const rows = ARTS.map((A) => {
       const st = S.artState(A), reqOk = S.d.lv >= A.req * 3;
-      const cost = st.learn ? `功法殘卷 ×${A.scroll}${A.req ? `・需 ${REALMS[A.req]}` : ''}` : st.lv >= ART_MAX ? '已臻圓滿' : `${stoneAmt(artCost(st.lv))}`;
-      return `<div class="li ${reqOk || st.lv ? '' : 'locked'}"><i class="ico" style="--c:${st.lv ? '#ffe7a0' : '#7a8692'}">${A.name[0]}</i><div><h4>${A.name}<em>${st.lv ? `第 ${st.lv} 層` : '未習得'}</em></h4><p>${A.per}</p><span class="mat ${st.can ? '' : 'lack'}">${cost}</span></div>
+      const cost = st.learn ? `${mIco('scroll')}功法殘卷 ×${A.scroll}${A.req ? `・需 ${REALMS[A.req]}` : ''}` : st.lv >= ART_MAX ? '已臻圓滿' : `${stoneAmt(artCost(st.lv))}`;
+      return `<div class="li ${reqOk || st.lv ? '' : 'locked'}">${artIco(A)}<div><h4>${A.name}<em>${st.lv ? `第 ${st.lv} 層` : '未習得'}</em></h4><p>${A.per}</p><span class="mat ${st.can ? '' : 'lack'}">${cost}</span></div>
         <button class="seal sm ${st.learn ? '' : 'ghost'}" data-a="${A.id}" ${st.can ? '' : 'disabled'}>${st.learn ? '參悟' : '精進'}</button></div>`;
     }).join('');
-    this.controls(`<div class="sec-title">功法</div><p class="note">功法殘卷 ${S.d.inv.scroll || 0}　${stoneAmt(S.d.inv.stone || 0)}</p><div class="list">${rows}</div>`);
+    this.controls(`<div class="sec-title">功法</div><p class="note">${mIco('scroll')}功法殘卷 ${S.d.inv.scroll || 0}　${stoneAmt(S.d.inv.stone || 0)}</p><div class="list">${rows}</div>`);
     document.querySelectorAll('[data-a]').forEach((b) => (b.onclick = () => {
       const A = ARTS.find((x) => x.id === b.dataset.a), learn = S.artLv(A.id) === 0;
       if (S.upArt(A)) { Audio2.play('up'); FX.array(FX.w / 2, FX.h * 0.92, 120, 'rgba(255,231,160,0.8)', 1.2); this.toast(learn ? `參悟「${A.name}」` : `${A.name}精進至第 ${S.artLv(A.id)} 層`, '#ffe7a0'); this.arts(); this.hud(); }
@@ -389,7 +408,7 @@ const UI = {
   gearForge() {
     const rows = FORGE.map((f, i) => {
       const w = WEAPONS.find((x) => x.id === f.w), owned = !!S.d.weapons[f.w];
-      const mats = Object.entries(f.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', f.stone) ? '' : 'lack'}">${stoneAmt(f.stone)}</span>`;
+      const mats = Object.entries(f.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${mIco(k)}${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', f.stone) ? '' : 'lack'}">${stoneAmt(f.stone)}</span>`;
       return `<div class="li">${wFrame(w)}<div><h4 style="color:${WTIERS[w.tier].color}">${w.name}<i class="tier">${WTIERS[w.tier].name}</i><em>成器 ${Math.round(f.rate * 100)}%</em></h4><p>${w.desc}</p><div>${mats}</div></div>
         <button class="seal sm" data-fg="${i}" ${S.canForge(f) ? '' : 'disabled'}>${owned ? '已有' : '煉'}</button></div>`;
     }).join('');
@@ -405,10 +424,10 @@ const UI = {
     return `<p class="note">宗門執事以靈石兌換兵器與物資。</p><div class="list">${rows}</div>`;
   },
   gearQuest() {
-    const rew = (r) => Object.entries(r).map(([k, n]) => k === 'w' ? `<span class="mat" style="color:${WTIERS[WEAPONS.find((w) => w.id === n).tier].color}">${WEAPONS.find((w) => w.id === n).name}</span>` : (k === 'stone' ? `<span class="mat">${stoneAmt(n)}</span>` : `<span class="mat">${ITEMS[k].name} ×${n}</span>`)).join('');
+    const rew = (r) => Object.entries(r).map(([k, n]) => k === 'w' ? `<span class="mat" style="color:${WTIERS[WEAPONS.find((w) => w.id === n).tier].color}">${WEAPONS.find((w) => w.id === n).name}</span>` : (k === 'stone' ? `<span class="mat">${stoneAmt(n)}</span>` : `<span class="mat">${mIco(k)}${ITEMS[k].name} ×${n}</span>`)).join('');
     const rows = QUESTS.map((q) => {
       const st = S.questState(q);
-      return `<div class="li ${st === 'claimed' ? 'done' : ''}"><i class="ico" style="--c:${st === 'todo' ? '#7a8692' : '#ffe7a0'}">任</i><div><h4>${q.name}</h4><p>${q.desc}</p><div>${rew(q.reward)}</div></div>
+      return `<div class="li ${st === 'claimed' ? 'done' : ''}">${gIco('ui', 'quest', st === 'todo' ? 'dim' : '')}<div><h4>${q.name}</h4><p>${q.desc}</p><div>${rew(q.reward)}</div></div>
         ${st === 'done' ? `<button class="seal sm" data-q="${q.id}">領取</button>` : `<span class="qstate">${st === 'claimed' ? '已領' : '未達成'}</span>`}</div>`;
     }).join('');
     return `<div class="list">${rows}</div>`;
@@ -439,7 +458,7 @@ const UI = {
     const cap = S.wCap(id), slot = fb ? -1 : S.d.wslot.indexOf(id), maxed = o.lv >= cap;
     const cost = wEnhCost(w, o.lv), rate = o.fail >= W_PITY ? 100 : Math.round(wEnhRate(o.lv) * 100);
     const brk = o.brk < W_BRK_MAX ? wBrkNeed(w, o.brk) : null;
-    const brkMats = brk ? Object.entries(brk.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', brk.stone) ? '' : 'lack'}">${stoneAmt(brk.stone)}</span>` : '';
+    const brkMats = brk ? Object.entries(brk.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${mIco(k)}${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', brk.stone) ? '' : 'lack'}">${stoneAmt(brk.stone)}</span>` : '';
     const eqBtns = fb ? (S.d.fslot === id ? '<button class="seal sm ghost" id="fUn">卸下法寶</button>' : '<button class="seal sm" id="fEq">佩於法寶欄</button>')
       : W_SLOTS.map((n, i) => slot === i ? `<button class="seal sm ghost" data-un="${i}">卸下${n}</button>` : `<button class="seal sm ghost" data-eqs="${i}">佩於${n}</button>`).join('');
     this.modal(w.name, `${wCase(w, o)}
@@ -477,7 +496,7 @@ const UI = {
         : [0, 1, 2, 3, 4].map((t) => `<span class="loot-sm" style="--c:${WTIERS[t].color}">${lootImg({ type: 'art', tier: t, base: '' })}</span>`)).join('')}</div>
       <div>${rates}</div>${gives}
       <div class="row center gacha-btns"><button class="seal ${t.free ? 'ghost' : ''}" id="g1">單抽<small>${t.free ? stoneAmt(G.cost) : '今日免費'}</small></button><button class="seal ${t.free ? '' : 'ghost'}" id="g10">十連<small>${stoneAmt(G.cost10)}・保底靈階</small></button></div>
-      <div class="li"><i class="ico" style="--c:#9fe8d8">簽</i><div><h4>每日簽到</h4><p>${stoneAmt(G.sign(d.lv), '+')}（隨境界提高）</p></div><button class="seal sm ${t.sign ? 'ghost' : ''}" id="gSign" ${t.sign ? 'disabled' : ''}>${t.sign ? '已簽' : '簽到'}</button></div>
+      <div class="li">${gIco('ui', 'sign', t.sign ? 'dim' : '')}<div><h4>每日簽到</h4><p>${stoneAmt(G.sign(d.lv), '+')}（隨境界提高）</p></div><button class="seal sm ${t.sign ? 'ghost' : ''}" id="gSign" ${t.sign ? 'disabled' : ''}>${t.sign ? '已簽' : '簽到'}</button></div>
       <p class="note">機緣只消耗遊戲內靈石，靈石來自修煉、歷練、簽到與任務，沒有任何真實付費。</p>`);
     document.querySelectorAll('[data-gp]').forEach((b) => (b.onclick = () => { Audio2.play('page'); this.draw(b.dataset.gp); }));
     $('#gSign').onclick = () => { const n = S.sign(); if (n) { Audio2.play('pickup'); this.toast(`簽到成功，靈石 +${n}`, '#9fe8d8'); this.draw(); this.hud(); } };

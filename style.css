@@ -819,3 +819,20 @@ img { object-fit: contain; }
 .mon.warded .mon-shield.back { opacity: .55; animation: shUp .55s cubic-bezier(.2,.8,.3,1) both; }
 .mon.warded .mon-shield { filter: grayscale(1) brightness(.85) sepia(1) hue-rotate(-50deg) saturate(8) contrast(1.35) drop-shadow(0 0 12px rgba(200,20,40,.8)); }
 .mon.dead .mon-shield { display: none; }
+
+/* ───── 共用圖示：列表圖示框、材料小圖示、功法品階框、煉丹印章 ───── */
+.ico.img.item { overflow: visible; }
+.ico.img.item.dim .item-ico { filter: grayscale(.85) brightness(.55); }
+.mat-ico { height: 1.15em; width: auto; aspect-ratio: 1; object-fit: contain; vertical-align: -.24em; margin-right: 3px; filter: drop-shadow(0 0 2px rgba(0,0,0,.6)); }
+/* 功法列：依品階加外框光色；已臻圓滿加金色微光 */
+.li .ico.art { border-radius: 8px; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c) 22%, transparent), rgba(5,8,14,.85) 72%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 70%, transparent), 0 0 8px color-mix(in srgb, var(--c) 45%, transparent); }
+.li .ico.art .item-ico { width: 104%; height: 104%; }
+.li .ico.art.t4 { box-shadow: inset 0 0 0 1px #ffd76a, 0 0 12px rgba(255,106,74,.6); }
+.li .ico.art.max { animation: artMax 2.4s ease-in-out infinite; }
+@keyframes artMax { 50% { box-shadow: inset 0 0 0 1px #ffe7a0, 0 0 16px 3px rgba(255,215,106,.75); } }
+.li .ico.art.dim { box-shadow: inset 0 0 0 1px rgba(120,130,140,.4); }
+.seal-img { width: 48px; height: 48px; flex: none; padding: 0; border: none; background: none; cursor: pointer; transition: transform .12s, filter .2s; }
+.seal-img img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 3px 6px rgba(0,0,0,.6)); }
+.seal-img:active:not(:disabled) { transform: scale(.9) rotate(-3deg); }
+.seal-img:disabled { filter: grayscale(.9) brightness(.55); cursor: default; }
+.seal-img.img-fail::after { content: "煉"; color: var(--cinnabar2); font-family: var(--brush); font-size: 20px; }
