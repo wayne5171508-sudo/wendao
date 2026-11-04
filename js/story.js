@@ -271,6 +271,7 @@ const Story = {
     const els = [...tmp.children]; els.forEach((e) => sc.appendChild(e));
     setTimeout(() => els.forEach((e) => e.remove()), last ? 1300 : 700);
     $('#scene').classList.remove('bt-hit'); void $('#scene').offsetWidth; $('#scene').classList.add('bt-hit');
+    FX.bolt(x, headY + (cy - headY) * 0.45, '#efe6ff', last ? 6 : 3.5, 0.4);
     FX.flash = last ? 0.5 : 0.25 + power * 0.15; Audio2.play('thunder'); if (last) Audio2.play('boom');   // 音效：天雷落下
     FX.shake($('#scene'), last ? 22 : 10 + power * 8);   // 震動（設定可關）
     FX.ring(x, cy + 40, '#e6d6ff', 20, last ? 420 : 220 + power * 120, 0.6, 5);
@@ -313,8 +314,10 @@ const Story = {
     let panel;
     if (res.ok) {
       // 三、成功
+      sc.insertAdjacentHTML('beforeend', '<i class="bt-veil"></i>');
+      requestAnimationFrame(() => { const v = sc.querySelector('.bt-veil'); if (v) v.classList.add('on'); });
       fx.classList.add('on'); ring.classList.add('burst'); $('#scene').classList.add('bt-white');
-      FX.flash = 1; FX.ring(footX, cy, '#ffe7a0', 20, 420, 1.3, 7); FX.burst(footX, cy, '#ffe7a0', 70, 380, 4, 1.3);
+      FX.flash = 1; FX.ring(footX, cy, '#ffe7a0', 20, Math.max(FX.w, FX.h) * 0.7, 1.4, 8); FX.burst(footX, cy, '#ffe7a0', 80, 420, 4, 1.4);
       Audio2.play('up'); Audio2.play('gong');
       UI.banner(res.major ? `晉入${REALMS[Math.floor(res.to / 3)]}期` : lvName(res.to), res.major ? '脫胎換骨，壽元大增' : '瓶頸破開，修為精進');
       const after = S.stats(), f = (v) => (typeof v === 'number' ? U.fmt(v) : v), row = (n, a, b) => `<div><span>${n}</span><b>${f(a)}</b><i>→</i><b class="up">${f(b)}</b></div>`;
@@ -324,12 +327,12 @@ const Story = {
       UI.banner(res.major ? '渡劫失敗' : '突破失敗', '道基受震，境界跌落');
       panel = `<h3 class="fail">${lvName(res.from)} → ${lvName(res.to)}</h3><p>境界跌落一層，修為散去，只剩此境一半。<br>多備破障丹再來。</p><div class="row center"><button class="seal" id="btOk">重新修煉</button></div>`;
     }
-    await this.wait(1400);
+    await this.wait(res.ok ? 1900 : 1400);
     $('#scene').classList.remove('bt-white'); document.querySelectorAll('#scene .banner').forEach((b) => b.remove());
     sc.insertAdjacentHTML('beforeend', `<div class="bt-panel">${panel}</div>`);
     $('#skipBtn').classList.add('hidden');   // 等玩家按結果時不需要跳過
     await new Promise((ok) => (sc.querySelector('#btOk').onclick = ok));
-    sc.querySelectorAll('.bt-dark,.bt-cloud,.bt-faxiang,.bt-ring,.bt-panel,.bt-hud,.bt-shield,.bt-warn,.bt-tap').forEach((e) => e.remove());
+    sc.querySelectorAll('.bt-dark,.bt-cloud,.bt-faxiang,.bt-veil,.bt-ring,.bt-panel,.bt-hud,.bt-shield,.bt-warn,.bt-tap').forEach((e) => e.remove());
     stage.classList.remove('down');
     $('#ctrlContent').style.pointerEvents = ''; $('#nav').style.pointerEvents = ''; $('#controls').classList.remove('busy');
     UI.hud(); UI.go('home');

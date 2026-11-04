@@ -69,8 +69,14 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .hero-stage { position: absolute; left: 50%; bottom: 4%; height: 64%; transform: translateX(-50%); display: flex; align-items: flex-end; justify-content: center; }
 .hero-stage img { height: 100%; filter: drop-shadow(0 10px 18px rgba(0,0,0,.6)); animation: breathe 4.2s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes breathe { 50% { transform: translateY(-4px) scale(1.008); } }
-.aura { position: absolute; left: 50%; bottom: 6%; width: 120%; aspect-ratio: 1; transform: translate(-50%, 25%); border-radius: 50%; background: radial-gradient(circle, rgba(143,214,232,.32), rgba(143,214,232,0) 60%); animation: auraPulse 3s ease-in-out infinite; pointer-events: none; }
-@keyframes auraPulse { 50% { opacity: .55; transform: translate(-50%, 25%) scale(1.06); } }
+.aura { position: absolute; left: 50%; bottom: -6%; width: 150%; height: 78%; transform: translateX(-50%); pointer-events: none; }
+.aura .ar { position: absolute; left: 50%; border-radius: 50%; pointer-events: none; }
+.aura .a1 { top: 58%; width: 42%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px solid rgba(160, 226, 255, .55); box-shadow: 0 0 18px rgba(143, 214, 232, .45), inset 0 0 22px rgba(143, 214, 232, .25); animation: auraSpin 22s linear infinite, auraPulse 4.8s ease-in-out infinite; }
+.aura .a2 { top: 58%; width: 64%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 1px dashed rgba(232, 208, 140, .55); animation: auraSpin 34s linear infinite reverse; }
+.aura .a3 { top: 70%; width: 92%; height: 28%; transform: translate(-50%, -50%); background: radial-gradient(ellipse, rgba(170, 230, 255, .32), rgba(255, 214, 140, .08) 42%, transparent 72%); animation: auraPulse 3.8s ease-in-out infinite; }
+.aura canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+@keyframes auraSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes auraPulse { 50% { opacity: .45; filter: brightness(1.15); } }
 .cult { display: grid; gap: 10px; }
 .cult-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .cult-head h2 { margin: 0; font-family: var(--brush); font-size: 26px; color: var(--gold2); letter-spacing: 3px; }
@@ -312,7 +318,8 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 }
 /* 佩劍立繪：劍光疊在劍身／劍柄上 */
 .hfig { position: relative; height: 100%; }
-.hfig > img { height: 100%; display: block; }
+.hfig > img, .hfig > .pose-body > img.h-body { height: 100%; display: block; }
+.hfig > .pose-body { position: absolute; inset: 0; }
 .char .hfig > img { filter: drop-shadow(0 8px 16px rgba(0,0,0,.6)); }
 .hero-stage .hfig > img { animation: none; }
 .hero-stage.gear .hfig { animation: breathe 4.2s ease-in-out infinite; transform-origin: 50% 100%; }
@@ -338,13 +345,20 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 /* 戰鬥背影：持劍與起手式兩張疊放，普攻時切換 */
 #heroB { height: 46%; bottom: -1%; aspect-ratio: .74; }
 #heroB .hfig.pose { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); transition: opacity .06s; }
-#heroB .hfig.pose > img { filter: drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
+#heroB .hfig.pose > img, #heroB .hfig.pose > .pose-body > img.h-body { filter: drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
 #heroB .hfig.bstance { opacity: 0; left: 40%; }
 #heroB.strike .hfig.bhold { opacity: 0; }
 #heroB.strike .hfig.bstance { opacity: 1; }
 #heroB .waura { --orb: 80px; }
 #heroB .hfig.bhold { left: 58%; }
-#heroB.strike .hfig.bstance > img { animation: lunge .22s ease-out; }
+#heroB.strike .hfig.bstance > img, #heroB.strike .hfig.bstance > .pose-body { animation: lunge .22s ease-out; }
+#heroB .nt-on .blade { opacity: 0; }
+#heroB .nt-sword { position: absolute; height: auto; pointer-events: none; z-index: 2; transform-origin: 50% 12%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0 34%, #000 44%, #000 56%, transparent 66% 100%);
+  mask-image: linear-gradient(90deg, transparent 0 34%, #000 44%, #000 56%, transparent 66% 100%);
+  filter: drop-shadow(0 0 6px rgba(255, 80, 30, .9)); }
+#heroB .bhold .nt-sword { left: 78%; top: 48%; width: 34%; transform: translate(-50%, -12%) rotate(58deg); }
+#heroB .bstance .nt-sword { left: 34%; top: 16%; width: 48%; transform: translate(-50%, -12%) rotate(98deg); }
 /* 全程試玩修正 */
 #toasts { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }            /* 提示放在頂列下方，不壓主角臉 */
 #app.story-mode #toasts, #app.title-mode #toasts { top: 14%; }
@@ -414,8 +428,10 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .rc-desc em { font-style: normal; color: var(--gold2); }
 .rc-note { margin: 0 0 4px; font-size: 12px; color: var(--dim); }
 /* ───── 突破三段 ───── */
-.bt-faxiang { position: absolute; left: 50%; bottom: 0; height: 100%; transform: translateX(-50%) scale(.6); opacity: 0; mix-blend-mode: screen; transition: opacity 1.2s ease-out, transform 1.8s cubic-bezier(.2,.8,.2,1); }
-.bt-faxiang.on { opacity: .95; transform: translateX(-50%) scale(1.04); }
+.bt-faxiang { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center 36%; z-index: 5; pointer-events: none; mix-blend-mode: screen; opacity: 0; transform: scale(.62); filter: drop-shadow(0 0 28px rgba(255, 210, 120, .7)) drop-shadow(0 0 90px rgba(255, 120, 50, .4)); transition: opacity 1s ease-out, transform 1.5s cubic-bezier(.16, .84, .2, 1); }
+.bt-faxiang.on { opacity: 1; transform: scale(1.14); }
+.bt-veil { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 50% 40%, rgba(40, 22, 8, .2), rgba(2, 3, 8, .78) 68%); transition: opacity .8s; }
+.bt-veil.on { opacity: 1; }
 .bt-ring { position: absolute; width: min(80%, 420px); aspect-ratio: 1; transform: translate(-50%, -50%) scaleY(.32) scale(0); opacity: 0; mix-blend-mode: screen; pointer-events: none; transition: transform 1.2s cubic-bezier(.2,.8,.2,1), opacity .6s; }
 .bt-ring img { width: 100%; height: 100%; animation: swirl 7s linear infinite; }
 .bt-ring.on { opacity: 1; transform: translate(-50%, -50%) scaleY(.32) scale(1); }
@@ -451,6 +467,14 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .gacha-ring.lit::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--c); mix-blend-mode: multiply; opacity: .9; -webkit-mask: url(assets/fx/ring.webp) center / 100% 100%; mask: url(assets/fx/ring.webp) center / 100% 100%; }   /* 光陣依最高品階換色 */
 .gacha-sky { position: absolute; inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: screen; transition: opacity .5s; z-index: 1; background: radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--e, #fff) 60%, transparent), color-mix(in srgb, var(--c, #fff) 45%, transparent) 45%, transparent 85%); }
 .gacha-sky.on { opacity: 1; }
+.g-reveal { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.g-reveal .gr-dark { position: absolute; inset: 0; background: rgba(2, 3, 8, 0); transition: background .5s ease; }
+.g-reveal.dark .gr-dark { background: rgba(2, 3, 8, .84); }
+.g-reveal .gr-card { position: absolute; left: 50%; top: 46%; width: min(86%, 420px); text-align: center; opacity: 0; transform: translate(-50%, -42%) scale(.7); transition: opacity .45s ease, transform .55s cubic-bezier(.16, .84, .2, 1); }
+.g-reveal.show .gr-card { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.g-reveal .gr-card img { height: min(42vh, 300px); filter: drop-shadow(0 0 16px var(--c)) drop-shadow(0 12px 20px rgba(0, 0, 0, .55)); }
+.g-reveal .gr-card b { display: block; margin-top: 8px; font-family: var(--brush); font-size: clamp(32px, 7vw, 48px); font-weight: 400; letter-spacing: .2em; color: var(--c); text-shadow: 0 0 18px var(--c); }
+.g-reveal .gr-card span { display: inline-block; margin-top: 4px; padding: 2px 10px; letter-spacing: .35em; color: var(--e); border: 1px solid var(--e); }
 .pity { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 2px 0 8px; font-size: 13px; color: var(--dim); }
 .pity b { font-family: var(--brush); font-size: 30px; font-weight: 400; color: var(--gold2); }
 .gacha-btns { margin: 12px 0 10px; gap: 16px; }

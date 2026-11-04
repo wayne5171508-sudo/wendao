@@ -42,7 +42,10 @@ const heroArmed = (w, kind, cls = '') => {
     fx = `<i class="blade" style="left:${x1 * 100}%;top:${y1 * 100}%;width:${Math.hypot(dx, dy) * 100}%;transform:rotate(${(Math.atan2(dy, dx) * 180) / Math.PI}deg)"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
-  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${HERO_NAME}">${fx}</div>`;
+  const nt = w && w.id === 'nitian' && (kind === 'bhold' || kind === 'bstance');
+  const img = `<img class="h-body" src="${H.img}" alt="${HERO_NAME}">`;
+  const inner = nt ? `<div class="pose-body">${img}<img class="nt-sword" src="${W_IMG('nitian')}" alt="">${fx}</div>` : `${img}${fx}`;
+  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''} ${nt ? 'nt-on' : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}${inner}</div>`;
 };
 const ico = (id) => `<i class="ico" style="--c:${ITEMS[id].color}">${{ stone: '石', scroll: '卷', ore: '鐵', star: '砂' }[id] || (ITEMS[id].pill ? '丹' : '草')}</i>`;
 
@@ -103,7 +106,8 @@ const UI = {
   home() {
     Audio2.setMood('sect');
     this.setBg('dongfu', '');
-    this.scene(`<div class="aura"></div>${heaven(S.wTop())}<div class="hero-stage sit">${S.wTop() ? heroArmed(S.wTop(), 'sit') : `<img src="${IMG_SRC.hero_meditate}" alt="${HERO_NAME}打坐">`}</div>`);
+    this.scene(`<div class="aura" id="medAura"><i class="ar a1"></i><i class="ar a2"></i><i class="ar a3"></i><canvas id="medQi"></canvas></div>${heaven(S.wTop())}<div class="hero-stage sit">${S.wTop() ? heroArmed(S.wTop(), 'sit') : `<img src="${IMG_SRC.hero_meditate}" alt="${HERO_NAME}打坐">`}</div>`);
+    FX.meditate($('#medQi'));
     this.controls(`<div class="cult">
       <div class="cult-head"><h2 id="hLv"></h2><span id="hRate"></span></div>
       <div class="bar xp"><i id="hBar"></i><span id="hTxt"></span></div>
@@ -397,23 +401,60 @@ const UI = {
     if (!res) { this.toast(`靈石不足，需要 ${n === 10 ? GACHA.cost10 : GACHA.cost}`, '#ff9a9a'); return; }
     this.hud();
     const top = Math.max(...res.map((r) => r.tier)), T = WTIERS[top];
+    const best = res.reduce((a, b) => (b.tier > a.tier ? b : a));
+    const back = Audio2.mood;
     $('#controls').classList.add('busy'); $('#ctrlContent').style.pointerEvents = 'none'; $('#nav').style.pointerEvents = 'none';
-    // 演出：光陣聚氣 → 依最高品階的顏色天象 → 神器全畫面閃光；可按「跳過」
-    await Story.run(async () => {
-      const ring = $('#gRing'), sky = $('#gSky'), r = ring.getBoundingClientRect(), s0 = $('#scene').getBoundingClientRect(), cx = r.left - s0.left + r.width / 2, cy = r.top - s0.top + r.height / 2;
-      ring.classList.add('gather'); Audio2.play('qi');
-      for (let i = 0; i < 14; i++) { FX.converge(cx, cy, 'rgba(232,232,232,0.9)', 6, 260, 0.9); await Story.wait(90); }
-      ring.style.setProperty('--c', T.color); sky.style.setProperty('--c', T.color); sky.style.setProperty('--e', T.edge);
-      ring.classList.add('lit'); sky.classList.add('on'); Audio2.play(top >= 3 ? 'thunder' : 'gong'); FX.shake($('#scene'), 6 + top * 3);
-      FX.burst(cx, cy, T.color, 30 + top * 12, 260 + top * 40, 4, 1.2); FX.ring(cx, cy, T.color, 20, 300, 1, 5);
-      if (top >= 4) { FX.flash = 1; $('#scene').classList.add('bt-white'); }
-      await Story.wait(1400);
-    });
-    $('#scene').classList.remove('bt-white');
-    $('#controls').classList.remove('busy'); $('#ctrlContent').style.pointerEvents = ''; $('#nav').style.pointerEvents = '';
+    Audio2.setMood('gacha');
+    try {
+      await Story.run(async () => {
+        if (best.type === 'w' && best.tier >= 3) await this.weaponReveal(best);
+        else await this.pullGather(top, T);
+      });
+    } finally {
+      Audio2.setMood(back || 'sect');
+      FX.stormT = 0;
+      const rev = $('#gReveal'); if (rev) rev.remove();
+      $('#scene').classList.remove('bt-white');
+      $('#controls').classList.remove('busy'); $('#ctrlContent').style.pointerEvents = ''; $('#nav').style.pointerEvents = '';
+    }
     const icon = (x) => (x.type === 'w' ? wFrame(WEAPONS.find((w) => w.id === x.id)) : x.type === 'item' ? ico(x.id) : `<i class="ico" style="--c:${WTIERS[x.tier].color}">${ARTS.find((a) => a.id === x.id).name[0]}</i>`);
     const rows = res.map((x) => { const sub = x.type === 'w' && S.subNotice(x.id); return `<div class="li gres t${x.tier}" style="--c:${WTIERS[x.tier].color}">${icon(x)}<div><h4 style="color:${WTIERS[x.tier].color}">${x.name}${x.isNew ? '<i class="new">新</i>' : ''}<i class="tier">${WTIERS[x.tier].name}</i></h4>${x.note || sub ? `<p>${x.note || sub}</p>` : ''}</div><span></span></div>`; }).join('');
     this.modal(n === 10 ? '十連機緣' : '機緣', `<div class="list">${rows}</div><div class="row center"><button class="seal" id="gOk">收下</button></div>`, { '#gOk': () => { this.close(); this.draw(); } });
+  },
+  // 普通機緣：聚氣後依品階點天。仙階以上改走天象，不再只換光陣顏色
+  async pullGather(top, T) {
+    const ring = $('#gRing'), sky = $('#gSky'); if (!ring) return;
+    const r = ring.getBoundingClientRect(), s0 = $('#scene').getBoundingClientRect(), cx = r.left - s0.left + r.width / 2, cy = r.top - s0.top + r.height / 2;
+    ring.classList.add('gather'); Audio2.play('qi');
+    for (let i = 0; i < 14; i++) { FX.converge(cx, cy, 'rgba(232,232,232,0.9)', 6, 260, 0.9); await Story.wait(90); }
+    ring.style.setProperty('--c', T.color); sky.style.setProperty('--c', T.color); sky.style.setProperty('--e', T.edge);
+    ring.classList.add('lit'); sky.classList.add('on');
+    if (top >= 3) { FX.stormT = 1; FX.thunderStrike(cx, cy, { color: T.color, width: 4 + top, shake: 8 + top }); }
+    else { Audio2.play('gong'); FX.shake($('#scene'), 6 + top * 3); }
+    FX.burst(cx, cy, T.color, 30 + top * 12, 260 + top * 40, 4, 1.2); FX.ring(cx, cy, T.color, 20, 300, 1, 5);
+    if (top >= 4) { FX.flash = 1; $('#scene').classList.add('bt-white'); }
+    await Story.wait(1400);
+  },
+  // 高階法寶：壓暗、聚光、落雷天象、兵器現名。約 3.5 秒，可跳過
+  async weaponReveal(drop) {
+    const w = WEAPONS.find((x) => x.id === drop.id), T = WTIERS[drop.tier];
+    $('#scene').insertAdjacentHTML('beforeend', `<div class="g-reveal" id="gReveal" style="--c:${T.color};--e:${T.edge}">
+      <i class="gr-dark"></i>
+      <div class="gr-card"><img src="${W_IMG(w.id)}" alt=""><b>${w.name}</b><span>${T.name}</span></div>
+    </div>`);
+    const box = $('#gReveal');
+    requestAnimationFrame(() => box.classList.add('dark'));
+    Audio2.play('qi');
+    await Story.wait(360);
+    const cx = FX.w / 2, cy = FX.h * 0.42;
+    for (let i = 0; i < 8; i++) { FX.converge(cx, cy, T.color, 8, Math.max(FX.w, FX.h) * 0.55, 1); await Story.wait(130); }
+    FX.stormT = 1;
+    FX.thunderStrike(cx, Math.min(FX.h * 0.62, cy + 90), { color: T.color, width: 6.5, shake: 12, webpScale: 1.3 });
+    box.classList.add('show');
+    UI.banner('天象異變', `${w.name}・${T.name}`);
+    await Story.wait(2000);
+    box.remove();
+    document.querySelectorAll('#scene .banner').forEach((b) => b.remove());
   },
 
   settings() {
