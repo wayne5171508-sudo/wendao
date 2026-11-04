@@ -11,6 +11,14 @@ const Game = {
     // 顯示尺寸不超過原圖像素：圖片載入後以原生高度為上限（佩劍立繪的外框一起限制，劍光座標才對得上）
     document.addEventListener('load', (e) => { const i = e.target; if (i.tagName !== 'IMG' || !i.naturalHeight || !/\/(hero|npc|cast|mon|weapon)\//.test(i.src)) return; i.style.maxHeight = i.naturalHeight + 'px'; if (i.parentElement.classList.contains('hfig')) i.parentElement.style.maxHeight = i.naturalHeight + 'px'; }, true);
     addEventListener('resize', () => FX.resize());
+    // 圖片載入失敗備援：靈石換成文字圓章，其他圖隱藏並讓外框改用 CSS 備援樣式，不出現破圖或白屏
+    const imgFail = (i) => {
+      if (i.dataset.failed) return; i.dataset.failed = '1';
+      if (i.classList.contains('stone-ico')) { const f = document.createElement('i'); f.className = 'stone-fb'; f.textContent = '石'; i.replaceWith(f); return; }
+      i.style.visibility = 'hidden'; if (i.parentElement) i.parentElement.classList.add('img-fail');
+    };
+    document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') imgFail(e.target); }, true);
+    [...document.images].forEach((i) => { if (i.complete && !i.naturalWidth && i.getAttribute('src')) imgFail(i); });   // 程式啟動前就已失敗的（頂部資源列）
     const had = S.load();
     Audio2.musOn = S.d.settings.music !== false; Audio2.sfxOn = S.d.settings.sfx !== false; FX.noShake = S.d.settings.shake === false;
     // 點擊推進對話；按鈕
@@ -38,7 +46,7 @@ const Game = {
   // 首次載入：先下載標題與開場劇情要用的素材並顯示進度條，其餘（戰鬥、丹房、法寶等）進遊戲後在背景下載
   // 之後由離線快取提供，幾乎瞬間完成
   async preload() {
-    const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero|ui)\/|wuxing|pillar_/;
+    const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/(?!gacha_)|\/ui\/stone|wuxing|pillar_/;
     const list = all.filter((s) => first.test(s)), bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
     const later = all.filter((s) => !first.test(s));
     let done = 0;

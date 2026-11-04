@@ -187,18 +187,19 @@ const Showcase = {
     if (!W) return;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     const c = cv.getContext('2d'), low = Halo.isLow(), n = Math.round([6, 10, 18, 26, 40][tier] * (low ? 0.5 : 1));
-    const mk = (init) => ({ x: U.rand(W * 0.15, W * 0.85), y: init ? U.rand(0, H) : H + 4, vy: -U.rand(10, 26) * (1 + tier * 0.25), vx: U.rand(-6, 6), r: U.rand(0.8, 2.2) + (tier >= 3 ? 0.6 : 0), ph: Math.random() * 7, gold: tier >= 3 && Math.random() < 0.4 });
+    // 粒子從框內下緣往上飄，範圍略寬於框
+    const mk = (init) => ({ x: U.rand(W * 0.2, W * 0.8), y: init ? U.rand(H * 0.1, H * 0.75) : H * 0.75, vy: -U.rand(10, 26) * (1 + tier * 0.25), vx: U.rand(-6, 6), r: U.rand(0.8, 2.2) + (tier >= 3 ? 0.6 : 0), ph: Math.random() * 7, gold: tier >= 3 && Math.random() < 0.4 });
     const ps = Array.from({ length: n }, () => mk(true));
     let arcs = [], arcT = 0, t = 0, last = performance.now();
-    const cx = W / 2, cy = H * 0.46, R = Math.min(W, H) * 0.36;
+    const cx = W / 2, cy = H * 0.44, R = W * 0.3;
     const loop = (now) => {
       if (!cv.isConnected) return;
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
       c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); c.globalCompositeOperation = 'lighter';
       for (let i = 0; i < ps.length; i++) {
         const p = ps[i]; p.y += p.vy * dt; p.x += (p.vx + Math.sin(t * 1.5 + p.ph) * 8) * dt;
-        if (p.y < -4) { ps[i] = mk(false); continue; }
-        const a = Math.min(1, (H - p.y) / 40, p.y / 60) * (0.55 + 0.45 * Math.sin(t * 3 + p.ph));
+        if (p.y < H * 0.08) { ps[i] = mk(false); continue; }
+        const a = Math.min(1, (H * 0.75 - p.y) / 40, (p.y - H * 0.08) / 60) * (0.55 + 0.45 * Math.sin(t * 3 + p.ph));
         c.fillStyle = hexA(p.gold ? edge : color, Math.max(0, a)); c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
         if (tier >= 2) blob(c, p.x, p.y, p.r * 4, hexA(p.gold ? edge : color, Math.max(0, a) * 0.25));
       }
@@ -209,7 +210,7 @@ const Showcase = {
           arcT = 0.09; arcs = [];
           for (let k = 0; k < (low ? 2 : 4); k++) {
             const a0 = Math.random() * Math.PI * 2, span = U.rand(0.6, 1.4), pts = [];
-            for (let j = 0; j <= 10; j++) { const a = a0 + (span * j) / 10, rr = R * U.rand(0.86, 1.14); pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 1.25]); }
+            for (let j = 0; j <= 10; j++) { const a = a0 + (span * j) / 10, rr = R * U.rand(0.86, 1.14); pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 1.9]); }
             arcs.push(pts);
           }
         }

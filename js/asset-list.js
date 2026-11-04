@@ -1,10 +1,12 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
-const ASSET_VER = '20261104180000';
+const ASSET_VER = '20261104210000';
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
   'assets/alch/furnace_ok.webp',
   'assets/bg/dongfu.webp',
+  'assets/bg/gacha_art.webp',
+  'assets/bg/gacha_wpn.webp',
   'assets/bg/realm.webp',
   'assets/bg/sect.webp',
   'assets/bg/stele.webp',
@@ -20,6 +22,7 @@ const ASSET_LIST = [
   'assets/fx/faxiang.webp',
   'assets/fx/pillar_ice.webp',
   'assets/fx/pillar_thunder.webp',
+  'assets/fx/qi_orb.webp',
   'assets/fx/ring.webp',
   'assets/fx/thunder_bolt.webp',
   'assets/fx/thunder_cloud.webp',
@@ -28,6 +31,7 @@ const ASSET_LIST = [
   'assets/fx/xianwu.webp',
   'assets/hero/back_sword.webp',
   'assets/hero/battle_hold.webp',
+  'assets/hero/battle_lean.webp',
   'assets/hero/battle_stance.webp',
   'assets/hero/front.webp',
   'assets/hero/hold_nitian.webp',
@@ -50,6 +54,7 @@ const ASSET_LIST = [
   'assets/npc/shixiong.webp',
   'assets/npc/shizun.webp',
   'assets/npc/xuanheng.webp',
+  'assets/ui/case_frame.webp',
   'assets/ui/stone.webp',
   'assets/weapon/liuyun.webp',
   'assets/weapon/nitian.webp',
