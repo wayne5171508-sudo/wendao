@@ -56,7 +56,7 @@ const FX = {
   // 素材在 assets/fx/hit/，黑底；第一次戰鬥時由 Knock 去黑後快取。slash／crit_slash／combo 原圖是「左下→右上」的斜刀光
   SPR_SRC: { slash: 'assets/fx/hit/slash.webp', combo: 'assets/fx/hit/combo.webp', critSlash: 'assets/fx/hit/crit_slash.webp', hit: 'assets/fx/hit/hit.webp', critBurst: 'assets/fx/hit/crit_burst.webp', shield: 'assets/fx/hit/demon_shield.webp',
     thunder1: 'assets/fx/skill/thunder1.webp', thunder2: 'assets/fx/skill/thunder2.webp', thunder3: 'assets/fx/skill/thunder3.webp',
-    rainSword: 'assets/fx/skill/rain_sword.webp', yujianRing: 'assets/fx/skill/yujian_ring.webp', jianyi: 'assets/fx/skill/jianyi.webp', heroShield: 'assets/fx/skill/shield.webp' },
+    rainSword: 'assets/fx/skill/rain_sword.webp', yujianRing: 'assets/fx/skill/yujian_ring.webp', jianyi: 'assets/fx/skill/jianyi.webp', heroShield: 'assets/fx/skill/shield_sphere.webp', shieldRing: 'assets/fx/skill/shield_ring.webp' },
   sprImg: {}, low: false,
   loadSprites() {
     if (this._sprLoading || typeof Knock === 'undefined') return; this._sprLoading = true;
@@ -79,6 +79,14 @@ const FX = {
     const ang = Math.atan2(y1 - y0, x1 - x0) + 0.6;
     if (!this.spr('slash', (x0 + x1) / 2, (y0 + y1) / 2, { w: 120, ang, life, s0: 0.6, s1: 0.8, dx: x1 - x0, dy: y1 - y0, ghosts: 1 })) this.sparks(x1, y1, color, 6, 200);
   },
+  // 護罩碎裂：沿橢圓邊緣產生六角光片向外飄
+  hexBurst(cx, cy, rx, ry, color = '#bff4ff', fill = 'rgba(140,240,220,.18)') {
+    const n = this.low ? 10 : 28;
+    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, x = cx + Math.cos(a) * rx * U.rand(0.7, 1), y = cy + Math.sin(a) * ry * U.rand(0.7, 1), sp = U.rand(60, 170);
+      this.add({ k: 'hex', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, drag: 1.6, size: U.rand(5, 11), rot: Math.random() * 6, spin: U.rand(-3, 3), color, fill, life: U.rand(0.7, 1.1) }); }
+  },
+  // 波紋環：用環形素材由小擴大淡出（ry 壓扁成地面圓環）
+  ripple(x, y, w, flat = 0.32, life = 0.6, alpha = 1) { if (!this.spr('shieldRing', x, y, { w, life, s0: 0.25, s1: 1.15, ghosts: 0, hold: 0.25, alpha })) this.ring(x, y, '#bff4ff', 10, w / 2, life, 3); const p = this.list[this.list.length - 1]; if (p && p.k === 'spr') p.sy = flat; },
   dim(a = 0.6, life = 0.6) { this.add({ k: 'dim', a, life }); },
   // 命中爆點：普通用 hit，暴擊用 crit_burst
   impact(x, y, crit, color) {
@@ -181,13 +189,17 @@ const FX = {
           const fadeAt = p.hold || 0.45, alpha = p.alpha * Math.min(1, t / 0.04) * (e < fadeAt ? 1 : 1 - (e - fadeAt) / (1 - fadeAt));
           const draw = (q, a) => {
             const qq = Math.max(0, q), sc = p.s0 + (p.s1 - p.s0) * qq, x = p.x + p.dx * (p.fall ? qq - 1 : qq - 0.5), y = p.y + p.dy * (p.fall ? qq - 1 : qq - 0.5);
-            c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc);
+            c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc * (p.sy || 1));
             c.drawImage(im, -p.w / 2, -p.h * p.ay, p.w, p.h); c.restore();
           };
           if (p.onEnd && e >= 1 && !p.ended) { p.ended = true; p.onEnd(); }
           if (p.ghosts) for (let g = p.ghosts; g >= 1; g--) draw(ease - g * 0.16, alpha * (0.32 / g));   // 殘影
           draw(ease, alpha);
           break;
+        }
+        case 'hex': {   // 護罩碎片：六角形光片，旋轉並向外飄散
+          c.translate(p.x, p.y); c.rotate(p.rot + p.spin * t); c.globalAlpha = k; c.strokeStyle = p.color; c.fillStyle = p.fill; c.lineWidth = 1.4; c.shadowColor = p.color; c.shadowBlur = 8;
+          c.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * p.size, Math.sin(a) * p.size); } c.closePath(); c.fill(); c.stroke(); break;
         }
         case 'dim': { const e = t / p.life; c.globalCompositeOperation = 'source-over'; c.globalAlpha = (e < 0.2 ? e / 0.2 : 1 - (e - 0.2) / 0.8) * p.a; c.fillStyle = '#050310'; c.fillRect(0, 0, W, H); break; }
         case 'bolt': c.strokeStyle = p.color; c.lineWidth = p.width; c.shadowColor = p.color; c.shadowBlur = 20; c.beginPath(); p.pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); c.lineWidth = p.width * 0.4; c.strokeStyle = '#fff'; c.stroke(); break;

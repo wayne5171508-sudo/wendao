@@ -28,10 +28,11 @@ const Battle = {
     UI.scene(`
       <div class="battle-top"><button class="seal sm ghost" id="bRun">撤</button><span class="wave-tag" id="bWave"></span></div>
       <div class="mon-hud"><h5 id="mName"></h5><div class="bar ${st.waves.some((w) => w.includes('yaojiang')) ? 'boss' : 'hp'}"><i id="mBar"></i><span id="mTxt"></span></div><div id="mCharge"></div></div>
-      <div class="mon" id="mon"><img class="mon-shield" id="monShield" alt=""><img id="monImg" alt=""></div>
+      <div class="mon" id="mon"><img class="mon-shield back" alt=""><img id="monImg" alt=""><img class="mon-shield front" id="monShield" alt=""></div>
       <div class="combo-n hidden" id="comboN"><b>0</b><span>連擊</span></div>
+      <div class="hshield back hidden" id="shieldBack"><img alt=""></div>
       <div class="hero-b ready ${this.pose.stance}" id="heroB">${heroArmed(this.main, this.pose.stance, 'pose bstance')}</div>
-      <div class="shield hidden" id="shield"><img alt=""></div>`);
+      <div class="hshield front hidden" id="shield"><img alt=""><i class="sh-hit"></i></div>`);
     UI.controls(`<div class="bstat">
         <div class="lbl"><span>氣血</span><span id="hTxtB"></span></div><div class="bar hp"><i id="hBarB"></i></div>
         <div class="lbl"><span>靈力</span><span id="pTxtB"></span></div><div class="bar mp"><i id="pBarB"></i></div></div>
@@ -42,7 +43,7 @@ const Battle = {
     $('#bAuto').onclick = () => { S.d.auto = !S.d.auto; S.save(); $('#bAuto').classList.toggle('ghost', !S.d.auto); $('#bAuto').textContent = S.d.auto ? '自動施法・開' : '自動施法・關'; };
     FX.loadSprites(); this.combo = 0; this.lastHit = 0; this.flip = false;
     // 護體罩素材：主角用原色，妖物（魔焰護體等）加紅黑濾鏡；素材缺失時主角退回 CSS 光罩、妖物不顯示，不影響戰鬥
-    Knock.load(FX.SPR_SRC.heroShield, { lo: 14 }).then((u) => { for (const el of [$('#shield img'), $('#monShield')]) if (el) el.src = u; }).catch(() => { const el = $('#shield'); if (el) el.classList.add('img-fail'); });
+    Knock.load(FX.SPR_SRC.heroShield, { round: false, lo: 12 }).then((u) => { document.querySelectorAll('.hshield img, .mon-shield').forEach((el) => (el.src = u)); }).catch(() => document.querySelectorAll('.hshield').forEach((el) => el.classList.add('img-fail')));
     this.shieldOn = false;
     this.spawn();
     // 背後多層光環，顏色隨主手品階
@@ -116,7 +117,7 @@ const Battle = {
     const h = this.hero; if (h.hp <= 0) return;
     let dmg = Math.max(1, Math.round(raw * U.rand(0.9, 1.1) - h.def * 0.5));
     const hp0 = this.heroPos();
-    if (h.shield > 0) { const a = Math.min(h.shield, dmg); h.shield -= a; dmg -= a; FX.ring(hp0.x, hp0.y - 60, '#8ff0d8', 40, 110, 0.35, 3); this.shieldFx(h.shield > 0 ? 'hit' : 'off'); if (dmg <= 0) { FX.text(hp0.x, hp0.y - 120, '靈罩吸收', '#8ff0d8', 18, 'hero'); return; } }
+    if (h.shield > 0) { const a = Math.min(h.shield, dmg); h.shield -= a; dmg -= a; FX.ring(hp0.x, hp0.y - 60, '#8ff0d8', 40, 110, 0.35, 3); this.shieldFx(h.shield > 0 ? 'hit' : 'off', this.monPos().x, this.monPos().y); if (dmg <= 0) { FX.text(hp0.x, hp0.y - 120, '靈罩吸收', '#8ff0d8', 18, 'hero'); return; } }
     h.hp -= dmg;
     // 首領第三相：以血養血
     if (src && src.leech && src.hp > 0) { const heal = Math.round(dmg * src.leech); src.hp = Math.min(src.max, src.hp + heal); const mp = this.monPos(); FX.text(mp.x, mp.y, '+' + U.fmt(heal), '#ff6a7a', 16, 'info'); }
@@ -197,21 +198,31 @@ const Battle = {
       }
     }
   },
-  // 護體罩：on 出現（中心放大淡入）、hit 受擊局部閃亮、off 碎裂成光點
-  shieldFx(state) {
-    const el = $('#shield'); if (!el) return;
+  // 護體罩（前後兩層包住主角）：on 由腳下往上展開＋地面波紋；hit 受擊方向局部閃亮＋小波紋；off 碎成六角光片
+  shieldGeo() {
+    const hb = document.querySelector('#heroB .hfig'), s0 = $('#scene').getBoundingClientRect(); if (!hb) return null;
+    const r = hb.getBoundingClientRect(), H = r.height * 1.15, W = H * (541 / 600);   // 角色高度的 1.15 倍，依素材比例
+    return { cx: r.left - s0.left + r.width / 2, bottom: r.bottom - s0.top + r.height * 0.06, W, H };
+  },
+  shieldFx(state, fromX, fromY) {
+    const els = [$('#shieldBack'), $('#shield')]; if (!els[1]) return;
+    const g = this.shieldGeo();
     if (state === 'on') {
-      // 對準主角身體（戰鬥立繪前傾，視覺中心不在畫面正中）
-      const hb = document.querySelector('#heroB .hfig'), s0 = $('#scene').getBoundingClientRect();
-      if (hb) { const r = hb.getBoundingClientRect(); el.style.left = r.left - s0.left + r.width * 0.5 + 'px'; el.style.bottom = s0.bottom - r.bottom + r.height * 0.05 + 'px'; el.style.width = Math.max(r.width, r.height * 0.8) * 1.05 + 'px'; }
-      el.classList.remove('hidden', 'off', 'hit'); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); this.shieldOn = true;
-    }
-    else if (state === 'hit') { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); clearTimeout(this.shHitT); this.shHitT = setTimeout(() => el.classList.remove('hit'), 320); }
-    else if (state === 'off' && this.shieldOn) {
-      this.shieldOn = false; el.classList.add('off'); el.classList.remove('on');
-      const r = el.getBoundingClientRect(), s0 = $('#scene').getBoundingClientRect(), cx = r.left - s0.left + r.width / 2, cy = r.top - s0.top + r.height / 2;
-      FX.burst(cx, cy, '#bff4ff', FX.low ? 10 : 34, 220, 3, 0.9); FX.sparks(cx, cy, '#8ff0d8', FX.low ? 4 : 12, 260);
-      setTimeout(() => el.classList.add('hidden'), 450);
+      if (g) for (const el of els) Object.assign(el.style, { left: g.cx - g.W / 2 + 'px', top: g.bottom - g.H + 'px', width: g.W + 'px', height: g.H + 'px' });
+      for (const el of els) { el.classList.remove('hidden', 'off', 'hit', 'on'); void el.offsetWidth; el.classList.add('on'); }
+      if (g) { FX.ripple(g.cx, g.bottom - g.H * 0.06, g.W * 1.5, 0.3, 0.7); setTimeout(() => FX.ripple(g.cx, g.bottom - g.H * 0.5, g.W * 1.3, 1, 0.55, 0.6), 380); }
+      this.shieldOn = true;
+    } else if (state === 'hit' && g) {
+      // 擊中方向：從護罩中心指向攻擊來源，在邊緣亮一塊並冒小波紋
+      const cy = g.bottom - g.H / 2, ang = Math.atan2((fromY ?? 0) - cy, (fromX ?? g.cx) - g.cx), ex = Math.cos(ang) * 0.46, ey = Math.sin(ang) * 0.46;
+      const spot = els[1].querySelector('.sh-hit'); spot.style.left = 50 + ex * 100 + '%'; spot.style.top = 50 + ey * 100 + '%';
+      els[1].classList.remove('hit'); void els[1].offsetWidth; els[1].classList.add('hit'); clearTimeout(this.shHitT); this.shHitT = setTimeout(() => els[1].classList.remove('hit'), 360);
+      FX.ripple(g.cx + ex * g.W, cy + ey * g.H, g.W * 0.45, 1, 0.4, 0.8);
+    } else if (state === 'off' && this.shieldOn) {
+      this.shieldOn = false;
+      for (const el of els) { el.classList.add('off'); el.classList.remove('on'); }
+      if (g) FX.hexBurst(g.cx, g.bottom - g.H / 2, g.W * 0.48, g.H * 0.48);
+      setTimeout(() => els.forEach((el) => el.classList.add('hidden')), 420);
     }
   },
   // 普攻動作（以程式位移與旋轉模擬，之後補圖可換成逐格立繪）：蓄勢後撤 → 前衝 → 揮劍 → 後座回位
@@ -316,6 +327,10 @@ const Battle = {
         if (ph.atk) m.atk = Math.round(m.atk * ph.atk);
         if (ph.spd) m.interval /= ph.spd;
         m.dr = ph.dr || 0; m.leech = ph.leech || 0;
+        // 妖物護罩：出現時地面波紋，消失時碎成紅色六角光片
+        const wasW = $('#mon').classList.contains('warded'), mp = this.monPos(), mr = $('#mon').getBoundingClientRect();
+        if (m.dr > 0 && !wasW) FX.ripple(mp.x, mp.y + mr.height * 0.4, mr.width * 1.4, 0.3, 0.7);
+        if (!(m.dr > 0) && wasW) FX.hexBurst(mp.x, mp.y, mr.width * 0.5, mr.height * 0.5, '#ff6a5a', 'rgba(120,10,20,.25)');
         $('#mon').classList.toggle('warded', m.dr > 0); $('#mon').classList.toggle('enrage', np === P.length);
         m.chargeCd = Math.min(m.chargeCd, 2);
       }

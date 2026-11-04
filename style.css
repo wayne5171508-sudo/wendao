@@ -743,9 +743,6 @@ img { object-fit: contain; }
 .banner.bt b { font-size: clamp(26px, 7vw, 40px); }
 .banner.bt span { font-size: 12px; padding: 2px 18px; margin-top: 4px; }
 /* 怪物護罩（魔焰護體等減傷相）：包住怪物、緩慢脈動 */
-.mon .mon-shield { --tint: ; position: absolute; left: 50%; top: 56%; width: 118%; height: auto; max-width: none; transform: none; transform-origin: 50% 50%; translate: -50% -50%; scale: .9; opacity: 0; pointer-events: none; z-index: 2; animation: none; filter: none; transition: opacity .5s; }
-.mon.warded .mon-shield { opacity: 1; filter: brightness(1.7) saturate(1.35) drop-shadow(0 0 14px rgba(170,70,255,.8)); animation: shieldPulse 2.6s ease-in-out infinite, swirlShield 18s linear infinite; }
-@keyframes shieldPulse { 50% { opacity: .75; scale: .96; } }   /* 用獨立的 translate／rotate／scale，轉動時才會原地自轉 */
 @keyframes swirlShield { to { rotate: 360deg; } }
 .mon.warded img#monImg { filter: var(--tint,) drop-shadow(0 0 10px rgba(160,60,220,.7)) drop-shadow(0 12px 22px rgba(0,0,0,.7)); }
 /* 連擊數：固定在畫面右側 */
@@ -755,7 +752,6 @@ img { object-fit: contain; }
 .combo-n.hidden { opacity: 0; }
 .combo-n.pop b { animation: comboPop .25s ease-out; }
 @keyframes comboPop { from { transform: scale(1.5); } to { transform: none; } }
-.mon.dead .mon-shield { display: none; }
 
 /* 展示框：主體由 CaseFit 依比例算好尺寸，疊在玉框前面，可略超出窗口到框上 */
 .wcase .wc-in { overflow: visible; background: none; z-index: auto; perspective: none; }   /* 不建立堆疊層，主體才能疊到玉框前面 */
@@ -784,18 +780,42 @@ img { object-fit: contain; }
 .skill .sk-flash { position: absolute; inset: -4px; border-radius: 50%; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,.85), color-mix(in srgb, var(--c) 50%, transparent) 50%, transparent 72%); }
 .skill.press .sk-flash { animation: skFlash .3s ease-out; }
 @keyframes skFlash { 0% { opacity: 1; transform: scale(.7); } 100% { opacity: 0; transform: scale(1.35); } }
-/* ───── 護體罩（主角） ───── */
-.shield { width: 74%; aspect-ratio: 1; bottom: 2%; border: none; background: none; box-shadow: none; animation: none; transform: none; translate: -50% 0; z-index: 3; pointer-events: none; }
-.shield img { width: 100%; height: 100%; object-fit: contain; opacity: .55; mix-blend-mode: screen; }   /* 半透明＋screen：看得到罩內的主角 */
-.shield.on img { animation: shIn .45s ease-out, shSpin 14s linear infinite, shBreath 2.4s ease-in-out infinite; }
-@keyframes shIn { from { scale: .2; opacity: 0; } to { scale: 1; opacity: .55; } }
-@keyframes shSpin { to { rotate: 360deg; } }
-@keyframes shBreath { 50% { opacity: .38; } }
-.shield.hit { animation: heroShHit .3s ease-out; }   /* 閃亮放在外層，不打斷罩子本身的旋轉與呼吸 */
-@keyframes heroShHit { 25% { filter: brightness(2.6) drop-shadow(0 0 18px #bff4ff); } }   /* 受擊：閃亮一下 */
-.shield.off img { animation: shOut .4s ease-in forwards; }
-@keyframes shOut { to { scale: 1.25; opacity: 0; } }
-.shield.img-fail { border-radius: 50%; border: 2px solid rgba(143,240,216,.7); background: radial-gradient(circle, rgba(143,240,216,.06), rgba(143,240,216,.18)); }
-.shield.img-fail img { display: none; }
 /* 妖物護罩（魔焰護體）：同一張護體素材套紅黑濾鏡 */
-.mon.warded .mon-shield { mix-blend-mode: screen; filter: grayscale(1) brightness(.8) sepia(1) hue-rotate(-50deg) saturate(9) contrast(1.3) drop-shadow(0 0 14px rgba(200,20,40,.85)); }
+
+/* ───── 護體罩：前後兩層包住角色 ─────
+   後層在角色後面（上半較實、下半淡出）；前層在角色前面，只留邊緣光暈與網格，中心 70% 完全透明（菲涅爾：邊亮心透）
+   素材載入時已去黑，再用 screen 疊加；角色本身不改透明度、不套濾鏡 */
+.hshield, .mon-shield { pointer-events: none; }
+.hshield { position: absolute; z-index: 3; }
+.hshield.back { z-index: 0; }
+.hshield img, .mon-shield { display: block; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; }
+.hshield.back img, .mon-shield.back { opacity: .55; -webkit-mask-image: linear-gradient(#000 35%, rgba(0,0,0,.25) 100%); mask-image: linear-gradient(#000 35%, rgba(0,0,0,.25) 100%); }
+.hshield.front img, .mon-shield.front {
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, transparent 70%, rgba(0,0,0,.55) 84%, #000 95%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, transparent 70%, rgba(0,0,0,.55) 84%, #000 95%); filter: brightness(1.25); }
+/* 出現：由腳下往上展開 */
+.hshield.on { animation: shUp .55s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes shUp { from { clip-path: inset(100% -10% -10% -10%); } to { clip-path: inset(-10% -10% -10% -10%); } }
+/* 持續：網格緩慢流動（圖在遮罩內輕微平移）＋整體呼吸 */
+.hshield.on img { animation: shFlow 7s ease-in-out infinite alternate, shBreathe 2.6s ease-in-out infinite; }
+@keyframes shFlow { from { translate: -2% 0; scale: 1.02; } to { translate: 2% -1%; scale: 1.04; } }
+@keyframes shBreathe { 50% { filter: brightness(1.55); } }
+.hshield.back.on img { animation: shFlow 7s ease-in-out infinite alternate-reverse; }
+/* 受擊：被擊中方向的邊緣局部閃亮 */
+.sh-hit { position: absolute; width: 46%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; opacity: 0; mix-blend-mode: screen; background: radial-gradient(circle, rgba(255,255,255,.95), rgba(180,250,255,.55) 30%, transparent 68%); }
+.hshield.hit .sh-hit { animation: shHitSpot .36s ease-out; }
+@keyframes shHitSpot { 0% { opacity: 1; scale: .5; } 100% { opacity: 0; scale: 1.3; } }
+/* 消失：淡出並略放大（同時 FX 噴出六角光片） */
+.hshield.off { animation: shOff .4s ease-in forwards; }
+@keyframes shOff { to { opacity: 0; scale: 1.12; } }
+.hshield.img-fail.front { border-radius: 50%; box-shadow: inset 0 0 26px rgba(143,240,216,.7), 0 0 18px rgba(143,240,216,.45); }
+.hshield.img-fail img { display: none; }
+/* 妖物版（魔焰護體）：同結構，只濾護罩；色調變數清空，不吃妖物的天魔色 */
+.mon .mon-shield { --tint: ; position: absolute; left: 50%; top: 50%; height: 112%; width: auto; aspect-ratio: 541 / 600; max-width: none; translate: -50% -50%; transform: none; transform-origin: 50% 50%; opacity: 0; transition: opacity .4s; animation: none; z-index: 2; }
+.mon .mon-shield.back { z-index: 0; }
+.mon #monImg { position: relative; z-index: 1; }
+.mon.warded .mon-shield { opacity: 1; animation: shUp .55s cubic-bezier(.2,.8,.3,1) both, shBreatheM 2.6s ease-in-out infinite; }
+@keyframes shBreatheM { 50% { opacity: .7; } }   /* 妖物版用透明度呼吸，不動 filter，紅黑濾鏡才不會被蓋掉 */
+.mon.warded .mon-shield.back { opacity: .55; animation: shUp .55s cubic-bezier(.2,.8,.3,1) both; }
+.mon.warded .mon-shield { filter: grayscale(1) brightness(.85) sepia(1) hue-rotate(-50deg) saturate(8) contrast(1.35) drop-shadow(0 0 12px rgba(200,20,40,.8)); }
+.mon.dead .mon-shield { display: none; }
