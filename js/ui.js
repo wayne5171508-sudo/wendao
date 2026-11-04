@@ -25,7 +25,14 @@ const HERO_SWORD = {
   sitBack: { img: 'assets/hero/meditate_backsword.webp', ar: 612 / 934, hilt: [0.76, 0.12] },           // 打坐背劍（備用）
   bhold: { img: 'assets/hero/battle_hold.webp', ar: 768 / 1078, blade: [0.72, 0.55, 0.995, 0.8] },       // 戰鬥背影持劍
   bstance: { img: 'assets/hero/battle_stance.webp', ar: 715 / 969, blade: [0.28, 0.22, 0.005, 0.267] }, // 戰鬥起手式
+  bnitian: { img: 'assets/hero/hold_nitian.webp', ar: 747 / 1045, blade: [0.38, 0.45, 0.013, 0.895] },   // 戰鬥持逆天劍（神器）
 };
+// 戰鬥立繪依主手兵器品階切換：[凡, 靈, 法寶, 仙, 神]；沒裝備時用凡階那組
+const BATTLE_POSE = [
+  { hold: 'bhold', stance: 'bstance' }, { hold: 'bhold', stance: 'bstance' }, { hold: 'bhold', stance: 'bstance' },
+  { hold: 'bhold', stance: 'bstance' }, { hold: 'bnitian', stance: 'bnitian' },
+];
+const battlePose = (w) => BATTLE_POSE[w ? w.tier : 0];
 // 兵器光效：階級越高越華麗（發光 → 粒子環繞 → 紫金雙光 → 赤金天象）
 const wAura = (w) => {
   if (!w) return '';
@@ -375,7 +382,7 @@ const UI = {
   draw(pool) {
     if (pool) this.gpool = pool;
     Audio2.setMood('sect'); this.setBg('sect', 'dim');
-    const P = this.gpool, d = S.d, t = S.today(), G = GACHA, left = G.pity - d.gacha[P];
+    const P = this.gpool, d = S.d, t = S.today(), G = GACHA, left = G.pity - S.pity(P);   // 讀當前這一池的保底計數
     this.scene(`<div class="gacha-ring" id="gRing"><img src="assets/fx/ring.webp" alt=""></div><i class="gacha-sky" id="gSky"></i>
       <div class="banner static" style="animation:none;top:12%"><b style="font-size:clamp(28px,8vw,46px)">${P === 'wpn' ? '法寶池' : '功法池'}</b><span>祈願光陣</span></div>`);
     const rates = WTIERS.map((T, i) => `<span class="mat" style="color:${T.color};border-color:${T.edge}">${T.name} ${Math.round(G.rates[i] * 1000) / 10}%</span>`).join('');

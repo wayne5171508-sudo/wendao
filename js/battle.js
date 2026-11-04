@@ -14,6 +14,8 @@ const Battle = {
     this.R = R; this.idx = idx; this.st = st; this.on = true; this.wave = 0; this.pause = 0.6; this.result = null;
     this.hero = { hp: s.hp, max: s.hp, mp: s.mp, maxmp: s.mp, regen: s.mpRegen, atk: s.atk, def: s.def, crit: s.crit, interval: s.interval, t: 0.3, shield: 0, shieldT: 0, pill: false, yiT: 0 };
     this.wpn = S.wTop();
+    // 進場當下讀主手兵器決定立繪（換裝後下一場立即生效）
+    this.main = S.wMain(); this.pose = battlePose(this.main);
     this.cd = Object.fromEntries(SKILLS.map((k) => [k.id, 0]));
     this.loot = { exp: 0, stone: 0 };
     Audio2.setMood(R.mood === 'dungeon' ? 'battle' : R.mood);
@@ -23,7 +25,7 @@ const Battle = {
       <div class="battle-top"><button class="seal sm ghost" id="bRun">撤</button><span class="wave-tag" id="bWave"></span></div>
       <div class="mon-hud"><h5 id="mName"></h5><div class="bar ${st.waves.some((w) => w.includes('yaojiang')) ? 'boss' : 'hp'}"><i id="mBar"></i><span id="mTxt"></span></div><div id="mCharge"></div></div>
       <div class="mon" id="mon"><img id="monImg" alt=""></div>
-      <div class="hero-b" id="heroB">${heroArmed(S.wTop(), 'bhold', 'pose')}${heroArmed(S.wTop(), 'bstance', 'pose')}</div>
+      <div class="hero-b" id="heroB">${heroArmed(this.main, this.pose.hold, 'pose bhold')}${heroArmed(this.main, this.pose.stance, 'pose bstance')}</div>
       <div class="shield hidden" id="shield"></div>`);
     UI.controls(`<div class="bstat">
         <div class="lbl"><span>氣血</span><span id="hTxtB"></span></div><div class="bar hp"><i id="hBarB"></i></div>
@@ -149,7 +151,7 @@ const Battle = {
   swordTip() {
     const el = document.querySelector('#heroB .hfig.bstance'), sc = $('#scene').getBoundingClientRect();
     if (!el) return { x: this.heroPos().x, y: this.heroPos().y - 90 };
-    const r = el.getBoundingClientRect(), [x1, y1, x2, y2] = HERO_SWORD.bstance.blade;
+    const r = el.getBoundingClientRect(), [x1, y1, x2, y2] = HERO_SWORD[this.pose.stance].blade;
     return { x: r.left - sc.left + x2 * r.width, y: r.top - sc.top + y2 * r.height, hx: r.left - sc.left + x1 * r.width, hy: r.top - sc.top + y1 * r.height };
   },
   // 一次普攻：兵器階級越高，劍光軌跡與命中特效越華麗

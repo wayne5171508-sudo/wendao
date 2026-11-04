@@ -344,6 +344,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 #heroB.strike .hfig.bstance { opacity: 1; }
 #heroB .waura { --orb: 80px; }
 #heroB .hfig.bhold { left: 58%; }
+#heroB .hfig.bnitian { left: 50%; --c: #ff6a4a; --e: #ffd76a; }   /* 神器立繪是正面，兩個姿勢置中 */
 #heroB.strike .hfig.bstance > img { animation: lunge .22s ease-out; }
 /* 全程試玩修正 */
 #toasts { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }            /* 提示放在頂列下方，不壓主角臉 */

@@ -15,12 +15,12 @@ const S = {
       arts: {}, weapons: {}, wslot: [null, null], quests: {},
       bonus: { atk: 0, hp: 0 },
       cleared: {}, unlocked: { sect: false, village: false, wild: false, realm: false },
-      daily: { date: U.today(), realm: 0, free: false, sign: false }, gacha: { wpn: 0, art: 0 },
+      daily: { date: U.today(), realm: 0, free: false, sign: false }, pityArtifact: 0, pityTechnique: 0,
       story: {}, auto: false, settings: { music: true, sfx: true },
     };
   },
   load() {
-    try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { this.d = Object.assign(this.fresh(), JSON.parse(raw)); this.migrate(); this.fixSlots(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; return true; } } catch (e) {}
+    try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { this.d = Object.assign(this.fresh(), JSON.parse(raw)); this.migrate(); this.fixSlots(); this.fixPity(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; return true; } } catch (e) {}
     this.d = this.fresh(); return false;
   },
   // v1 的隨機法寶改為兵器系統：舊法寶折成靈石
@@ -32,13 +32,22 @@ const S = {
   },
   // 佩戴欄只能放已擁有的兵器
   fixSlots() { this.d.wslot = this.d.wslot.map((id) => (id && this.d.weapons[id] ? id : null)); },
+  // 保底計數：兩池各自一個欄位。舊存檔的 gacha.{wpn,art} 搬過來；非數字或異常大數字一律修正到 0～89
+  fixPity() {
+    const d = this.d, old = d.gacha || {};
+    const norm = (v) => { v = Math.floor(Number(v)); return Number.isFinite(v) ? U.clamp(v, 0, GACHA.pity - 1) : 0; };
+    if (old.wpn !== undefined && !d.pityArtifact) d.pityArtifact = old.wpn;
+    if (old.art !== undefined && !d.pityTechnique) d.pityTechnique = old.art;
+    delete d.gacha;
+    d.pityArtifact = norm(d.pityArtifact); d.pityTechnique = norm(d.pityTechnique);
+  },
   save() { if (!this.d) return; this.d.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.d)); } catch (e) {} },
   // 匯入存檔：驗證格式後覆蓋；成功回傳 true，失敗回傳原因
   importText(text) {
     let d;
     try { d = JSON.parse(text); } catch (e) { return '存檔格式不正確，無法讀取'; }
     if (!d || typeof d !== 'object' || typeof d.lv !== 'number' || !d.inv || typeof d.inv !== 'object' || !d.root) return '這不是《問道青冥》的存檔';
-    const keep = this.d; this.d = Object.assign(this.fresh(), d); this.migrate(); this.fixSlots();
+    const keep = this.d; this.d = Object.assign(this.fresh(), d); this.migrate(); this.fixSlots(); this.fixPity();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.d)); } catch (e) { this.d = keep; return '瀏覽器無法寫入存檔'; }
     return true;
   },
@@ -52,6 +61,7 @@ const S = {
     const k = (1 + 0.08 * o.lv) * (1 + 0.25 * o.brk);
     return { atk: Math.round(w.atk * k), crit: Math.round(w.crit * (1 + 0.1 * o.brk) * 10) / 10, regen: Math.round(w.regen * (1 + 0.04 * o.lv) * (1 + 0.25 * o.brk) * 10) / 10 };
   },
+  wMain() { const id = this.d.wslot[0]; return id && this.d.weapons[id] ? WEAPONS.find((w) => w.id === id) : null; },   // 主手兵器
   equipped() { return this.d.wslot.filter((id) => id && this.d.weapons[id]).map((id) => WEAPONS.find((w) => w.id === id)); },
   wTop() { return this.equipped().reduce((t, w) => (!t || w.tier > t.tier ? w : t), null); },   // 最高階的已裝備兵器，決定光效
   wFx(fx) { return this.equipped().some((w) => w.fx === fx); },
@@ -103,20 +113,29 @@ const S = {
   sign() { const t = this.today(); if (t.sign) return 0; t.sign = true; const n = GACHA.sign(this.d.lv); this.add('stone', n); this.save(); return n; },
 
   // ───────── 機緣抽取 ─────────
+  // wpn＝法寶池、art＝功法池，保底計數互不影響
+  pityKey(pool) { return pool === 'wpn' ? 'pityArtifact' : 'pityTechnique'; },
+  pity(pool) { return this.d[this.pityKey(pool)]; },
+  // 單抽判定：先累計，第 90 抽必出仙階以上；抽中仙階以上（含自然抽中）計數歸零
   rollTier(pool) {
-    const g = this.d.gacha;
+    const key = this.pityKey(pool), d = this.d;
+    d[key] = (d[key] || 0) + 1;
     let tier;
-    if (++g[pool] >= GACHA.pity) tier = U.chance(1 / 6) ? 4 : 3;
+    if (d[key] >= GACHA.pity) tier = U.chance(1 / 6) ? 4 : 3;
     else { let r = Math.random(); tier = GACHA.rates.findIndex((p) => (r -= p) < 0); if (tier < 0) tier = 0; }
-    if (tier >= 3) g[pool] = 0;
+    if (tier >= 3) d[key] = 0;
     return tier;
   },
-  // 單抽每日首抽免費；十連保底一個靈階以上。回傳結果陣列，靈石不足回傳 null
+  drawCost(n) { return n === 10 ? GACHA.cost10 : GACHA.cost; },
+  // 單抽與十連共用：單抽每日首抽免費；十連保底一個靈階以上。回傳結果陣列，靈石不足回傳 null（不扣款、不抽）
   draw(pool, n) {
-    const t = this.today(), free = n === 1 && !t.free, cost = n === 10 ? GACHA.cost10 : GACHA.cost;
-    if (!free && !this.take('stone', cost)) return null;
+    const t = this.today(), free = n === 1 && !t.free, cost = Math.abs(this.drawCost(n));
+    if (!free) {
+      if ((this.d.inv.stone || 0) < cost) return null;
+      this.d.inv.stone -= cost;
+    }
     if (free) t.free = true;
-    const tiers = Array.from({ length: n }, () => this.rollTier(pool));
+    const tiers = Array.from({ length: n }, () => this.rollTier(pool));   // 十連逐抽累計、逐抽判定
     if (n === 10 && tiers.every((x) => x === 0)) tiers[9] = 1;
     const res = tiers.map((tier) => (pool === 'wpn' ? this.grantWeapon(tier) : this.grantArt(tier)));
     this.save(); return res;
@@ -188,10 +207,10 @@ const S = {
   skillOpen(sk) { if (sk.wt !== undefined) { const t = this.wTop(); return !!t && t.tier >= sk.wt; } return this.artLv(sk.from) > 0; },
 
   // ───────── 兵器 ─────────
-  // 取得兵器；已擁有則折成玄鐵與靈石，回傳說明文字
+  // 取得兵器；已擁有則折成玄鐵與少量靈石（靈石一定低於單抽價，抽卡不會倒賺），回傳說明文字
   gainWeapon(id) {
     const w = WEAPONS.find((x) => x.id === id);
-    if (this.d.weapons[id]) { const ore = 5 * (w.tier + 1), st = 200 * (w.tier + 1); this.add('ore', ore); this.add('stone', st); return `${w.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
+    if (this.d.weapons[id]) { const ore = 5 * (w.tier + 1), st = 20 * (w.tier + 1); this.add('ore', ore); this.add('stone', st); return `${w.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
     this.d.weapons[id] = { lv: 0, brk: 0, fail: 0 };
     // 主手空著就放主手；主手已有劍就放副手，並標記讓法寶頁高亮
     if (!this.d.wslot[0]) this.d.wslot[0] = id;
