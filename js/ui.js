@@ -533,7 +533,7 @@ const UI = {
       if (Story.skip) break;
       orb.className = 'gs-orb pop';
       FX.burst(p.x, p.y, T.color, 30 + r.tier * 16, 220 + r.tier * 60, 3 + r.tier * 0.6, 1.1); FX.ring(p.x, p.y, T.color, 20, 160 + r.tier * 60, 0.7, 4 + r.tier);
-      FX.shake(sc, 4 + r.tier * 3); Audio2.duck(0.2, ten ? 0.6 : 1.6); Audio2.play(r.tier >= 4 ? 'divine' : 'reveal' + r.tier);   // 揭曉：音樂漸弱＋品階音效
+      FX.shake(sc, 4 + r.tier * 3); Audio2.duck(0.2, ten ? 0.6 : 1.6); Audio2.reveal(r.tier);   // 揭曉：音樂漸弱＋品階音效（缺檔退回上一階）
       if (r.tier >= 4) { FX.flash = 1; sc.classList.remove('bt-white'); void sc.offsetWidth; sc.classList.add('bt-white'); }
       else if (r.tier >= 3) FX.flash = 0.45;
       // 光團爆開後，對應類型與品階的素材圖淡入；下方是名稱、數量、品階

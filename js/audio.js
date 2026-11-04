@@ -10,8 +10,12 @@
 // ════════════════════════════════════════════
 
 const AUDIO_KEY = 'wendao_audio';
-const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3' };
-const SFX_SRC = { slash: 'slash', crit: 'crit', hurt: 'hurt', cast: 'cast', thunder: 'thunder', gather: 'gather', divine: 'divine', meditate: 'meditate' };
+const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', gacha: 'assets/audio/bgm_gacha.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3' };
+// 短音效：assets/audio/sfx_<key>.mp3
+const SFX_SRC = { slash: 'slash', crit: 'crit', hurt: 'hurt', cast: 'cast', thunder: 'thunder', gather: 'gather', divine: 'divine', meditate: 'meditate',
+  reveal_fan: 'reveal_fan', reveal_ling: 'reveal_ling', reveal_xuan: 'reveal_xuan', reveal_xian: 'reveal_xian', reveal_shen: 'reveal_shen' };
+// 揭曉音效依品階：凡、靈、玄（法寶）、仙、神
+const REVEAL_SFX = ['reveal_fan', 'reveal_ling', 'reveal_xuan', 'reveal_xian', 'reveal_shen'];
 // 舊的場景名稱對應到 BGM
 const MOOD_BGM = { title: 'home', village: 'home', sect: 'home', wild: 'home', dungeon: 'battle', battle: 'battle', boss: 'boss', gacha: 'gacha', trib: 'trib' };
 // 遊戲內音效名稱 → 素材（含音量、音高隨機）；沒有列在這裡的只用合成
@@ -52,9 +56,9 @@ const Audio2 = {
     for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
     this.verb.buffer = ir;
     const wet = c.createGain(); wet.gain.value = 0.55; this.verb.connect(wet); wet.connect(this.synthOut);
-    this.tracks.gacha = { gain: this.synthOut, synth: true };
+    this.tracks.synth = { gain: this.synthOut, synth: true };   // 任何 BGM 檔缺少時的備援
     // iOS：在使用者點擊當下先建立 <audio>，之後換 src 播放才不會被擋
-    for (const k of ['home', 'battle', 'boss', 'trib', 'tribIntro']) this.makeTrack(k);
+    for (const k of Object.keys(BGM_SRC)) this.makeTrack(k);
     this.applyVol();
     this.startMusic();
     this.preloadSfx();
@@ -72,13 +76,34 @@ const Audio2 = {
   loadTrack(key) {
     const tr = this.tracks[key];
     if (!tr || tr.synth) return Promise.resolve(true);
-    if (!tr.ready) tr.ready = fetch(BGM_SRC[key]).then((r) => { if (!r.ok) throw 0; return r.blob(); }).then((b) => { tr.el.src = URL.createObjectURL(b); return !tr.broken; }).catch(() => false);
+    if (!tr.ready) tr.ready = fetch(BGM_SRC[key]).then((r) => { if (!r.ok) throw 0; return r.blob(); }).then((b) => { tr.el.src = URL.createObjectURL(b); return !tr.broken; })
+      .catch(() => { console.warn(`[音效] 找不到 BGM：${BGM_SRC[key]}，改用合成配樂`); return false; });
     return tr.ready;
   },
+  sfxState: {},   // 每個音效：loading／ok／missing
   preloadSfx() {
-    for (const k of Object.keys(SFX_SRC)) fetch(`assets/audio/sfx_${k}.mp3`).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); })
-      .then((ab) => new Promise((res, rej) => this.ctx.decodeAudioData(ab, res, rej))).then((buf) => (this.buffers[k] = buf)).catch(() => {});
+    for (const k of Object.keys(SFX_SRC)) {
+      this.sfxState[k] = 'loading';
+      fetch(`assets/audio/sfx_${k}.mp3`).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); })
+        .then((ab) => new Promise((res, rej) => this.ctx.decodeAudioData(ab, res, rej))).then((buf) => { this.buffers[k] = buf; this.sfxState[k] = 'ok'; })
+        .catch(() => { this.sfxState[k] = 'missing'; console.warn(`[音效] 找不到或無法解碼：assets/audio/sfx_${k}.mp3`); });
+    }
   },
+  // 揭曉音效：該品階檔案缺少時退回上一階（往下找），全部沒有才用合成；不報錯、不中斷演出
+  reveal(tier) {
+    if (!this.ctx) return;
+    for (let t = tier; t >= 0; t--) {
+      const k = REVEAL_SFX[t];
+      if (this.buffers[k]) {
+        if (t !== tier) this.warnOnce(`reveal${tier}`, `[音效] 缺少 sfx_${REVEAL_SFX[tier]}.mp3，改用 sfx_${k}.mp3`);
+        return this.playBuf(k, t >= 4 ? 1 : 0.85, 0);
+      }
+    }
+    this.warnOnce(`reveal${tier}`, `[音效] 揭曉音效都尚未載入或缺少，改用合成音（品階 ${tier}）`);
+    this.synth(tier >= 4 ? 'divine' : 'reveal' + tier);
+  },
+  warned: {},
+  warnOnce(key, msg) { if (this.warned[key]) return; this.warned[key] = true; console.warn(msg); },
 
   // ───────── BGM ─────────
   setMood(m) {
@@ -96,7 +121,7 @@ const Audio2 = {
     if (key === 'trib') return this.playTrib();
     const ok = await this.loadTrack(key);
     if (this.cur !== key) return;
-    if (!ok) { this.cur = 'gacha'; this.fadeIn(this.tracks.gacha); return; }   // 音檔失敗：改播合成配樂
+    if (!ok) { this.cur = 'synth'; this.fadeIn(this.tracks.synth); return; }   // 音檔失敗：改播合成配樂
     this.fadeIn(this.tracks[key]);
   },
   fadeIn(tr) {
@@ -129,7 +154,7 @@ const Audio2 = {
     const intro = this.tracks.tribIntro, main = this.tracks.trib;
     const [a, b] = await Promise.all([this.loadTrack('tribIntro'), this.loadTrack('trib')]);
     if (this.cur !== 'trib') return;
-    if (!a && !b) { this.fadeIn(this.tracks.gacha); return; }
+    if (!a && !b) { this.fadeIn(this.tracks.synth); return; }
     if (!a) { this.fadeIn(main); return; }
     intro.el.currentTime = 0; this.fadeIn(intro);
     clearTimeout(this.tribT);
@@ -146,12 +171,16 @@ const Audio2 = {
   // 有素材播素材，否則用合成；同一音效最多同時 SFX_MAX 個，超過就停掉最舊的
   play(name, opt = {}) {
     if (!this.ctx) return;
-    const m = SFX_MAP[name], buf = m && this.buffers[m[0]];
-    if (!buf) return this.synth(name);
-    const list = (this.active[m[0]] = (this.active[m[0]] || []).filter((s) => !s.done));
+    const m = SFX_MAP[name];
+    if (!m || !this.buffers[m[0]]) return this.synth(name);
+    this.playBuf(m[0], m[1] * (opt.vol ?? 1), m[2]);
+  },
+  playBuf(key, vol, jitter) {
+    const buf = this.buffers[key]; if (!buf) return;
+    const list = (this.active[key] = (this.active[key] || []).filter((s) => !s.done));
     if (list.length >= SFX_MAX) { const old = list.shift(); try { old.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.02); old.src.stop(this.ctx.currentTime + 0.08); } catch (e) {} }
     const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
-    src.buffer = buf; src.playbackRate.value = 1 + (m[2] ? U.rand(-m[2], m[2]) : 0); g.gain.value = m[1] * (opt.vol ?? 1);
+    src.buffer = buf; src.playbackRate.value = 1 + (jitter ? U.rand(-jitter, jitter) : 0); g.gain.value = vol;
     src.connect(g); g.connect(this.sfxBus); src.start();
     const rec = { src, g, done: false }; src.onended = () => (rec.done = true); list.push(rec);
   },
@@ -280,7 +309,7 @@ const Audio2 = {
     return S.root * Math.pow(2, st / 12);
   },
   schedule() {
-    const c = this.ctx; if (!c || this.cur !== 'gacha') { if (c) this.nextT = c.currentTime + 0.3; return; }
+    const c = this.ctx; if (!c || this.cur !== 'synth') { if (c) this.nextT = c.currentTime + 0.3; return; }
     const S = this.SCALES.sect, step = this.mood === 'battle' ? 0.42 : 0.62;
     while (this.nextT < c.currentTime + 0.4) {
       const t = this.nextT; this.beat++;
