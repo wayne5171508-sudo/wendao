@@ -25,7 +25,7 @@ const Battle = {
       <div class="battle-top"><button class="seal sm ghost" id="bRun">撤</button><span class="wave-tag" id="bWave"></span></div>
       <div class="mon-hud"><h5 id="mName"></h5><div class="bar ${st.waves.some((w) => w.includes('yaojiang')) ? 'boss' : 'hp'}"><i id="mBar"></i><span id="mTxt"></span></div><div id="mCharge"></div></div>
       <div class="mon" id="mon"><img id="monImg" alt=""></div>
-      <div class="hero-b" id="heroB">${heroArmed(this.main, this.pose.hold, 'pose bhold')}${heroArmed(this.main, this.pose.stance, 'pose bstance')}</div>
+      <div class="hero-b ready ${this.pose.stance}" id="heroB">${heroArmed(this.main, this.pose.stance, 'pose bstance')}</div>
       <div class="shield hidden" id="shield"></div>`);
     UI.controls(`<div class="bstat">
         <div class="lbl"><span>氣血</span><span id="hTxtB"></span></div><div class="bar hp"><i id="hBarB"></i></div>
@@ -36,6 +36,8 @@ const Battle = {
     $('#bRun').onclick = () => this.end(false, true);
     $('#bAuto').onclick = () => { S.d.auto = !S.d.auto; S.save(); $('#bAuto').classList.toggle('ghost', !S.d.auto); $('#bAuto').textContent = S.d.auto ? '自動施法・開' : '自動施法・關'; };
     this.spawn();
+    // 背後多層光環，顏色隨主手品階
+    Halo.mount('battle', '#heroB .hfig', this.main ? { c: WTIERS[this.main.tier].color, e: WTIERS[this.main.tier].edge } : null);
     // 神器：天象異變
     if (this.wpn && this.wpn.tier >= 4) setTimeout(() => this.on && this.heaven(), 500);
   },
@@ -78,9 +80,10 @@ const Battle = {
     const real = Math.max(1, Math.round(dmg * (1 - m.dr)));
     m.hp -= real;
     const p = this.monPos();
-    FX.text(p.x + U.rand(-30, 30), p.y - 30, (crit ? '暴擊 ' : '') + U.fmt(real), crit ? '#ffd76a' : m.dr ? '#ffb4b4' : color || '#ffffff', crit || opts.big ? 30 : 23);
+    FX.text(p.x, p.y - 30, (crit ? '暴擊 ' : '') + U.fmt(real), crit ? '#ffd76a' : m.dr ? '#ffb4b4' : color || '#ffffff', crit || opts.big ? 30 : 23, 'dmg');
     const box = $('#mon'); box.classList.add('hit'); setTimeout(() => box.classList.remove('hit'), 90);
-    if (crit || opts.big) FX.shake($('#scene'), opts.big ? 10 : 5);
+    if (crit) this.hitstop(opts.big ? 110 : 80, opts.big ? 10 : 7);
+    else if (opts.big) FX.shake($('#scene'), 10);
     Audio2.play(crit || opts.big ? 'hitHeavy' : 'hit');
     if (m.hp <= 0) this.kill();
   },
@@ -91,7 +94,7 @@ const Battle = {
     FX.burst(p.x, p.y, m.boss ? '#ff6a7a' : '#9fe8ff', 36, 260, 3.5, 1);
     FX.ring(p.x, p.y, 'rgba(255,255,255,0.7)', 20, 160, 0.5, 4);
     this.loot.exp += m.exp; this.loot.stone += m.stone;
-    FX.text(p.x, p.y + 30, `修為 +${U.fmt(m.exp)}`, '#b8f0c8', 18);
+    FX.text(p.x, p.y, `修為 +${U.fmt(m.exp)}`, '#b8f0c8', 18, 'gain');
     if (m.boss) { Audio2.play('boom'); FX.shake($('#scene'), 14); }
     this.wave++; this.pause = 1.0;
     if (this.wave >= this.st.waves.length) { this.pause = 99; setTimeout(() => this.end(true), 1100); }
@@ -102,15 +105,15 @@ const Battle = {
     const h = this.hero; if (h.hp <= 0) return;
     let dmg = Math.max(1, Math.round(raw * U.rand(0.9, 1.1) - h.def * 0.5));
     const hp0 = this.heroPos();
-    if (h.shield > 0) { const a = Math.min(h.shield, dmg); h.shield -= a; dmg -= a; FX.ring(hp0.x, hp0.y - 60, '#8ff0d8', 40, 110, 0.35, 3); if (dmg <= 0) { FX.text(hp0.x, hp0.y - 120, '靈罩吸收', '#8ff0d8', 18); return; } }
+    if (h.shield > 0) { const a = Math.min(h.shield, dmg); h.shield -= a; dmg -= a; FX.ring(hp0.x, hp0.y - 60, '#8ff0d8', 40, 110, 0.35, 3); if (dmg <= 0) { FX.text(hp0.x, hp0.y - 120, '靈罩吸收', '#8ff0d8', 18, 'hero'); return; } }
     h.hp -= dmg;
     // 首領第三相：以血養血
-    if (src && src.leech && src.hp > 0) { const heal = Math.round(dmg * src.leech); src.hp = Math.min(src.max, src.hp + heal); const mp = this.monPos(); FX.text(mp.x + 60, mp.y, '+' + U.fmt(heal), '#ff6a7a', 16); }
-    FX.text(hp0.x + U.rand(-30, 30), hp0.y - 130, (label ? label + ' ' : '-') + U.fmt(dmg), '#ff7a7a', label ? 28 : 22);
+    if (src && src.leech && src.hp > 0) { const heal = Math.round(dmg * src.leech); src.hp = Math.min(src.max, src.hp + heal); const mp = this.monPos(); FX.text(mp.x, mp.y, '+' + U.fmt(heal), '#ff6a7a', 16, 'info'); }
+    FX.text(hp0.x, hp0.y - 130, (label ? label + ' ' : '-') + U.fmt(dmg), '#ff7a7a', label ? 28 : 22, 'hero');
     const hb = $('#heroB'); hb.classList.remove('hurt'); void hb.offsetWidth; hb.classList.add('hurt');
     FX.sparks(hp0.x, hp0.y - 80, '#ff8a8a', 8, 260); Audio2.play('hurt');
     if (label) FX.shake($('#scene'), 12);
-    if (h.hp < h.max * 0.3 && !h.pill && S.take('p_heal')) { h.pill = true; h.hp = Math.min(h.max, h.hp + h.max * 0.4); FX.text(hp0.x, hp0.y - 170, '服下回春丹', '#ff8a8a', 18); FX.burst(hp0.x, hp0.y - 80, '#ff8a8a', 18, 140); }
+    if (h.hp < h.max * 0.3 && !h.pill && S.take('p_heal')) { h.pill = true; h.hp = Math.min(h.max, h.hp + h.max * 0.4); FX.text(hp0.x, hp0.y - 170, '服下回春丹', '#ff8a8a', 18, 'hero'); FX.burst(hp0.x, hp0.y - 80, '#ff8a8a', 18, 140); }
     if (h.hp <= 0) { h.hp = 0; this.pause = 99; setTimeout(() => this.end(false), 700); }
   },
 
@@ -129,7 +132,7 @@ const Battle = {
     } else if (id === 'jianyi') {
       h.yiT = 8; Audio2.play('gong');
       FX.pillar(hp.x, FX.h, 'rgba(255,207,122,0.45)', 80, 1.4); FX.converge(hp.x, hp.y - 80, 'rgba(255,207,122,0.9)', 24, 180, 0.7);
-      FX.text(hp.x, hp.y - 190, '劍意凜然', k.color, 22);
+      FX.text(hp.x, hp.y - 190, '劍意凜然', k.color, 22, 'hero');
     } else if (id === 'jianqi') {
       FX.wave(hp.x, hp.y - 90, m.x, m.y, k.color, 0.3); Audio2.play('wave');
       setTimeout(() => { this.dmgMon(h.atk * k.mult, k.color); FX.slash(m.x, m.y, 110, -0.5, k.color, 0.3); FX.sparks(m.x, m.y, '#dff6ff', 12); }, 200);
@@ -147,12 +150,39 @@ const Battle = {
     }
   },
 
+  // 普攻動作（以程式位移與旋轉模擬，之後補圖可換成逐格立繪）：蓄勢後撤 → 前衝 → 揮劍 → 後座回位
+  attackAnim(scale = 1) {
+    const el = document.querySelector('#heroB .hfig'); if (!el || !el.animate) return;
+    if (this.atkAnim) this.atkAnim.cancel();
+    const f = (y, s, r) => ({ transform: `translateX(-50%) translateY(${y * scale}%) scale(${1 - (1 - s) * scale}) rotate(${r * scale}deg)` });
+    this.atkAnim = el.animate([
+      { ...f(0, 1, 0), offset: 0 }, { ...f(4, 1.01, 5), offset: 0.16 },          // 蓄勢
+      { ...f(-15, 0.9, -6), offset: 0.4, easing: 'cubic-bezier(.2,.8,.3,1)' },  // 前衝
+      { ...f(-13, 0.9, -16), offset: 0.55 },                                      // 揮劍
+      { ...f(3, 1.02, 3), offset: 0.8 },                                          // 後座
+      { ...f(0, 1, 0), offset: 1 },
+    ], { duration: 480, easing: 'ease-out' });
+  },
+  // 暴擊：短暫定格，再鏡頭震動與拉近
+  hitstop(ms, mag) {
+    const sc = $('#scene'); Game.freeze = ms / 1000; sc.classList.add('hitstop');
+    const a = this.atkAnim; if (a && a.playState === 'running') a.pause();
+    setTimeout(() => {
+      sc.classList.remove('hitstop'); if (a && a.playState === 'paused') a.play();
+      FX.shake(sc, mag);
+      const sct = $('#sceneContent'); if (sct.animate && !FX.noShake) sct.animate([{ transform: 'scale(1.035)' }, { transform: 'scale(1)' }], { duration: 240, easing: 'ease-out' });
+    }, ms);
+  },
   // 起手式劍尖在畫面上的位置（劍光與出劍特效從這裡發出）
   swordTip() {
     const el = document.querySelector('#heroB .hfig.bstance'), sc = $('#scene').getBoundingClientRect();
     if (!el) return { x: this.heroPos().x, y: this.heroPos().y - 90 };
     const r = el.getBoundingClientRect(), [x1, y1, x2, y2] = HERO_SWORD[this.pose.stance].blade;
-    return { x: r.left - sc.left + x2 * r.width, y: r.top - sc.top + y2 * r.height, hx: r.left - sc.left + x1 * r.width, hy: r.top - sc.top + y1 * r.height };
+    // 立繪整體前傾 lean 度（以腳底為軸），把劍身座標一起轉過去
+    const lean = (parseFloat(getComputedStyle($('#heroB')).getPropertyValue('--lean')) || 0) * Math.PI / 180, ox = r.left - sc.left + r.width / 2, oy = r.bottom - sc.top;
+    const rot = (px, py) => { const dx = px - ox, dy = py - oy; return [ox + dx * Math.cos(lean) - dy * Math.sin(lean), oy + dx * Math.sin(lean) + dy * Math.cos(lean)]; };
+    const [tx, ty] = rot(r.left - sc.left + x2 * r.width, r.top - sc.top + y2 * r.height), [hx, hy] = rot(r.left - sc.left + x1 * r.width, r.top - sc.top + y1 * r.height);
+    return { x: tx, y: ty, hx, hy };
   },
   // 一次普攻：兵器階級越高，劍光軌跡與命中特效越華麗
   swing(mult, tag) {
@@ -160,15 +190,17 @@ const Battle = {
     if (!this.on || !m || m.hp <= 0) return;
     const p = this.monPos(), w = this.wpn, t = w ? w.tier : -1, c = w ? WTIERS[t].color : S.d.root ? ROOTS[S.d.root].color : '#9fe8ff';
     const tip = this.swordTip();
-    FX.slash((tip.x + tip.hx) / 2 || tip.x, (tip.y + tip.hy) / 2 || tip.y, 42 + Math.max(0, t) * 5, -0.15, c, 0.18);
+    // 揮劍弧光：從主角劍上掃出一道大弧，再補一道細弧
+    FX.slash((tip.x + tip.hx) / 2 || tip.x, ((tip.y + tip.hy) / 2 || tip.y) - 10, 78 + Math.max(0, t) * 8, -0.5, c, 0.26);
+    FX.slash(tip.x, tip.y - 6, 46 + Math.max(0, t) * 5, 0.2, '#ffffff', 0.18);
     FX.sparks(tip.x, tip.y, c, 4 + Math.max(0, t) * 2, 160);
     if (t >= 1) FX.wave(tip.x, tip.y, p.x, p.y, c, 0.22);
     FX.slash(p.x + U.rand(-20, 20), p.y + U.rand(-30, 30), 90 + t * 12, U.rand(-0.8, 0.2), c);
     FX.sparks(p.x, p.y, t >= 2 ? c : '#dff6ff', 6 + Math.max(0, t) * 3);
     if (t >= 3) FX.ring(p.x, p.y, c, 16, 120, 0.3, 3);
     if (t >= 4) FX.burst(p.x, p.y, '#ffd76a', 12, 180, 3, 0.5);
-    if (tag) FX.text(p.x + 40, p.y - 70, tag, c, 16);
-    if (S.wFx('slow') && !m.slowed) { m.slowed = true; m.interval *= 1.25; FX.text(p.x - 50, p.y - 60, '霜寒', '#bfe8ff', 16); }
+    if (tag) FX.text(p.x, p.y, tag, c, 16, 'info');
+    if (S.wFx('slow') && !m.slowed) { m.slowed = true; m.interval *= 1.25; FX.text(p.x, p.y, '霜寒', '#bfe8ff', 16, 'info'); }
     this.dmgMon(h.atk * mult * (h.yiT > 0 ? 1.6 : 1));
   },
 
@@ -196,10 +228,10 @@ const Battle = {
     if (h.t <= 0) {
       h.t = h.interval;
       // 普攻：切到起手式出劍，再收回持劍
-      const hb = $('#heroB'); hb.classList.add('strike'); clearTimeout(this.strikeT); this.strikeT = setTimeout(() => hb.classList.remove('strike'), 360);
+      this.attackAnim();
       Audio2.play(U.pick(['swing1', 'swing2']));
-      setTimeout(() => this.swing(1), 120);
-      if (S.wFx('combo') && U.chance(0.3)) setTimeout(() => this.swing(0.6, '連擊'), 330);
+      setTimeout(() => this.swing(1), 190);   // 前衝到底時出劍
+      if (S.wFx('combo') && U.chance(0.3)) setTimeout(() => { this.attackAnim(0.75); this.swing(0.6, '連擊'); }, 420);
     }
     // 首領換相
     if (m.boss) {

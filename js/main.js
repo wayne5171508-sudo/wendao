@@ -38,7 +38,7 @@ const Game = {
   // 首次載入：先下載標題與開場劇情要用的素材並顯示進度條，其餘（戰鬥、丹房、法寶等）進遊戲後在背景下載
   // 之後由離線快取提供，幾乎瞬間完成
   async preload() {
-    const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/|wuxing|pillar_/;
+    const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero|ui)\/|wuxing|pillar_/;
     const list = all.filter((s) => first.test(s)), bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
     const later = all.filter((s) => !first.test(s));
     let done = 0;
@@ -79,7 +79,9 @@ const Game = {
   },
 
   loop(t) {
-    const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t;
+    let dt = Math.min(0.1, (t - this.last) / 1000); this.last = t;
+    // 暴擊定格：這段時間戰鬥與特效暫停
+    if (this.freeze > 0) { this.freeze -= dt; dt = 0; }
     // 洞府靈氣自行運轉
     if (S.d && S.d.root && !S.full()) S.addExp(S.rate() * dt);
     Battle.tick(dt);

@@ -59,14 +59,23 @@ const FX = {
     for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push({ x: U.lerp(px, x, t) + (i && i < 12 ? U.rand(-22, 22) : 0), y: U.lerp(-20, y, t) }); }
     this.add({ k: 'bolt', pts, color, width, life });
   },
-  text(x, y, str, color = '#fff', size = 22) {
+  // 飄字分道：dmg 傷害（怪物正下）、gain 收穫（右下）、info 狀態（左側）、hero 主角身上
+  // 每個字先量出外框，跟畫面上還在飄的字比對，碰到就排到下一行並晚一點出現，依序錯開
+  LANES: { dmg: [0, 0], gain: [64, 1.7], info: [-70, 0.6], hero: [0, 0] },
+  textBox(p) { return { l: p.x - p.w / 2, r: p.x + p.w / 2, t: p.y - p.h * 0.8, b: p.y + p.h * 0.25 }; },
+  text(x, y, str, color = '#fff', size = 22, kind = 'dmg') {
     // 不飄進頂部怪物名牌與血條（約佔畫面上方 110px）：起點至少在血條下方「字高＋飄升距離」
-    const rise = 70 * Math.min(1, this.h / 520), floor = Math.min(250, Math.max(this.h * 0.48, 110 + size + rise));
-    let yy = Math.max(y, floor);
-    for (const p of this.list) if (p.k === 'text' && p.t < 0.3 && Math.abs(p.x - x) < 50 && Math.abs(p.y - yy) < size) yy = p.y - size - 2;
-    if (yy < floor) { yy = floor; x += U.pick([-1, 1]) * U.rand(45, 80); }   // 疊太高就改往左右錯開
-    this.add({ k: 'text', x: x + U.rand(-10, 10), y: yy, vy: -rise,   // 矮畫面飄短一點
-      str, color, size, life: 1.0 });
+    const rise = 70 * Math.min(1, this.h / 520), floor = Math.min(250, Math.max(this.h * 0.48, 110 + size + rise)), L = this.LANES[kind] || this.LANES.dmg;
+    if (this.c) this.c.font = `700 ${size}px ${BRUSH}`;
+    const w = (this.c ? this.c.measureText(str).width : str.length * size) + 10, h = size * 1.15;
+    const p = { k: 'text', x: U.clamp(x + L[0], w / 2 + 4, (this.w || 400) - w / 2 - 4), y: kind === 'hero' ? y : Math.max(y, floor) + L[1] * size, w, h, vy: -rise, str, color, size, life: 1.0, delay: 0 };
+    const over = (a, b) => { const A = this.textBox(a), B = this.textBox(b); return A.l < B.r && B.l < A.r && A.t < B.b && B.t < A.b; };
+    for (let i = 0; i < 8; i++) {
+      const hit = this.list.find((q) => q.k === 'text' && q.t < q.life * 0.8 && over(p, q));
+      if (!hit) break;
+      p.y = this.textBox(hit).b + p.h * 0.8 + 3; p.delay = Math.max(p.delay, (hit.delay || 0) - hit.t + 0.1);   // 排到下一行、晚 0.1 秒出現
+    }
+    this.add(p);
   },
   converge(x, y, color, n = 20, radius = 260, life = 1.2) {
     for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r = radius * U.rand(0.6, 1.1); this.add({ k: 'conv', sx: x + Math.cos(a) * r, sy: y + Math.sin(a) * r, tx: x, ty: y, color, size: U.rand(1.6, 3.6), life: life * U.rand(0.7, 1.2), curl: U.rand(-1.2, 1.2) }); }
@@ -117,7 +126,7 @@ const FX = {
     for (const p of this.list) {
       p.t += dt;
       if (p.vx !== undefined) { p.x += p.vx * dt; p.y += (p.vy || 0) * dt; if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; } }
-      else if (p.vy) p.y += p.vy * dt;
+      else if (p.vy && p.t >= (p.delay || 0)) p.y += p.vy * dt;
       const t = p.t - (p.delay || 0); if (t < 0) continue;
       const k = Math.max(0, 1 - t / (p.life - (p.delay || 0)));
       c.save(); c.globalAlpha = k;
