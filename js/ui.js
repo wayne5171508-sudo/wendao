@@ -162,7 +162,7 @@ const UI = {
     this.setBg('dongfu', '');
     this.scene(`${heaven(S.wTop())}<div class="hero-stage sit">${S.wTop() ? heroArmed(S.wTop(), 'sit') : `<img src="${IMG_SRC.hero_meditate}" alt="${HERO_NAME}打坐">`}</div>`);
     Halo.mount('sit', '.hero-stage.sit > *');
-    Audio2.loop('meditate', true);   // 打坐循環音   // 腳下法陣＋靈氣絲帶，顏色隨境界
+    Audio2.play('meditate');   // 進洞府打坐：靈氣聲播一次   // 腳下法陣＋靈氣絲帶，顏色隨境界
     this.controls(`<div class="cult">
       <div class="cult-head"><h2 id="hLv"></h2><span id="hRate"></span></div>
       <div class="bar xp"><i id="hBar"></i><span id="hTxt"></span></div>
