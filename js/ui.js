@@ -217,10 +217,10 @@ const UI = {
     Audio2.setMood('wild');
     this.setBg('title', 'dim');
     this.scene('');
-    const rows = REGIONS.map((R) => {
-      const open = S.d.unlocked[R.id], n = R.stages.filter((_, i) => S.d.cleared[`${R.id}-${i}`]).length;
+    const rows = [...REGIONS.filter((R) => R.test), ...REGIONS.filter((R) => !R.test)].map((R) => {   // 測試區放最上面
+      const open = R.test || S.d.unlocked[R.id], n = R.stages.filter((_, i) => S.d.cleared[`${R.id}-${i}`]).length;
       const extra = R.daily ? `　今日剩 ${S.dailyLeft()} 次` : '';
-      return `<button class="region ${open ? '' : 'locked'}" data-r="${R.id}" style="background-image:url(${IMG_SRC['bg_' + R.bg]});background-position:${BG_POS[R.bg]}"><h4>${R.name}</h4><p>${R.sub}</p><span class="prog">${n} / ${R.stages.length} 關${extra}</span></button>`;
+      return `<button class="region ${open ? '' : 'locked'}" data-r="${R.id}" style="background-image:url(${IMG_SRC['bg_' + R.bg]});background-position:${BG_POS[R.bg]}"><h4>${R.name}</h4><p>${R.sub}</p><span class="prog">${R.test ? '測試・不限次數' : `${n} / ${R.stages.length} 關`}${extra}</span></button>`;
     }).join('');
     this.controls(`<div class="sec-title">歷練</div>${rows}`);
     document.querySelectorAll('.region').forEach((b) => (b.onclick = () => this.stages(b.dataset.r)));
@@ -232,10 +232,10 @@ const UI = {
     this.scene(`<div class="banner static" style="animation:none;top:38%"><b style="font-size:clamp(34px,10vw,58px)">${R.name}</b><span>${R.sub}</span></div>`);
     const left = R.daily ? S.dailyLeft() : null;
     const rows = R.stages.map((st, i) => {
-      const key = `${rid}-${i}`, done = S.d.cleared[key], open = i === 0 || S.d.cleared[`${rid}-${i - 1}`];
+      const key = `${rid}-${i}`, done = S.d.cleared[key], open = R.test || i === 0 || S.d.cleared[`${rid}-${i - 1}`];
       const lastBoss = st.waves.some((w) => MONSTERS[w.replace('*', '')].boss);
       const foes = [...new Set(st.waves.map((w) => MONSTERS[w.replace('*', '')].name))].join('、');
-      return `<div class="li ${open ? '' : 'locked'} ${done ? 'done' : ''}"><i class="ico" style="--c:${lastBoss ? '#ff6a6a' : '#d8c48a'}">${i + 1}</i><div><h4>${st.name}</h4><p>${foes}<br>建議 ${lvName(Math.min(MAX_LV, Math.round(st.p)))}</p></div>
+      return `<div class="li ${open ? '' : 'locked'} ${done ? 'done' : ''}"><i class="ico" style="--c:${lastBoss ? '#ff6a6a' : '#d8c48a'}">${i + 1}</i><div><h4>${st.name}</h4><p>${foes}<br>${R.scale ? `難度依你的境界（${lvName(S.d.lv)}）自動調整` : `建議 ${lvName(Math.min(MAX_LV, Math.round(st.p)))}`}</p></div>
         <button class="seal sm ${done ? 'ghost' : ''}" data-i="${i}" ${open && (left === null || left > 0) ? '' : 'disabled'}>${done ? '再戰' : '挑戰'}</button></div>`;
     }).join('');
     this.controls(`<div class="row spread"><div class="sec-title" style="flex:1">${R.name}</div><button class="seal sm ghost" id="sBack">返回</button></div>

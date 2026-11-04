@@ -7,7 +7,9 @@ const Battle = {
   on: false,
   // cont：從上一關「下一關」接續，秘境不再扣每日次數
   start(rid, idx, cont) {
-    const R = REGIONS.find((r) => r.id === rid), st = R.stages[idx];
+    const R = REGIONS.find((r) => r.id === rid), st0 = R.stages[idx];
+    // 依境界調整難度：以目前境界加一點為準
+    const st = R.scale ? { ...st0, p: S.d.lv + st0.p } : st0;
     if (R.daily && !cont) { if (S.dailyLeft() <= 0) { UI.toast('今日秘境次數已用盡，明日再來'); UI.stages(rid); return; } S.d.daily.realm++; S.save(); }
     const s = S.stats();
     $('#app').classList.remove('tall'); $('#app').classList.add('fighting');
@@ -65,9 +67,10 @@ const Battle = {
     this.mon = { type, M, elite, boss: !!M.boss, ...s, max: s.hp, t: s.interval * 0.8, charge: 0, chargeMax: 0, chargeCd: M.boss ? 6 : 8, phase: 1, stun: 0, dr: 0, leech: 0, ph: M.phases ? M.phases[0] : null };
     const img = $('#monImg'); img.src = `assets/mon/${M.img}.webp`;
     const box = $('#mon'); box.className = 'mon enter' + (M.boss ? ' boss' : ''); setTimeout(() => box.classList.remove('enter'), 520);
-    $('#mName').innerHTML = `${M.name}${elite ? '<em>精英</em>' : ''}${M.boss ? '<em>第一相</em>' : ''}`;
+    $('#mName').innerHTML = `${M.name}${elite ? '<em>精英</em>' : ''}${M.boss ? `<em>${M.phases[0].name}</em>` : ''}`;
+    box.classList.toggle('tianmo', M.tint === 'tianmo');
     $('#bWave').textContent = `${this.st.name}　${this.wave + 1} / ${this.st.waves.length}`;
-    if (M.boss) { UI.banner(M.name, '秘境之主，自血池中站起'); Audio2.play('roar'); FX.shake($('#scene'), 8); }
+    if (M.boss) { UI.banner(...(M.intro || [M.name, '秘境之主，自血池中站起'])); Audio2.play('roar'); FX.shake($('#scene'), 8); }
     this.render();
   },
 
@@ -308,7 +311,7 @@ const Battle = {
     const got = [];
     for (const [id, pr, a, b] of DROPS[R.id]) if (U.chance(pr * (first ? 1.5 : 1))) { const n = U.randi(a, b); S.add(id, n); got.push(`${ico(id)}<span>${ITEMS[id].name} ×${n}</span>`); }
     // 秘境妖將掉落兵器
-    if (this.st.waves.some((w) => MONSTERS[w.replace('*', '')].boss)) {
+    if (!R.test && this.st.waves.some((w) => MONSTERS[w.replace('*', '')].boss)) {
       const wid = first && !S.d.weapons[BOSS_WEAPON.first] ? BOSS_WEAPON.first : U.chance(BOSS_WEAPON.rareP) ? BOSS_WEAPON.rare : null;
       if (wid) {
         const w = WEAPONS.find((x) => x.id === wid), note = S.gainWeapon(wid), sub = S.subNotice(wid);

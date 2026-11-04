@@ -183,6 +183,14 @@ const MONSTERS = {
       { at: 0.66, name: '第二相', banner: ['妖將祭陣', '血陣護身，蓄力更快'], dr: 0.25, chargeCd: 6.5, chargeT: 2.2, chargeMult: 3.2 },
       { at: 0.33, name: '第三相', banner: ['血甲暴怒', '渾身浴血，以血養血'], atk: 1.3, spd: 1.35, chargeCd: 6, chargeT: 1.8, chargeMult: 3.6, leech: 0.25 },
     ] },
+  // 測試用大 Boss：沿用妖將圖、改紫黑色調；四相，血量約妖將 2.3 倍
+  tianmo: { name: '九幽天魔・墮淵', img: 'yaojiang', tint: 'tianmo', hp: 100, atk: 1.2, spd: 0.95, boss: true, intro: ['九幽天魔', '心魔所化，自深淵睜眼'],
+    phases: [
+      { name: '第一相', chargeCd: 7.5, chargeT: 2.4, chargeMult: 3.0 },
+      { at: 0.75, name: '魔焰相', banner: ['魔焰護體', '黑焰繞身，受傷減三成'], dr: 0.3, chargeCd: 6.5, chargeT: 2.2, chargeMult: 3.2 },
+      { at: 0.5, name: '雷殛相', banner: ['逆引天雷', '出手更快，蓄力更短'], spd: 1.3, chargeCd: 5.5, chargeT: 2.0, chargeMult: 3.4 },
+      { at: 0.25, name: '九幽相', banner: ['九幽狂暴', '以血養魔，一擊重於千鈞'], atk: 1.35, spd: 1.25, chargeCd: 5, chargeT: 1.6, chargeMult: 4.0, leech: 0.3 },
+    ] },
 };
 const monStats = (type, p, elite) => {
   const m = MONSTERS[type], k = Math.pow(1.45, p), e = elite ? 2.2 : 1;
@@ -214,10 +222,17 @@ const REGIONS = [
     { name: '血泉迴廊', p: 6.2, waves: ['shikui*', 'moxiu', 'moxiu*'] },
     { name: '妖將血池', p: 6.8, waves: ['shikui', 'yaojiang'] },
   ] },
+  // 測試用：隨時可進、不限次數；難度依當下境界自動調整（scale）
+  { id: 'trial', name: '心魔試煉', sub: '測試・九幽天魔', bg: 'realm', mood: 'dungeon', grade: 'realm', test: true, scale: true, stages: [
+    { name: '心魔劫・普通', p: 0.3, waves: ['tianmo'] },     // p 為「目前境界＋p」
+    { name: '心魔劫・困難', p: 1.2, waves: ['tianmo'] },
+    { name: '心魔劫・地獄', p: 2.2, waves: ['tianmo'] },
+  ] },
 ];
 
 // 掉落：[物品, 機率, 數量下限, 上限]
 const DROPS = {
+  trial:   [['herb_b', 0.8, 2, 3], ['herb_l', 0.6, 1, 2], ['scroll', 0.8, 1, 3], ['ore', 0.9, 3, 6], ['star', 0.5, 1, 2]],
   sect:    [['herb_q', 0.6, 1, 2], ['herb_c', 0.4, 1, 1]],
   village: [['herb_q', 0.6, 1, 2], ['herb_c', 0.6, 1, 2], ['scroll', 0.15, 1, 1], ['ore', 0.3, 1, 2]],
   wild:    [['herb_c', 0.5, 1, 2], ['herb_b', 0.5, 1, 2], ['scroll', 0.25, 1, 1], ['ore', 0.5, 1, 3]],

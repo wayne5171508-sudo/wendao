@@ -176,7 +176,7 @@ const Story = {
   // 通關後的主線劇情；有播放時回傳 true
   afterClear(rid, idx, first) {
     const R = REGIONS.find((r) => r.id === rid);
-    if (!first || idx !== R.stages.length - 1) return false;
+    if (R.test || !first || idx !== R.stages.length - 1) return false;   // 測試關不觸發劇情
     const next = { sect: 'village', village: 'wild', wild: 'realm' }[rid];
     const play = (bg, lines, after) => this.run(async () => {
       UI.mode('story'); this.stage(bg, '', this.heroChar());
