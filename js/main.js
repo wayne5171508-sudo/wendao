@@ -11,6 +11,9 @@ const Game = {
     // 顯示尺寸不超過原圖像素：圖片載入後以原生高度為上限（佩劍立繪的外框一起限制，劍光座標才對得上）
     document.addEventListener('load', (e) => { const i = e.target; if (i.tagName !== 'IMG' || !i.naturalHeight || !/\/(hero|npc|cast|mon|weapon)\//.test(i.src)) return; i.style.maxHeight = i.naturalHeight + 'px'; if (i.parentElement.classList.contains('hfig')) i.parentElement.style.maxHeight = i.naturalHeight + 'px'; }, true);
     addEventListener('resize', () => FX.resize());
+    // 共用 keep-ratio：畫面上所有圖片（含之後動態插入的）都保持原比例
+    const keep = (root) => { if (root.tagName === 'IMG') root.classList.add('keep-ratio'); else if (root.querySelectorAll) root.querySelectorAll('img:not(.keep-ratio)').forEach((i) => i.classList.add('keep-ratio')); };
+    keep(document.body); new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach(keep))).observe(document.body, { childList: true, subtree: true });
     // 圖片載入失敗備援：靈石換成文字圓章，其他圖隱藏並讓外框改用 CSS 備援樣式，不出現破圖或白屏
     const imgFail = (i) => {
       if (i.dataset.fb) { const f = i.dataset.fb; delete i.dataset.fb; if (!f.startsWith('data:')) i.classList.add('loot-fb'); else i.classList.remove('loot-fb'); i.src = f; return; }   // 抽中素材的備援鏈
