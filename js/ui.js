@@ -150,7 +150,7 @@ const UI = {
   go(tab) {
     if (Battle.on) return;
     this.tab = tab; this.navLock();
-    $('#app').classList.toggle('tall', tab !== 'home'); $('#app').classList.remove('fighting'); FX.clear(); FX.stormT = 0; FX.ambient = 'qi';
+    $('#app').classList.toggle('tall', tab !== 'home'); $('#app').classList.toggle('fit', tab === 'draw');   // 機緣頁面板依內容高度，其餘給光陣 $('#app').classList.remove('fighting'); FX.clear(); FX.stormT = 0; FX.ambient = 'qi';
     ({ home: () => this.home(), map: () => this.map(), alch: () => this.alch(), arts: () => this.arts(), gear: () => this.gear(), draw: () => this.draw() }[tab] || (() => this.home()))();
     this.hud();
   },
@@ -459,6 +459,9 @@ const UI = {
     this.controls(`<div class="sec-title">機緣</div>
       <div class="tabs"><button class="${P === 'wpn' ? 'on' : ''}" data-gp="wpn">法寶池</button><button class="${P === 'art' ? 'on' : ''}" data-gp="art">功法池</button></div>
       <div class="pity"><span>保底</span><b>${left}</b><span>抽內必出仙階以上</span></div>
+      <div class="pity-bar" style="--p:${(100 * (G.pity - left)) / G.pity}%"><i></i></div>
+      <div class="gpeek"><small>本池神品</small>${(P === 'wpn' ? [...WEAPONS, ...FABAO].filter((g) => g.tier === 4).map((g) => wFrame(g))
+        : [0, 1, 2, 3, 4].map((t) => `<span class="loot-sm" style="--c:${WTIERS[t].color}">${lootImg({ type: 'art', tier: t, base: '' })}</span>`)).join('')}</div>
       <div>${rates}</div>${gives}
       <div class="row center gacha-btns"><button class="seal ${t.free ? 'ghost' : ''}" id="g1">單抽<small>${t.free ? stoneAmt(G.cost) : '今日免費'}</small></button><button class="seal ${t.free ? '' : 'ghost'}" id="g10">十連<small>${stoneAmt(G.cost10)}・保底靈階</small></button></div>
       <div class="li"><i class="ico" style="--c:#9fe8d8">簽</i><div><h4>每日簽到</h4><p>${stoneAmt(G.sign(d.lv), '+')}（隨境界提高）</p></div><button class="seal sm ${t.sign ? 'ghost' : ''}" id="gSign" ${t.sign ? 'disabled' : ''}>${t.sign ? '已簽' : '簽到'}</button></div>
