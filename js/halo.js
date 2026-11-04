@@ -331,8 +331,9 @@ const Showcase = {
     // 粒子從框內下緣往上飄，範圍略寬於框
     const mk = (init) => ({ x: U.rand(W * 0.2, W * 0.8), y: init ? U.rand(H * 0.1, H * 0.75) : H * 0.75, vy: -U.rand(10, 26) * (1 + tier * 0.25), vx: U.rand(-6, 6), r: U.rand(0.8, 2.2) + (tier >= 3 ? 0.6 : 0), ph: Math.random() * 7, gold: tier >= 3 && Math.random() < 0.4 });
     const ps = Array.from({ length: n }, () => mk(true));
-    let arcs = [], arcT = 0, t = 0, last = performance.now();
-    const cx = W / 2, cy = H * 0.44, R = W * 0.3;
+    let flashes = [], nextBolt = U.rand(0.4, 1.2), bolt = null, t = 0, last = performance.now();
+    const caseEl = cv.closest('.wcase');
+    Knock.load('assets/fx/case_bolt.webp', { round: false, lo: 10 }).then((u) => { const im = new Image(); im.onload = () => (bolt = im); im.src = u; }).catch(() => console.warn('[特效] 展示框閃電素材載入失敗'));
     const loop = (now) => {
       if (!cv.isConnected) return;
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
@@ -344,28 +345,75 @@ const Showcase = {
         c.fillStyle = hexA(p.gold ? edge : color, Math.max(0, a)); c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
         if (tier >= 2) blob(c, p.x, p.y, p.r * 4, hexA(p.gold ? edge : color, Math.max(0, a) * 0.25));
       }
-      // 神器：沿劍周圍的鋸齒電光，約 90ms 換一次形狀
-      if (tier >= 4) {
-        arcT -= dt;
-        if (arcT <= 0) {
-          arcT = 0.09; arcs = [];
-          for (let k = 0; k < (low ? 2 : 4); k++) {
-            const a0 = Math.random() * Math.PI * 2, span = U.rand(0.6, 1.4), pts = [];
-            for (let j = 0; j <= 10; j++) { const a = a0 + (span * j) / 10, rr = R * U.rand(0.86, 1.14); pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 1.9]); }
-            arcs.push(pts);
-          }
+      // 閃電：素材隨機閃現（法寶以上）。每 1.5～3 秒一次、每次 0.2 秒；神器頻率加倍並讓框邊微閃
+      // 只出現在框內四周與邊緣：中心橢圓（法寶主體）不放
+      if (bolt && tier >= 2) {
+        nextBolt -= dt;
+        if (nextBolt <= 0) {
+          nextBolt = U.rand(1.5, 3) / (tier >= 4 ? 2 : 1);
+          const side = Math.random() < 0.5 ? -1 : 1, ex = W / 2 + side * W * U.rand(0.28, 0.4), ey = H * U.rand(0.18, 0.7);
+          flashes.push({ x: ex, y: ey, ang: side * U.rand(0.05, 0.45) + (Math.random() < 0.3 ? Math.PI : 0), flip: Math.random() < 0.5, h: H * U.rand(0.32, 0.5), t: 0 });
+          if (tier >= 4 && caseEl) { caseEl.classList.remove('zap'); void caseEl.offsetWidth; caseEl.classList.add('zap'); }
         }
-        c.lineJoin = 'round';
-        for (const pts of arcs) {
-          c.strokeStyle = 'rgba(220,200,255,0.9)'; c.shadowColor = '#b48cff'; c.shadowBlur = 12; c.lineWidth = 2;
-          c.beginPath(); pts.forEach(([x, y], j) => (j ? c.lineTo(x, y) : c.moveTo(x, y))); c.stroke();
-          c.strokeStyle = '#fff'; c.lineWidth = 0.8; c.stroke();
+        c.globalCompositeOperation = 'screen';
+        for (const f of flashes) {
+          f.t += dt; const k = f.t / 0.2; if (k >= 1) continue;
+          const a = k < 0.15 ? k / 0.15 : k < 0.5 ? 1 - (k - 0.15) * 0.6 : (1 - k) * 1.6, w = (f.h * bolt.naturalWidth) / bolt.naturalHeight;
+          c.save(); c.globalAlpha = Math.max(0, Math.min(1, a)); c.translate(f.x, f.y); c.rotate(f.ang); c.scale(f.flip ? -1 : 1, 1); c.drawImage(bolt, -w / 2, -f.h / 2, w, f.h); c.restore();
         }
-        c.shadowBlur = 0;
-        if (Math.random() < dt * 0.8) FX.flash = Math.max(FX.flash, 0.15);
+        flashes = flashes.filter((f) => f.t < 0.2);
       }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
+  },
+};
+
+// ════════════════════════════════════════════
+//  展示框法寶擺放：載入後裁掉近黑外圍（trim），依裁切後的比例縮放置中
+//  規則：主體（含旋轉後外框）高度約佔框內 75%，寬度不超過框寬 85%；直立細長的劍再斜放 20 度
+// ════════════════════════════════════════════
+const CaseFit = {
+  trimCache: {},
+  trim(src) {
+    if (this.trimCache[src]) return this.trimCache[src];
+    return (this.trimCache[src] = new Promise((res) => {
+      const im = new Image();
+      im.onload = () => {
+        try {
+          const W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+          const c = cv.getContext('2d'); c.drawImage(im, 0, 0); const d = c.getImageData(0, 0, W, H).data;
+          let x0 = W, y0 = H, x1 = -1, y1 = -1;
+          for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) { const i = (y * W + x) * 4; if (Math.max(d[i], d[i + 1], d[i + 2]) * d[i + 3] / 255 > 26) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+          if (x1 < 0) return res({ src, w: W, h: H, nw: W, nh: H });
+          x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(W - 1, x1 + 2); y1 = Math.min(H - 1, y1 + 2);
+          const w = x1 - x0 + 1, h = y1 - y0 + 1;
+          if (w * h > W * H * 0.94) return res({ src, w: W, h: H, nw: W, nh: H });   // 幾乎沒有黑邊：不必重畫
+          const o = document.createElement('canvas'); o.width = w; o.height = h; o.getContext('2d').drawImage(im, x0, y0, w, h, 0, 0, w, h);
+          res({ src: o.toDataURL('image/png'), w, h, nw: W, nh: H });
+        } catch (e) { res({ src, w: im.naturalWidth, h: im.naturalHeight, nw: im.naturalWidth, nh: im.naturalHeight }); }
+      };
+      im.onerror = () => res(null);
+      im.src = src;
+    }));
+  },
+  // 依目前框的大小擺放；回傳量測結果（除錯用）
+  async fit(caseEl) {
+    const img = caseEl.querySelector('.wc-spin img'), inn = caseEl.querySelector('.wc-in'), frame = caseEl;
+    if (!img || !inn) return null;
+    const t = await this.trim(img.dataset.src || img.getAttribute('src')); if (!t) return null;
+    if (!img.dataset.src) img.dataset.src = img.getAttribute('src');
+    if (t.src !== img.src) img.src = t.src;
+    const IH = inn.clientHeight, FW = frame.clientWidth, fb = caseEl.classList.contains('fb');
+    // 劍：先轉成直立（rot），若直立後很細長，再斜放 20 度增加份量
+    const rot = fb ? 0 : (parseFloat(getComputedStyle(caseEl).getPropertyValue('--r')) || 0) * Math.PI / 180;
+    const c0 = Math.abs(Math.cos(rot)), s0 = Math.abs(Math.sin(rot)), uw = t.w * c0 + t.h * s0, uh = t.w * s0 + t.h * c0;
+    const tilt = !fb && uw / uh < 0.5 ? 20 * Math.PI / 180 : 0, ang = rot + tilt;
+    const c = Math.abs(Math.cos(ang)), s = Math.abs(Math.sin(ang)), bw = t.w * c + t.h * s, bh = t.w * s + t.h * c;
+    const k = Math.min((0.75 * IH) / bh, (0.85 * FW) / bw);
+    const w = t.w * k, h = t.h * k;
+    Object.assign(img.style, { width: w + 'px', height: h + 'px', transform: `rotate(${ang}rad)` });
+    caseEl.style.setProperty('--fitW', bw * k + 'px');
+    return { nat: t.nw + 'x' + t.nh, trimmed: t.w + 'x' + t.h, shown: Math.round(w) + 'x' + Math.round(h), deg: Math.round((ang * 180) / Math.PI), hPct: Math.round((100 * bh * k) / IH), wPctFrame: Math.round((100 * bw * k) / FW), innerW: inn.clientWidth, innerH: IH };
   },
 };

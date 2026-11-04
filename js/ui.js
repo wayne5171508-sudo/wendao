@@ -59,7 +59,17 @@ const stoneAmt = (n, sign = '') => `<span class="stone-amt">${stoneIco()}<b>${si
 const escHtml = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 // 純文字裡的「靈石 +120」「靈石 1800」換成圖示＋數字
 const stoneText = (t) => escHtml(t).replace(/靈石\s*([+＋\-−]?)\s*([\d,.]+[萬億]?)/g, (_, sg, n) => stoneAmt(n, sg));
-const ico = (id) => id === 'stone' ? `<i class="ico img">${stoneIco()}</i>` : `<i class="ico" style="--c:${ITEMS[id].color}">${{ scroll: '卷', ore: '鐵', star: '砂' }[id] || (ITEMS[id].pill ? '丹' : '草')}</i>`;
+// 物品圖示表：assets/item/<id>.webp 有在素材清單（deploy 自動產生）就用圖，沒有就用彩色圓球佔位；新增素材不必改程式
+// 修為用 id 'exp'。圖檔已預先去黑（透明底），圖片載入失敗時 main.js 會換回圓球
+const ITEM_ICO_FALLBACK = { exp: ['修', '#f2dc94'] };
+const itemImg = (id) => { const p = `assets/item/${id}.webp`; return typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(p) ? p : null; };
+const ballIco = (id) => { const f = ITEM_ICO_FALLBACK[id], it = ITEMS[id]; return `<i class="ico" style="--c:${f ? f[1] : it.color}">${f ? f[0] : { stone: '石', scroll: '卷', ore: '鐵', star: '砂' }[id] || (it.pill ? '丹' : '草')}</i>`; };
+const ico = (id) => {
+  if (id === 'stone') return `<i class="ico img">${stoneIco()}</i>`;
+  const src = itemImg(id); if (!src) return ballIco(id);
+  const f = ITEM_ICO_FALLBACK[id], it = ITEMS[id];
+  return `<i class="ico img item" data-ball="${f ? f[0] : ''}" style="--c:${f ? f[1] : it.color}"><img class="item-ico" src="${src}" alt="${it ? it.name : '修為'}"></i>`;
+};
 // 兵器展示框：玉框蓮台底座圖當外框，仙劍放在框中央緩慢旋轉、上下浮動；普通品階只有柔光，神器加電光粒子與外圈光暈
 // 框內空洞位置（圖內比例）：左右 26%～74%，上下 14%～74%
 const CASE_IMG = 'assets/ui/case_frame.webp';
@@ -70,7 +80,7 @@ const wCase = (w, o) => {
     return `<div class="wcase t${w.tier} fb" style="${wVars(w)}">
     <div class="wc-halo"></div>
     <div class="wc-in"><i class="wc-glow"></i><div class="wc-spin"><img src="${gImg(w)}" alt="${w.name}"></div></div>
-    ${w.tier >= 4 ? `<canvas class="wc-cv" data-t="${w.tier}" data-c="${T.color}" data-e="${T.edge}"></canvas>` : ''}
+    <canvas class="wc-cv" data-t="${w.tier}" data-c="${T.color}" data-e="${T.edge}"></canvas>
     <img class="wc-frame" src="${CASE_IMG}" alt="">
   </div>
   <div class="wc-plate" style="--c:${T.color};--e:${T.edge}"><b>${w.name}${o && o.lv ? ' +' + o.lv : ''}</b><i>${T.name}・${F.name}${o && o.brk ? `・${'一二三'[o.brk - 1]}重` : ''}</i></div>
@@ -81,7 +91,7 @@ const wCase = (w, o) => {
   return `<div class="wcase t${w.tier}" style="${wVars(w)}">
     <div class="wc-halo"></div>
     <div class="wc-in"><i class="wc-glow"></i><div class="wc-spin"><img src="${W_IMG(w.id)}" alt="${w.name}"></div></div>
-    ${w.tier >= 4 ? `<canvas class="wc-cv" data-t="${w.tier}" data-c="${T.color}" data-e="${T.edge}"></canvas>` : ''}
+    <canvas class="wc-cv" data-t="${w.tier}" data-c="${T.color}" data-e="${T.edge}"></canvas>
     <img class="wc-frame" src="${CASE_IMG}" alt="">
   </div>
   <div class="wc-plate" style="--c:${T.color};--e:${T.edge}"><b>${w.name}${o && o.lv ? ' +' + o.lv : ''}</b><i>${T.name}${o && o.brk ? `・${'一二三'[o.brk - 1]}重` : ''}</i></div>
@@ -100,7 +110,7 @@ const lootImg = (r) => {
   const exact = r.tier === 0 || Knock.has(own);
   return `<img class="loot ${exact ? '' : 'loot-fb'} t${r.tier}" src="${exact ? own : base}" data-fb="${exact && r.tier ? base : LOOT_SVG}" alt="${r.base || r.name}">`;
 };
-const wCaseFx = () => requestAnimationFrame(() => document.querySelectorAll('#mBody .wc-cv').forEach((cv) => Showcase.start(cv, +cv.dataset.t, cv.dataset.c, cv.dataset.e)));
+const wCaseFx = () => requestAnimationFrame(() => { document.querySelectorAll('#mBody .wcase').forEach((el) => CaseFit.fit(el)); document.querySelectorAll('#mBody .wc-cv').forEach((cv) => Showcase.start(cv, +cv.dataset.t, cv.dataset.c, cv.dataset.e)); });
 
 const UI = {
   tab: 'home', bgFront: 'A',
@@ -610,7 +620,7 @@ const UI = {
 
   offlineModal(o) {
     this.modal('出關', `<p class="big">閉關 ${U.dur(o.sec)}${o.capped ? '（已達上限）' : ''}</p>
-      <div class="list"><div class="li"><i class="ico" style="--c:#f2dc94">修</i><div><h4>修為 +${U.fmt(o.gain)}</h4><p>${o.full ? '修為已滿，可嘗試突破' : '靈氣自行運轉，不曾停歇'}</p></div><span></span></div>
+      <div class="list"><div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(o.gain)}</h4><p>${o.full ? '修為已滿，可嘗試突破' : '靈氣自行運轉，不曾停歇'}</p></div><span></span></div>
       <div class="li">${ico('stone')}<div><h4>${stoneAmt(o.stone, '+')}</h4><p>洞府靈脈所產</p></div><span></span></div></div>
       <div class="row center"><button class="seal" id="oOk">收下</button></div>`, { '#oOk': () => { this.close(); this.go('home'); } });
   },

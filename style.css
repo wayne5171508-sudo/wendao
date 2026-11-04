@@ -208,7 +208,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 @media (orientation: landscape) { .tlogo { right: auto; left: 9%; } .tbtns { left: 34%; bottom: calc(12% + var(--safe-b)); } }
 
 /* ───── 卷軸彈窗 ───── */
-#modal { position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(3,5,9,.66); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+#modal { position: absolute; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(3,5,9,.66); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 .scroll { position: relative; width: min(100%, 440px); max-height: 86%; display: flex; flex-direction: column; padding: 22px 20px 20px; background: linear-gradient(#0d1520, #141e2b); box-shadow: inset 0 0 0 1px var(--goldline), inset 0 0 0 5px rgba(8,13,21,.9), inset 0 0 0 6px rgba(216,196,138,.18), 0 0 50px rgba(0,0,0,.8); animation: unroll .4s cubic-bezier(.2,.8,.2,1); }
 @keyframes unroll { from { clip-path: inset(48% 0 48% 0); } to { clip-path: inset(0); } }
 .scroll .roller { position: absolute; left: -8px; right: -8px; height: 14px; border-radius: 7px; background: linear-gradient(#5a3a20, #8a6034 45%, #3a2412); }
@@ -637,7 +637,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .wc-spin img { width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 0 8px var(--c)); }
 .wcase:not(.fb) .wc-spin { inset: auto; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; height: auto; margin: 0; translate: -50% -50%; }
 .wcase:not(.fb) .wc-spin img { transform: rotate(var(--r)); }
-@keyframes wcSpin { 0% { transform: translateY(3%) rotateY(0deg); } 25% { transform: translateY(-3%) rotateY(90deg); } 50% { transform: translateY(3%) rotateY(180deg); } 75% { transform: translateY(-3%) rotateY(270deg); } 100% { transform: translateY(3%) rotateY(360deg); } }
+@keyframes wcSpin { 0%, 100% { transform: perspective(600px) translateY(2%) rotateY(-18deg); } 50% { transform: perspective(600px) translateY(-2%) rotateY(18deg); } }   /* 緩慢左右擺動＋上下浮動；不再整圈轉（轉到側面會變成一條細線） */
 .wc-cv { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; }
 .wc-halo { position: absolute; left: -12%; right: -12%; top: 0; bottom: 18%; z-index: 0; pointer-events: none; opacity: .5; background: radial-gradient(ellipse 50% 50% at 50% 46%, color-mix(in srgb, var(--c) 30%, transparent), transparent 70%); }
 /* 神器：外圈光暈、劍身強光；電光粒子由 Showcase 畫 */
@@ -738,8 +738,8 @@ img { object-fit: contain; }
 .hero-stage { align-items: flex-end; }
 
 /* ───── 戰鬥特效分層：怪物名稱與血條永遠最上層 ───── */
-#app.fighting .mon-hud { z-index: 9; }
-#app.fighting .battle-top { z-index: 9; }
+#app.fighting .mon-hud { z-index: 8; }
+#app.fighting .battle-top { z-index: 8; }
 .banner.bt { top: calc(max(10px, env(safe-area-inset-top)) + 100px); z-index: 6; }   /* 技能名：畫面上方居中、血條下方 */
 .banner.bt b { font-size: clamp(26px, 7vw, 40px); }
 .banner.bt span { font-size: 12px; padding: 2px 18px; margin-top: 4px; }
@@ -757,3 +757,15 @@ img { object-fit: contain; }
 .combo-n.pop b { animation: comboPop .25s ease-out; }
 @keyframes comboPop { from { transform: scale(1.5); } to { transform: none; } }
 .mon.dead .mon-shield { display: none; }
+
+/* 展示框：主體由 CaseFit 依比例算好尺寸，疊在玉框前面，可略超出窗口到框上 */
+.wcase .wc-in { overflow: visible; background: none; z-index: auto; perspective: none; }   /* 不建立堆疊層，主體才能疊到玉框前面 */
+.wcase .wc-in::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, rgba(10,30,28,.9), rgba(3,8,10,.96)); z-index: -1; }
+.wcase .wc-spin, .wcase:not(.fb) .wc-spin { position: absolute; inset: 0; width: auto; height: auto; aspect-ratio: auto; translate: none; z-index: 4; display: flex; align-items: center; justify-content: center; animation: wcSpin 6s ease-in-out infinite; }
+.wcase .wc-spin img, .wcase:not(.fb) .wc-spin img { width: auto; height: auto; max-width: none; flex: none; object-fit: fill; }
+.wcase .wc-cv { z-index: 5; }
+.wcase.zap .wc-frame { animation: caseZap .25s ease-out; }
+@keyframes caseZap { 30% { filter: brightness(1.8) drop-shadow(0 0 10px #c9b0ff) drop-shadow(0 6px 14px rgba(0,0,0,.6)); } }
+/* 物品圖示：與靈石同風格（無圓球底，圖片本身發光） */
+.ico.img.item { background: none; box-shadow: none; }
+.ico.img.item .item-ico { width: 118%; height: 118%; max-width: none; object-fit: contain; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c) 70%, transparent)); }

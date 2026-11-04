@@ -335,7 +335,7 @@ const Battle = {
     S.save();
     Audio2.play('up');
     UI.modal(first ? '初勝' : '得勝', `<p class="big">${this.st.name}</p>
-      <div class="list"><div class="li"><i class="ico" style="--c:#f2dc94">修</i><div><h4>修為 +${U.fmt(this.loot.exp)}</h4></div><span></span></div>
+      <div class="list"><div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(this.loot.exp)}</h4></div><span></span></div>
       <div class="li">${ico('stone')}<div><h4>靈石 +${U.fmt(this.loot.stone)}</h4></div><span></span></div>
       ${got.map((g) => `<div class="li">${g.split('</i>')[0]}</i><div><h4>${g.split('</i>')[1]}</h4></div><span></span></div>`).join('')}</div>
       <div class="row center"><button class="seal" id="wNext">${lastStage ? '返回' : '下一關'}</button><button class="seal ghost sm" id="wHome">洞府</button></div>`,
