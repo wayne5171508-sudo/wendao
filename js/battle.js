@@ -20,7 +20,9 @@ const Battle = {
     this.main = S.wMain(); this.pose = battlePose(this.main);
     this.cd = Object.fromEntries(SKILLS.map((k) => [k.id, 0]));
     this.loot = { exp: 0, stone: 0 };
-    Audio2.loop('meditate', false);   // 音樂在 spawn() 依每一波決定
+    // 一關只決定一次曲子：有首領的關卡播頭目戰，其餘播一般戰鬥（精英不換曲，避免一關內來回切）
+    Audio2.loop('meditate', false);
+    Audio2.setMood(st.waves.some((w) => MONSTERS[w.replace('*', '')].boss) ? 'boss' : 'battle');
     UI.setBg(R.bg, R.grade || 'dim');
     FX.clear(); FX.ambient = R.grade === 'realm' ? 'realm' : 'qi';
     UI.scene(`
@@ -63,7 +65,6 @@ const Battle = {
   spawn() {
     const key = this.st.waves[this.wave], elite = key.endsWith('*'), type = key.replace('*', ''), M = MONSTERS[type];
     const s = monStats(type, this.st.p, elite);
-    Audio2.setMood(elite || M.boss ? 'boss' : 'battle');   // 精英或首領那一波交叉淡入頭目戰音樂
     this.mon = { type, M, elite, boss: !!M.boss, ...s, max: s.hp, t: s.interval * 0.8, charge: 0, chargeMax: 0, chargeCd: M.boss ? 6 : 8, phase: 1, stun: 0, dr: 0, leech: 0, ph: M.phases ? M.phases[0] : null };
     const img = $('#monImg'); img.src = `assets/mon/${M.img}.webp`;
     const box = $('#mon'); box.className = 'mon enter' + (M.boss ? ' boss' : ''); setTimeout(() => box.classList.remove('enter'), 520);

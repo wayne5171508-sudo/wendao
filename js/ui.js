@@ -227,7 +227,7 @@ const UI = {
   },
   stages(rid) {
     const R = REGIONS.find((r) => r.id === rid);
-    Audio2.setMood(R.mood);
+    if (!Battle.on && !['battle', 'boss'].includes(Audio2.cur)) Audio2.setMood('sect');   // 清單頁沿用洞府曲，不另外切
     this.setBg(R.bg, R.grade);
     this.scene(`<div class="banner static" style="animation:none;top:38%"><b style="font-size:clamp(34px,10vw,58px)">${R.name}</b><span>${R.sub}</span></div>`);
     const left = R.daily ? S.dailyLeft() : null;

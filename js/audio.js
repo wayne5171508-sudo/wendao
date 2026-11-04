@@ -16,7 +16,7 @@ const SFX_SRC = { slash: 'slash', crit: 'crit', hurt: 'hurt', cast: 'cast', thun
 const MOOD_BGM = { title: 'home', village: 'home', sect: 'home', wild: 'home', dungeon: 'battle', battle: 'battle', boss: 'boss', gacha: 'gacha', trib: 'trib' };
 // 遊戲內音效名稱 → 素材（含音量、音高隨機）；沒有列在這裡的只用合成
 const SFX_MAP = { swing1: ['slash', 0.8, 0.06], swing2: ['slash', 0.8, 0.06], swing3: ['slash', 0.9, 0.04], hitHeavy: ['crit', 0.9, 0.04], hurt: ['hurt', 0.9, 0.05], thunder: ['thunder', 0.85, 0.04], cast: ['cast', 0.7, 0.03], gather: ['gather', 0.8, 0], divine: ['divine', 1, 0] };
-const FADE = 1.0, SFX_MAX = 4;
+const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
 
 const Audio2 = {
   ctx: null, bgmBus: null, sfxBus: null, synthOut: null, verb: null,
@@ -100,8 +100,8 @@ const Audio2 = {
     this.fadeIn(this.tracks[key]);
   },
   fadeIn(tr) {
-    const t = this.ctx.currentTime;
-    tr.gain.gain.cancelScheduledValues(t); tr.gain.gain.setValueAtTime(tr.gain.gain.value, t); tr.gain.gain.linearRampToValueAtTime(1, t + FADE);
+    const t = this.ctx.currentTime, g = tr.gain.gain, from = g.value, delay = from > 0.05 ? 0 : FADE_IN_DELAY;
+    g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.setValueAtTime(from, t + delay); g.linearRampToValueAtTime(1, t + delay + FADE);
     clearTimeout(tr.stopT);
     if (tr.el && tr.el.paused && !document.hidden) tr.el.play().catch(() => {});
   },
@@ -109,7 +109,20 @@ const Audio2 = {
     if (!tr) return;
     const t = this.ctx.currentTime;
     tr.gain.gain.cancelScheduledValues(t); tr.gain.gain.setValueAtTime(tr.gain.gain.value, t); tr.gain.gain.linearRampToValueAtTime(0, t + FADE);
-    if (tr.el) { clearTimeout(tr.stopT); tr.stopT = setTimeout(() => tr.el.pause(), FADE * 1000 + 80); }
+    if (tr.el) {
+      clearTimeout(tr.stopT);
+      if (tr.broken) tr.el.pause();   // 音量節點控制不到（部分 iOS）：直接停，不讓舊曲全音量多響
+      else tr.stopT = setTimeout(() => tr.el.pause(), FADE * 1000 + 80);
+    }
+  },
+  // 保險：不是目前曲目的音軌，音量到 0 就一定暫停（避免任何情況下兩首同時在播）
+  guard() {
+    if (!this.ctx) return;
+    for (const [k, tr] of Object.entries(this.tracks)) {
+      if (!tr.el || tr.el.paused) continue;
+      const mine = k === this.cur || (this.cur === 'trib' && k === 'tribIntro');
+      if (!mine && tr.gain.gain.value < 0.03) tr.el.pause();
+    }
   },
   // 雷劫：先播開場（17 秒），接著交叉淡入雷劫主曲循環
   async playTrib() {
@@ -149,7 +162,7 @@ const Audio2 = {
     if (on) {
       if (cur || !this.buffers[name]) { if (!this.buffers[name]) setTimeout(() => this.loopWant === name && this.loop(name, true), 800); this.loopWant = name; return; }
       const src = this.ctx.createBufferSource(), g = this.ctx.createGain(), t = this.ctx.currentTime;
-      src.buffer = this.buffers[name]; src.loop = true; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.55, t + 0.8);
+      src.buffer = this.buffers[name]; src.loop = true; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(MEDITATE_VOL, t + 1.5);   // 打坐循環壓在 BGM 底下，只當空氣聲
       src.connect(g); g.connect(this.sfxBus); src.start(); this.loops[name] = { src, g }; this.loopWant = name;
     } else {
       if (this.loopWant === name) this.loopWant = null;
@@ -169,6 +182,7 @@ const Audio2 = {
     const go = () => this.unlock();
     addEventListener('pointerdown', go); addEventListener('keydown', go);
     document.addEventListener('visibilitychange', () => this.pauseAll(document.hidden));
+    setInterval(() => this.guard(), 500);
     addEventListener('pagehide', () => this.pauseAll(true));
   },
 
