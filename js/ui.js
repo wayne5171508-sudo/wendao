@@ -76,6 +76,15 @@ const wCase = (w, o) => {
   <div class="wc-stats" style="--c:${T.color}"><span><small>攻擊</small><b>${st.atk}</b></span><span><small>暴擊</small><b>${st.crit}%</b></span><span><small>回靈</small><b>${st.regen}</b></span></div>
   ${w.fx ? `<p class="wc-fx" style="--c:${T.color}"><b>${w.fxName}</b>${w.fxDesc}</p>` : `<p class="wc-fx">${w.desc}</p>`}`;
 };
+// 抽中素材：依「類型＋品階」讀圖 assets/loot/<類型>_t<品階>.webp（類型：art 功法、scroll 殘卷）；兵器用兵器圖
+// 沒有該品階的圖就用同類型凡階圖加品階濾鏡；凡階圖也載入失敗時換成內建卷軸 SVG，不會退回白球
+const LOOT_SVG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160"><rect x="30" y="18" width="60" height="124" fill="#e9dcb8" stroke="#7a5a2e" stroke-width="3"/><rect x="20" y="10" width="80" height="12" rx="6" fill="#6b4421"/><rect x="20" y="138" width="80" height="12" rx="6" fill="#6b4421"/><path d="M60 40v70M48 56h24M50 84h20" stroke="#3a2410" stroke-width="5" stroke-linecap="round"/></svg>');
+const lootImg = (r) => {
+  if (r.type === 'w') { const w = WEAPONS.find((x) => x.id === r.id); return `<span class="loot-w" style="${wVars(w)}"><img class="loot t${r.tier}" src="${W_IMG(w.id)}" data-fb="${LOOT_SVG}" alt="${w.name}"></span>`; }
+  const type = r.type === 'art' ? 'art' : 'scroll', own = `assets/loot/${type}_t${r.tier}.webp`, base = `assets/loot/${type}_t0.webp`;
+  const exact = r.tier === 0 || Knock.has(own);
+  return `<img class="loot ${exact ? '' : 'loot-fb'} t${r.tier}" src="${exact ? own : base}" data-fb="${exact && r.tier ? base : LOOT_SVG}" alt="${r.base || r.name}">`;
+};
 const wCaseFx = () => requestAnimationFrame(() => document.querySelectorAll('#mBody .wc-cv').forEach((cv) => Showcase.start(cv, +cv.dataset.t, cv.dataset.c, cv.dataset.e)));
 
 const UI = {
@@ -453,7 +462,8 @@ const UI = {
     $('#app').classList.add('gacha-show'); requestAnimationFrame(() => FX.resize());   // 收起下方面板，全螢幕
     this.scene(`<div class="gs-hall ${pool}"><div class="gs-bg" style="background-image:url(assets/bg/gacha_${pool}.webp)"></div><i class="gs-dark"></i>
       <div class="gs-title">${wpn ? '法寶室' : '功法閣'}</div><div id="gsFly"></div>
-      <div class="gs-orb" id="gsOrb"><img src="assets/fx/qi_orb.webp" alt=""></div><div class="gs-reveal" id="gsRev"></div><div class="gs-count" id="gsCnt"></div></div>`);
+      <div class="gs-orb" id="gsOrb"><img data-knock="assets/fx/qi_orb.webp" alt=""></div><div class="gs-reveal" id="gsRev"></div><div class="gs-count" id="gsCnt"></div></div>`);
+    Knock.apply($('.gs-hall'));
     this.fade(false); Audio2.play('array');
     await Story.wait(900);
     const orb = $('#gsOrb'), sc = $('#scene'), fly = $('#gsFly');
@@ -461,7 +471,8 @@ const UI = {
     // 一團靈氣從畫面邊緣飛向中心
     const mote = (p, ms) => {
       const W = FX.w, H = FX.h, side = U.randi(0, 3), sx = side === 0 ? -40 : side === 1 ? W + 40 : U.rand(0, W), sy = side === 2 ? -40 : side === 3 ? H + 40 : U.rand(0, H);
-      const el = document.createElement('img'); el.src = 'assets/fx/qi_orb.webp'; el.alt = ''; el.className = 'gs-mote'; fly.appendChild(el);
+      const u = Knock.url('assets/fx/qi_orb.webp'); if (!u) return;   // 去黑圖還沒好就只用粒子
+      const el = document.createElement('img'); el.src = u; el.alt = ''; el.className = 'gs-mote'; fly.appendChild(el);
       const s = U.rand(0.35, 0.7), mx = (sx + p.x) / 2 + U.rand(-80, 80), my = (sy + p.y) / 2 + U.rand(-80, 80);
       el.animate([{ transform: `translate(${sx}px,${sy}px) scale(${s}) rotate(0deg)`, opacity: 0 }, { opacity: 1, offset: 0.2 }, { transform: `translate(${mx}px,${my}px) scale(${s * 0.7}) rotate(200deg)`, offset: 0.55 }, { transform: `translate(${p.x}px,${p.y}px) scale(.08) rotate(420deg)`, opacity: 0.2 }], { duration: ms, easing: 'cubic-bezier(.5,0,.9,.5)' }).onfinish = () => el.remove();
     };
@@ -486,11 +497,12 @@ const UI = {
       FX.shake(sc, 4 + r.tier * 3); Audio2.play(r.tier >= 3 ? 'thunder' : 'gong');
       if (r.tier >= 4) { FX.flash = 1; sc.classList.remove('bt-white'); void sc.offsetWidth; sc.classList.add('bt-white'); }
       else if (r.tier >= 3) FX.flash = 0.45;
-      $('#gsRev').innerHTML = `<div class="gs-card t${r.tier}" style="--c:${T.color};--e:${T.edge}">${this.resIcon(r)}<b>${r.name}</b><i>${T.name}${r.isNew ? '・新' : ''}</i></div>`;
+      // 光團爆開後，對應類型與品階的素材圖淡入；下方是名稱、數量、品階
+      $('#gsRev').innerHTML = `<div class="gs-card t${r.tier}" style="--c:${T.color};--e:${T.edge}"><div class="gs-loot">${lootImg(r)}</div><b>${r.base || r.name}</b><span class="gs-qty">${r.qty || ''}</span><i>${T.name}${r.isNew ? '・新' : ''}</i></div>`;
       await Story.wait(ten ? 360 + r.tier * 100 : 1100);
     }
   },
-  resIcon(x) { return x.type === 'w' ? wFrame(WEAPONS.find((w) => w.id === x.id)) : x.type === 'item' ? ico(x.id) : `<i class="ico" style="--c:${WTIERS[x.tier].color}">${ARTS.find((a) => a.id === x.id).name[0]}</i>`; },
+  resIcon(x) { return x.type === 'w' ? wFrame(WEAPONS.find((w) => w.id === x.id)) : `<span class="loot-sm" style="--c:${WTIERS[x.tier].color}">${lootImg(x)}</span>`; },
   // 結果：單抽得到兵器直接進展示框；十連列表中的兵器可點開展示框，看完回到列表
   gachaResults(res) {
     const back = () => { this.close(); this.draw(); };

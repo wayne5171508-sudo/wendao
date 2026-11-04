@@ -13,6 +13,7 @@ const Game = {
     addEventListener('resize', () => FX.resize());
     // 圖片載入失敗備援：靈石換成文字圓章，其他圖隱藏並讓外框改用 CSS 備援樣式，不出現破圖或白屏
     const imgFail = (i) => {
+      if (i.dataset.fb) { const f = i.dataset.fb; delete i.dataset.fb; if (!f.startsWith('data:')) i.classList.add('loot-fb'); else i.classList.remove('loot-fb'); i.src = f; return; }   // 抽中素材的備援鏈
       if (i.dataset.failed) return; i.dataset.failed = '1';
       if (i.classList.contains('stone-ico')) { const f = document.createElement('i'); f.className = 'stone-fb'; f.textContent = '石'; i.replaceWith(f); return; }
       i.style.visibility = 'hidden'; if (i.parentElement) i.parentElement.classList.add('img-fail');

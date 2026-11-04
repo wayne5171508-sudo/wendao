@@ -1,5 +1,5 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
-const ASSET_VER = '20261104210000';
+const ASSET_VER = '20261104230000';
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -40,6 +40,8 @@ const ASSET_LIST = [
   'assets/hero/meditate_sword.webp',
   'assets/hero/press_stele.webp',
   'assets/hero/walk_back.webp',
+  'assets/loot/art_t0.webp',
+  'assets/loot/scroll_t0.webp',
   'assets/mon/moxiu.webp',
   'assets/mon/shanjing.webp',
   'assets/mon/shikui.webp',

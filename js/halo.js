@@ -11,6 +11,53 @@ const REALM_HUE = [
   { c: '#8fe8ff', e: '#d8f8ff' }, { c: '#7dffb8', e: '#d6ffe8' }, { c: '#ffd76a', e: '#fff2c4' }, { c: '#c9a6ff', e: '#f0e2ff' },
 ];
 
+// ════════════════════════════════════════════
+//  黑底素材去黑：載入時用 Canvas 把近黑像素轉透明，效果接近 screen 疊加
+//  透明度 = 亮度（低於 lo 直接透明），顏色正規化到最亮通道 255；round 時邊緣再加圓形羽化，不會出現圓盤邊
+// ════════════════════════════════════════════
+const Knock = {
+  cache: {}, done: {},
+  has(src) { return typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(src); },
+  load(src, o = {}) {
+    const key = src + '|' + (o.round === false ? 0 : 1);
+    if (this.cache[key]) return this.cache[key];
+    return (this.cache[key] = new Promise((res, rej) => {
+      const im = new Image();
+      im.onerror = () => rej(new Error('load ' + src));
+      im.onload = () => {
+        try {
+          const W = im.naturalWidth, H = im.naturalHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+          const c = cv.getContext('2d'); c.drawImage(im, 0, 0);
+          const d = c.getImageData(0, 0, W, H), p = d.data, lo = o.lo ?? 12, fe = o.feather ?? 0.16, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2;
+          for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+            const i = (y * W + x) * 4, m = Math.max(p[i], p[i + 1], p[i + 2]);
+            let a = m <= lo ? 0 : (m - lo) / (255 - lo);
+            if (a > 0 && o.round !== false) { const r = Math.hypot(x - cx, y - cy) / R; a *= Math.min(1, Math.max(0, (1 - r) / fe)); }
+            if (a <= 0) { p[i + 3] = 0; continue; }
+            const k = 255 / m; p[i] = Math.min(255, p[i] * k); p[i + 1] = Math.min(255, p[i + 1] * k); p[i + 2] = Math.min(255, p[i + 2] * k); p[i + 3] = Math.round(a * 255);
+          }
+          c.putImageData(d, 0, 0); const url = cv.toDataURL('image/png'); this.done[key] = url; res(url);
+        } catch (e) { rej(e); }
+      };
+      im.src = src;
+    }));
+  },
+  // 把 root 底下 <img data-knock="原圖"> 換成去黑後的圖；失敗時讓外層套 CSS 備援
+  apply(root = document) {
+    root.querySelectorAll('img[data-knock]').forEach((img) => {
+      const src = img.dataset.knock; delete img.dataset.knock;
+      this.load(src).then((u) => (img.src = u)).catch(() => { img.style.display = 'none'; if (img.parentElement) img.parentElement.classList.add('img-fail'); });
+    });
+  },
+  url(src) { return this.done[src + '|1'] || null; },
+};
+
+// 光圈素材（選用）：檔案放進 assets/halo/ 並出現在素材清單時自動改用素材，否則用程式繪製
+//  sit_outer 打坐外圈法陣、sit_inner 打坐內圈八卦、back_ring 背後光環；黑底圖會自動去黑
+const HALO_IMG = { sitOuter: 'assets/halo/sit_outer.webp', sitInner: 'assets/halo/sit_inner.webp', back: 'assets/halo/back_ring.webp' };
+const haloImgs = {};
+for (const [k, src] of Object.entries(HALO_IMG)) if (typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(src)) Knock.load(src).then((u) => { const im = new Image(); im.onload = () => (haloImgs[k] = im); im.src = u; }).catch(() => {});
+
 const Halo = {
   list: [], raf: 0, low: null, slow: 0, ft: [],
   RUNES: '乾坤震巽坎離艮兌天地風雷水火山澤道法自然氣聚丹成',
@@ -127,11 +174,11 @@ const Halo = {
     // 地面光暈
     blob(c, cx, cy, R * 1.1, hexA(I.c, 0.18 * br));
     c.translate(cx, cy); c.scale(1, 0.3);
-    const outer = this.sprite(I, 'rune', R, (cc, r) => this.runeRing(I, cc, r));
-    c.globalAlpha = 0.85 * br; c.save(); c.rotate(t * 0.18); c.drawImage(outer, -outer.width / 2 / I.dpr, -outer.height / 2 / I.dpr, outer.width / I.dpr, outer.height / I.dpr); c.restore();
+    const outer = haloImgs.sitOuter || this.sprite(I, 'rune', R, (cc, r) => this.runeRing(I, cc, r));
+    c.globalAlpha = 0.85 * br; c.save(); c.rotate(t * 0.18); c.drawImage(outer, -R, -R, R * 2, R * 2); c.restore();
     if (!low) {
-      const inner = this.sprite(I, 'bagua', R, (cc, r) => this.bagua(I, cc, r));
-      c.globalAlpha = 0.9 * br; c.save(); c.rotate(-t * 0.28); c.drawImage(inner, -inner.width / 2 / I.dpr, -inner.height / 2 / I.dpr, inner.width / I.dpr, inner.height / I.dpr); c.restore();
+      const inner = haloImgs.sitInner || this.sprite(I, 'bagua', R, (cc, r) => this.bagua(I, cc, r));
+      c.globalAlpha = 0.9 * br; c.save(); c.rotate(-t * 0.28); c.drawImage(inner, -R, -R, R * 2, R * 2); c.restore();
     }
     c.restore();
     if (low) return;
@@ -169,6 +216,7 @@ const Halo = {
       draw(this.sprite(I, 'rays', R * 1.5, (cc, r) => this.rays(I, cc, r)), t * 0.08, 0.55 * br + 0.15, 1 + 0.04 * br);
       draw(this.sprite(I, 'dash', R * 1.18, (cc, r) => this.dashRing(I, cc, r * 0.97)), -t * 0.25, 0.75 * br + 0.2);
     }
+    if (haloImgs.back) { c.globalAlpha = 0.6 + 0.4 * br; c.rotate(t * 0.12); c.drawImage(haloImgs.back, -R * 1.2, -R * 1.2, R * 2.4, R * 2.4); c.restore(); return; }
     // 實圈：粗光環＋內細環
     c.globalAlpha = 0.55 + 0.45 * br; c.strokeStyle = I.c; c.shadowColor = I.c; c.shadowBlur = 18; c.lineWidth = 4;
     c.beginPath(); c.arc(0, 0, R, 0, 7); c.stroke();

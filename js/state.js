@@ -142,15 +142,15 @@ const S = {
   },
   grantWeapon(tier) {
     const w = WEAPONS.find((x) => x.tier === tier), isNew = !this.d.weapons[w.id];
-    return { tier, type: 'w', id: w.id, name: w.name, isNew, note: this.gainWeapon(w.id) };
+    return { tier, type: 'w', id: w.id, name: w.name, base: w.name, qty: '×1', isNew, note: this.gainWeapon(w.id) };
   },
   grantArt(tier) {
     const R = ART_GACHA[tier];
     const open = ARTS.filter((A) => this.artLv(A.id) < ART_MAX);
     const A = R.art === 'wanjian' && this.artLv('wanjian') < ART_MAX ? ARTS.find((x) => x.id === 'wanjian') : R.art ? U.pick(open) : null;
-    if (!A) { const n = R.scroll || 10; this.add('scroll', n); return { tier, type: 'item', id: 'scroll', name: `功法殘卷 ×${n}`, isNew: false }; }
+    if (!A) { const n = R.scroll || 10; this.add('scroll', n); return { tier, type: 'item', id: 'scroll', name: `功法殘卷 ×${n}`, base: '功法殘卷', qty: `×${n}`, isNew: false }; }
     const lv = this.artLv(A.id) + 1; this.d.arts[A.id] = lv;
-    return { tier, type: 'art', id: A.id, name: `${A.name}・第 ${lv} 層`, isNew: lv === 1 };
+    return { tier, type: 'art', id: A.id, name: `${A.name}・第 ${lv} 層`, base: A.name, qty: `第 ${lv} 層`, isNew: lv === 1 };
   },
 
   // ───────── 突破 ─────────
