@@ -103,9 +103,9 @@ const artCost = (lv) => Math.round(40 * Math.pow(1.75, lv));
 // 圖檔：assets/weapon/<id>.webp；rot 為把劍尖轉成朝下所需角度（原圖角度各異）；階級顏色與邊框見 WTIERS
 const WTIERS = [
   { name: '凡器', color: '#e8e8e8', edge: '#bfc4ca' },
-  { name: '靈器', color: '#7fe09a', edge: '#5fc27c' },
-  { name: '法寶', color: '#6ab8ff', edge: '#4a90e0' },
-  { name: '仙器', color: '#c9a2ff', edge: '#e8c66a' },   // 紫金
+  { name: '靈器', color: '#5fe6e0', edge: '#38c2c8' },   // 青
+  { name: '法寶', color: '#ffd36a', edge: '#e0a83a' },   // 金
+  { name: '仙器', color: '#c08cff', edge: '#8f5ff0' },   // 紫
   { name: '神器', color: '#ff6a4a', edge: '#ffd76a' },   // 赤金
 ];
 const WEAPONS = [
@@ -114,7 +114,22 @@ const WEAPONS = [
   { id: 'shuanghan', rot: 145, name: '霜寒劍', tier: 2, atk: 50,  crit: 5,  regen: 1.2, fx: 'slow',  fxName: '霜寒', fxDesc: '命中使妖物出手變慢 25%', desc: '萬載玄冰所鑄，劍出霜生。' },
   { id: 'qingming',  rot: -32, name: '青冥劍', tier: 3, atk: 110, crit: 8,  regen: 2,   fx: 'combo', fxName: '連擊', fxDesc: '普攻 30% 機率追加一劍', desc: '青冥宗鎮派仙劍，劍鳴如龍吟。' },
   { id: 'nitian',    rot: 0,   name: '逆天劍', tier: 4, atk: 240, crit: 12, regen: 3,   fx: 'pierce', fxName: '破防', fxDesc: '無視妖物防禦，對首領傷害 +25%', desc: '傳說斬過天道的神兵，出鞘則天象異變。' },
+  // 法寶池新劍：暴擊路線，攻擊約同階原劍九成
+  { id: 'xuantie',   rot: 3,   name: '玄鐵劍', tier: 0, atk: 7,   crit: 2,  regen: 0,   desc: '玄鐵粗鑄，沉而不鈍。' },
+  { id: 'bitao',     rot: -1,  name: '碧濤劍', tier: 1, atk: 19,  crit: 5,  regen: 0.8, desc: '劍氣如潮，青光翻湧。' },
+  { id: 'jinxia',    rot: -38, name: '金霞劍', tier: 2, atk: 44,  crit: 8,  regen: 1.2, desc: '朝霞淬鋒，揮動時金雲繚繞。' },
+  { id: 'zichen',    rot: -36, name: '紫宸劍', tier: 3, atk: 96,  crit: 12, regen: 2.2, fx: 'slow', fxName: '霜寒', fxDesc: '命中使妖物出手變慢 25%', desc: '紫氣東來，劍落星沉。' },
+  { id: 'chixiao',   rot: -34, name: '赤霄劍', tier: 4, atk: 210, crit: 16, regen: 3.4, fx: 'combo', fxName: '連擊', fxDesc: '普攻 30% 機率追加一劍', desc: '赤龍盤鋒，劍出則雷火並起。' },
 ];
+// ───────── 法寶（鐘、鏡、塔）：佩於法寶欄一件；強化與突破規則同兵器 ─────────
+// 圖檔：assets/fabao/<類型>_t<品階>.webp；val 為加成（鐘 防禦 %、鏡 暴擊點數、塔 氣血 %）
+const FB_TYPES = { zhong: { name: '鐘', stat: 'def', label: '防禦', unit: '%' }, jing: { name: '鏡', stat: 'crit', label: '暴擊', unit: '%' }, ta: { name: '塔', stat: 'hp', label: '氣血', unit: '%' } };
+const FABAO = [
+  ['zhong', ['青銅鐘', '碧落鐘', '金光鐘', '紫霄鐘', '混元鐘'], [5, 10, 18, 28, 40], '鐘聲一響，邪祟不侵。'],
+  ['jing', ['古銅鏡', '碧波鏡', '乾坤鏡', '紫微鏡', '昊天鏡'], [2, 4, 7, 10, 14], '鏡照虛實，破綻無所遁形。'],
+  ['ta', ['石浮屠', '碧玉塔', '鎮魂塔', '紫極塔', '九霄玲瓏塔'], [5, 10, 18, 28, 40], '塔鎮周身，氣血綿長。'],
+].flatMap(([type, names, vals, desc]) => names.map((name, tier) => ({ id: `${type}${tier}`, type, name, tier, val: vals[tier], desc })));
+const FB_IMG = (f) => `assets/fabao/${f.type}_t${f.tier}.webp`;
 const W_SLOTS = ['主手', '副手'];
 const W_BRK_MAX = 3;                                    // 突破上限（每次 +10 強化上限、屬性 +25%）
 const wEnhCost = (w, lv) => Math.round(40 * Math.pow(1.35, lv) * (1 + w.tier * 1.5));
@@ -126,7 +141,7 @@ const wBrkNeed = (w, brk) => {
   return { need, stone: 500 * n * (w.tier + 1) };
 };
 // 取得方式（顯示在未擁有的兵器上）
-const W_SOURCE = { qinggang: '入門時師尊所賜・宗門商店', liuyun: '宗門商店・任務', shuanghan: '煉器・秘境妖將首通', qingming: '煉器・秘境妖將掉落', nitian: '任務「逆天問道」' };
+const W_SOURCE = { qinggang: '入門時師尊所賜・宗門商店', liuyun: '宗門商店・任務', shuanghan: '煉器・秘境妖將首通', qingming: '煉器・秘境妖將掉落', nitian: '任務「逆天問道」', xuantie: '機緣・法寶池', bitao: '機緣・法寶池', jinxia: '機緣・法寶池', zichen: '機緣・法寶池', chixiao: '機緣・法寶池' };
 const SHOP = [
   { w: 'qinggang', stone: 200 },
   { w: 'liuyun', stone: 2500, lv: 2 },
@@ -168,6 +183,14 @@ const MONSTERS = {
       { at: 0.66, name: '第二相', banner: ['妖將祭陣', '血陣護身，蓄力更快'], dr: 0.25, chargeCd: 6.5, chargeT: 2.2, chargeMult: 3.2 },
       { at: 0.33, name: '第三相', banner: ['血甲暴怒', '渾身浴血，以血養血'], atk: 1.3, spd: 1.35, chargeCd: 6, chargeT: 1.8, chargeMult: 3.6, leech: 0.25 },
     ] },
+  // 測試用大 Boss：沿用妖將圖、改紫黑色調；四相，血量約妖將 2.3 倍
+  tianmo: { name: '九幽天魔・墮淵', img: 'yaojiang', tint: 'tianmo', hp: 100, atk: 1.2, spd: 0.95, boss: true, intro: ['九幽天魔', '心魔所化，自深淵睜眼'],
+    phases: [
+      { name: '第一相', chargeCd: 7.5, chargeT: 2.4, chargeMult: 3.0 },
+      { at: 0.75, name: '魔焰相', banner: ['魔焰護體', '黑焰繞身，受傷減三成'], dr: 0.3, chargeCd: 6.5, chargeT: 2.2, chargeMult: 3.2 },
+      { at: 0.5, name: '雷殛相', banner: ['逆引天雷', '出手更快，蓄力更短'], spd: 1.3, chargeCd: 5.5, chargeT: 2.0, chargeMult: 3.4 },
+      { at: 0.25, name: '九幽相', banner: ['九幽狂暴', '以血養魔，一擊重於千鈞'], atk: 1.35, spd: 1.25, chargeCd: 5, chargeT: 1.6, chargeMult: 4.0, leech: 0.3 },
+    ] },
 };
 const monStats = (type, p, elite) => {
   const m = MONSTERS[type], k = Math.pow(1.45, p), e = elite ? 2.2 : 1;
@@ -199,10 +222,17 @@ const REGIONS = [
     { name: '血泉迴廊', p: 6.2, waves: ['shikui*', 'moxiu', 'moxiu*'] },
     { name: '妖將血池', p: 6.8, waves: ['shikui', 'yaojiang'] },
   ] },
+  // 測試用：隨時可進、不限次數；難度依當下境界自動調整（scale）
+  { id: 'trial', name: '心魔試煉', sub: '測試・九幽天魔', bg: 'realm', mood: 'dungeon', grade: 'realm', test: true, scale: true, stages: [
+    { name: '心魔劫・普通', p: 0.3, waves: ['tianmo'] },     // p 為「目前境界＋p」
+    { name: '心魔劫・困難', p: 1.2, waves: ['tianmo'] },
+    { name: '心魔劫・地獄', p: 2.2, waves: ['tianmo'] },
+  ] },
 ];
 
 // 掉落：[物品, 機率, 數量下限, 上限]
 const DROPS = {
+  trial:   [['herb_b', 0.8, 2, 3], ['herb_l', 0.6, 1, 2], ['scroll', 0.8, 1, 3], ['ore', 0.9, 3, 6], ['star', 0.5, 1, 2]],
   sect:    [['herb_q', 0.6, 1, 2], ['herb_c', 0.4, 1, 1]],
   village: [['herb_q', 0.6, 1, 2], ['herb_c', 0.6, 1, 2], ['scroll', 0.15, 1, 1], ['ore', 0.3, 1, 2]],
   wild:    [['herb_c', 0.5, 1, 2], ['herb_b', 0.5, 1, 2], ['scroll', 0.25, 1, 1], ['ore', 0.5, 1, 3]],

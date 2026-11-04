@@ -52,21 +52,76 @@ const FX = {
   },
   ring(x, y, color, r0, r1, life = 0.4, width = 3) { this.add({ k: 'ring', x, y, r0, r1, color, life, width }); },
   // 劍光：斜向新月弧
-  slash(x, y, r, ang, color, life = 0.28) { this.add({ k: 'slash', x, y, r, ang, color, life }); },
-  wave(x0, y0, x1, y1, color, life = 0.32) { this.add({ k: 'wave', x0, y0, x1, y1, color, life }); },
+  // ───────── 素材特效（取代舊的平面弧形色塊）─────────
+  // 素材在 assets/fx/hit/，黑底；第一次戰鬥時由 Knock 去黑後快取。slash／crit_slash／combo 原圖是「左下→右上」的斜刀光
+  SPR_SRC: { slash: 'assets/fx/hit/slash.webp', combo: 'assets/fx/hit/combo.webp', critSlash: 'assets/fx/hit/crit_slash.webp', hit: 'assets/fx/hit/hit.webp', critBurst: 'assets/fx/hit/crit_burst.webp', shield: 'assets/fx/hit/demon_shield.webp',
+    thunder1: 'assets/fx/skill/thunder1.webp', thunder2: 'assets/fx/skill/thunder2.webp', thunder3: 'assets/fx/skill/thunder3.webp',
+    rainSword: 'assets/fx/skill/rain_sword.webp', yujianRing: 'assets/fx/skill/yujian_ring.webp', jianyi: 'assets/fx/skill/jianyi.webp', heroShield: 'assets/fx/skill/shield_sphere.webp', shieldRing: 'assets/fx/skill/shield_ring.webp' },
+  sprImg: {}, low: false,
+  loadSprites() {
+    if (this._sprLoading || typeof Knock === 'undefined') return; this._sprLoading = true;
+    this.low = typeof Halo !== 'undefined' && Halo.isLow();
+    for (const [k, src] of Object.entries(this.SPR_SRC)) Knock.load(src, { round: false, lo: 14 }).then((u) => { const im = new Image(); im.onload = () => (this.sprImg[k] = im); im.src = u; }).catch(() => console.warn('[特效] 素材載入失敗：' + src));
+  },
+  // 貼圖特效：w 為顯示寬度；ang 旋轉；s0→s1 縮放；dx,dy 掃過的位移；ghosts 殘影數（低階機自動關閉）
+  spr(key, x, y, o = {}) {
+    const im = this.sprImg[key]; if (!im) return false;
+    const w = o.w || 200, h = (w * im.naturalHeight) / im.naturalWidth;   // 依原圖比例
+    this.add({ k: 'spr', key, x, y, w, h, ang: o.ang || 0, s0: o.s0 ?? 0.85, s1: o.s1 ?? 1.15, dx: o.dx || 0, dy: o.dy || 0, flip: !!o.flip, ghosts: this.low ? 0 : o.ghosts ?? 2, life: o.life || 0.25, spin: o.spin || 0, fall: !!o.fall, ay: o.ay ?? 0.5, hold: o.hold || 0, delay: o.delay || 0, alpha: o.alpha ?? 1, onEnd: o.onEnd });
+    return true;
+  },
+  // 舊介面相容：技能、怪物攻擊呼叫的 slash／wave 改用刀光素材（素材未載入時退回簡單光點）
+  slash(x, y, r, ang, color, life = 0.28) {
+    if (!this.spr('slash', x, y, { w: r * 2.6, ang: ang * 0.6, life: Math.max(0.22, Math.min(0.32, life)), dx: r * 0.5, dy: -r * 0.35 })) this.sparks(x, y, color, 6, 220);
+  },
+  wave(x0, y0, x1, y1, color, life = 0.32) {
+    // 劍氣：小刀光沿直線飛向目標（刀光原圖斜角約 -35°，轉到行進方向）
+    const ang = Math.atan2(y1 - y0, x1 - x0) + 0.6;
+    if (!this.spr('slash', (x0 + x1) / 2, (y0 + y1) / 2, { w: 120, ang, life, s0: 0.6, s1: 0.8, dx: x1 - x0, dy: y1 - y0, ghosts: 1 })) this.sparks(x1, y1, color, 6, 200);
+  },
+  // 護罩碎裂：沿橢圓邊緣產生六角光片向外飄
+  hexBurst(cx, cy, rx, ry, color = '#bff4ff', fill = 'rgba(140,240,220,.18)') {
+    const n = this.low ? 10 : 28;
+    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, x = cx + Math.cos(a) * rx * U.rand(0.7, 1), y = cy + Math.sin(a) * ry * U.rand(0.7, 1), sp = U.rand(60, 170);
+      this.add({ k: 'hex', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, drag: 1.6, size: U.rand(5, 11), rot: Math.random() * 6, spin: U.rand(-3, 3), color, fill, life: U.rand(0.7, 1.1) }); }
+  },
+  // 波紋環：用環形素材由小擴大淡出（ry 壓扁成地面圓環）
+  ripple(x, y, w, flat = 0.32, life = 0.6, alpha = 1) { if (!this.spr('shieldRing', x, y, { w, life, s0: 0.25, s1: 1.15, ghosts: 0, hold: 0.25, alpha })) this.ring(x, y, '#bff4ff', 10, w / 2, life, 3); const p = this.list[this.list.length - 1]; if (p && p.k === 'spr') p.sy = flat; },
+  dim(a = 0.6, life = 0.6) { this.add({ k: 'dim', a, life }); },
+  // 命中爆點：普通用 hit，暴擊用 crit_burst
+  impact(x, y, crit, color) {
+    this.spr(crit ? 'critBurst' : 'hit', x, y, { w: crit ? 300 : 170, ang: Math.random() * 6.28 * (crit ? 0 : 1), life: crit ? 0.38 : 0.28, s0: 0.35, s1: crit ? 1.15 : 1, ghosts: 0 });
+    this.sparks(x, y, color || '#ffb070', this.low ? 3 : crit ? 14 : 7, crit ? 360 : 260);
+  },
   bolt(x, y, color = '#e6d6ff', width = 4, life = 0.32) {
     const pts = []; let px = x + U.rand(-60, 60);
     for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push({ x: U.lerp(px, x, t) + (i && i < 12 ? U.rand(-22, 22) : 0), y: U.lerp(-20, y, t) }); }
     this.add({ k: 'bolt', pts, color, width, life });
   },
-  text(x, y, str, color = '#fff', size = 22) {
+  // 飄字分道：dmg 傷害（怪物正下）、gain 收穫（右下）、info 狀態（左側）、hero 主角身上
+  // 每個字先量出外框，跟畫面上還在飄的字比對，碰到就排到下一行並晚一點出現，依序錯開
+  // 飄字分區：dmg 傷害與收穫（怪物身上，向上依序錯開）、skill 技能名（畫面上方居中，固定位置）、hero 主角身上
+  LANES: { dmg: [0, 0], gain: [0, 0], info: [0, 0], hero: [0, 0], skill: [0, 0] },
+  // 怪物名稱與血條的下緣（技能名、傷害飄字都不可以蓋上去）
+  hudBottom() { const h = document.querySelector('.mon-hud'), s = document.querySelector('#scene'); if (!h || !s) return 120; const r = h.getBoundingClientRect(); return r.bottom - s.getBoundingClientRect().top + 6; },
+  textBox(p) { return { l: p.x - p.w / 2, r: p.x + p.w / 2, t: p.y - p.h * 0.8, b: p.y + p.h * 0.25 }; },
+  text(x, y, str, color = '#fff', size = 22, kind = 'dmg') {
     // 不飄進頂部怪物名牌與血條（約佔畫面上方 110px）：起點至少在血條下方「字高＋飄升距離」
-    const rise = 70 * Math.min(1, this.h / 520), floor = Math.min(250, Math.max(this.h * 0.48, 110 + size + rise));
-    let yy = Math.max(y, floor);
-    for (const p of this.list) if (p.k === 'text' && p.t < 0.3 && Math.abs(p.x - x) < 50 && Math.abs(p.y - yy) < size) yy = p.y - size - 2;
-    if (yy < floor) { yy = floor; x += U.pick([-1, 1]) * U.rand(45, 80); }   // 疊太高就改往左右錯開
-    this.add({ k: 'text', x: x + U.rand(-10, 10), y: yy, vy: -rise,   // 矮畫面飄短一點
-      str, color, size, life: 1.0 });
+    const rise = 70 * Math.min(1, this.h / 520), floor = Math.min(250, Math.max(this.h * 0.48, 110 + size + rise)), L = this.LANES[kind] || this.LANES.dmg;
+    if (this.c) this.c.font = `700 ${size}px ${BRUSH}`;
+    const w = (this.c ? this.c.measureText(str).width : str.length * size) + 10, h = size * 1.15;
+    if (kind === 'info') kind = 'skill';
+    const skill = kind === 'skill', top = this.hudBottom ? this.hudBottom() : 120;
+    const p = { k: 'text', kind, x: skill ? (this.w || 400) / 2 : U.clamp(x + L[0], w / 2 + 4, (this.w || 400) - w / 2 - 4), y: skill ? top + size + 6 : kind === 'hero' ? y : Math.max(y, floor) + L[1] * size, w, h, vy: skill ? -8 : -rise, str, color, size, life: skill ? 1.3 : 1.0, delay: 0 };
+    const over = (a, b) => { const A = this.textBox(a), B = this.textBox(b); return A.l < B.r && B.l < A.r && A.t < B.b && B.t < A.b; };
+    for (let i = 0; i < 8; i++) {
+      const hit = this.list.find((q) => q.k === 'text' && q.t < q.life * 0.8 && over(p, q));
+      if (!hit) break;
+      const up = this.textBox(hit).t - p.h * 0.25 - 3;   // 傷害往上疊；碰到血條下緣就改往下排
+      p.y = !skill && kind !== 'hero' && up - p.h * 0.8 >= top + 64 ? up : this.textBox(hit).b + p.h * 0.8 + 3;   // 血條下方 64px 留給技能名
+      p.delay = Math.max(p.delay, (hit.delay || 0) - hit.t + 0.1);   // 依序：晚 0.1 秒出現
+    }
+    this.add(p);
   },
   converge(x, y, color, n = 20, radius = 260, life = 1.2) {
     for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r = radius * U.rand(0.6, 1.1); this.add({ k: 'conv', sx: x + Math.cos(a) * r, sy: y + Math.sin(a) * r, tx: x, ty: y, color, size: U.rand(1.6, 3.6), life: life * U.rand(0.7, 1.2), curl: U.rand(-1.2, 1.2) }); }
@@ -113,11 +168,12 @@ const FX = {
       this.motes = this.motes.filter((m) => m.t < m.life);
     }
     if (this.cranesOn) this.drawCranes(dt);
-    // 特效
+    // 特效：飄字永遠最後畫，不被刀光、爆點蓋住
+    this.list.sort((a, b) => (a.k === 'text') - (b.k === 'text') || (b.k === 'dim') - (a.k === 'dim'));
     for (const p of this.list) {
       p.t += dt;
       if (p.vx !== undefined) { p.x += p.vx * dt; p.y += (p.vy || 0) * dt; if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; } }
-      else if (p.vy) p.y += p.vy * dt;
+      else if (p.vy && p.t >= (p.delay || 0)) p.y += p.vy * dt;
       const t = p.t - (p.delay || 0); if (t < 0) continue;
       const k = Math.max(0, 1 - t / (p.life - (p.delay || 0)));
       c.save(); c.globalAlpha = k;
@@ -126,24 +182,26 @@ const FX = {
         case 'dot': c.fillStyle = p.color; c.beginPath(); c.arc(p.x, p.y, p.size * (0.4 + k * 0.6), 0, 7); c.fill(); break;
         case 'streak': { const sp = Math.hypot(p.vx, p.vy) || 1, L = Math.min(18, sp * 0.06) * k + 2; c.strokeStyle = p.color; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x - (p.vx / sp) * L, p.y - (p.vy / sp) * L); c.stroke(); break; }
         case 'ring': c.strokeStyle = p.color; c.lineWidth = p.width * k + 0.5; c.beginPath(); c.arc(p.x, p.y, U.lerp(p.r0, p.r1, 1 - k), 0, 7); c.stroke(); break;
-        case 'slash': {
-          const prog = Math.min(1, t / (p.life * 0.45)), a0 = p.ang - 1.1, a1 = a0 + 2.2 * (1 - Math.pow(1 - prog, 3));
-          c.translate(p.x, p.y); c.rotate(-0.35);
-          c.globalCompositeOperation = 'source-over'; c.globalAlpha = k * 0.4; c.strokeStyle = '#0a0e18'; c.lineWidth = p.r * 0.26; c.lineCap = 'round';
-          c.beginPath(); c.arc(0, 0, p.r * 0.84, a0, a1); c.stroke();
-          c.globalCompositeOperation = 'lighter'; c.globalAlpha = k;
-          const g = c.createRadialGradient(0, 0, p.r * 0.5, 0, 0, p.r); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.75, p.color); g.addColorStop(1, '#ffffff');
-          c.fillStyle = g; c.beginPath(); c.arc(0, 0, p.r, a0, a1); c.arc(0, 0, p.r * 0.66, a1, a0, true); c.closePath(); c.fill();
-          c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.shadowColor = p.color; c.shadowBlur = 16; c.beginPath(); c.arc(0, 0, p.r, Math.max(a0, a1 - 0.5), a1); c.stroke();
+        // 素材特效：載入時已去黑（Knock），用 screen 疊加；先放大、沿出手方向掃過，再淡出，尾端留殘影
+        case 'spr': {
+          const im = this.sprImg[p.key]; if (!im) break;
+          const e = Math.min(1, t / (p.life - p.delay)), ease = p.fall ? e * e : 1 - Math.pow(1 - Math.min(1, e / 0.55), 3);
+          const fadeAt = p.hold || 0.45, alpha = p.alpha * Math.min(1, t / 0.04) * (e < fadeAt ? 1 : 1 - (e - fadeAt) / (1 - fadeAt));
+          const draw = (q, a) => {
+            const qq = Math.max(0, q), sc = p.s0 + (p.s1 - p.s0) * qq, x = p.x + p.dx * (p.fall ? qq - 1 : qq - 0.5), y = p.y + p.dy * (p.fall ? qq - 1 : qq - 0.5);
+            c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc * (p.sy || 1));
+            c.drawImage(im, -p.w / 2, -p.h * p.ay, p.w, p.h); c.restore();
+          };
+          if (p.onEnd && e >= 1 && !p.ended) { p.ended = true; p.onEnd(); }
+          if (p.ghosts) for (let g = p.ghosts; g >= 1; g--) draw(ease - g * 0.16, alpha * (0.32 / g));   // 殘影
+          draw(ease, alpha);
           break;
         }
-        case 'wave': {
-          const prog = Math.min(1, t / (p.life * 0.7)), x = U.lerp(p.x0, p.x1, prog), y = U.lerp(p.y0, p.y1, prog), ang = Math.atan2(p.y1 - p.y0, p.x1 - p.x0);
-          c.translate(x, y); c.rotate(ang); c.shadowColor = p.color; c.shadowBlur = 22; c.fillStyle = p.color;
-          c.beginPath(); c.arc(-12, 0, 40, -1.2, 1.2); c.arc(-30, 0, 44, 1.0, -1.0, true); c.closePath(); c.fill();
-          c.fillStyle = '#fff'; c.beginPath(); c.arc(-12, 0, 40, -0.8, 0.8); c.arc(-20, 0, 36, 0.7, -0.7, true); c.closePath(); c.fill();
-          break;
+        case 'hex': {   // 護罩碎片：六角形光片，旋轉並向外飄散
+          c.translate(p.x, p.y); c.rotate(p.rot + p.spin * t); c.globalAlpha = k; c.strokeStyle = p.color; c.fillStyle = p.fill; c.lineWidth = 1.4; c.shadowColor = p.color; c.shadowBlur = 8;
+          c.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * p.size, Math.sin(a) * p.size); } c.closePath(); c.fill(); c.stroke(); break;
         }
+        case 'dim': { const e = t / p.life; c.globalCompositeOperation = 'source-over'; c.globalAlpha = (e < 0.2 ? e / 0.2 : 1 - (e - 0.2) / 0.8) * p.a; c.fillStyle = '#050310'; c.fillRect(0, 0, W, H); break; }
         case 'bolt': c.strokeStyle = p.color; c.lineWidth = p.width; c.shadowColor = p.color; c.shadowBlur = 20; c.beginPath(); p.pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); c.lineWidth = p.width * 0.4; c.strokeStyle = '#fff'; c.stroke(); break;
         case 'conv': {
           const e = Math.min(1, t / p.life), ee = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2, sw = Math.sin(ee * Math.PI) * 60 * p.curl;

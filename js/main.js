@@ -11,8 +11,22 @@ const Game = {
     // 顯示尺寸不超過原圖像素：圖片載入後以原生高度為上限（佩劍立繪的外框一起限制，劍光座標才對得上）
     document.addEventListener('load', (e) => { const i = e.target; if (i.tagName !== 'IMG' || !i.naturalHeight || !/\/(hero|npc|cast|mon|weapon)\//.test(i.src)) return; i.style.maxHeight = i.naturalHeight + 'px'; if (i.parentElement.classList.contains('hfig')) i.parentElement.style.maxHeight = i.naturalHeight + 'px'; }, true);
     addEventListener('resize', () => FX.resize());
+    // 共用 keep-ratio：畫面上所有圖片（含之後動態插入的）都保持原比例
+    const keep = (root) => { if (root.tagName === 'IMG') root.classList.add('keep-ratio'); else if (root.querySelectorAll) root.querySelectorAll('img:not(.keep-ratio)').forEach((i) => i.classList.add('keep-ratio')); };
+    keep(document.body); new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach(keep))).observe(document.body, { childList: true, subtree: true });
+    // 圖片載入失敗備援：靈石換成文字圓章，其他圖隱藏並讓外框改用 CSS 備援樣式，不出現破圖或白屏
+    const imgFail = (i) => {
+      if (i.dataset.fb) { const f = i.dataset.fb; delete i.dataset.fb; if (!f.startsWith('data:')) i.classList.add('loot-fb'); else i.classList.remove('loot-fb'); i.src = f; return; }   // 抽中素材的備援鏈
+      if (i.dataset.failed) return; i.dataset.failed = '1';
+      if (i.classList.contains('item-ico')) { const p = i.parentElement; p.classList.remove('img', 'item'); p.textContent = p.dataset.ball || '?'; console.warn('[圖示] 載入失敗，改用佔位圓球：' + i.getAttribute('src')); return; }   // 圖缺：換回圓球
+      if (i.classList.contains('mat-ico')) { i.remove(); return; }
+      if (i.classList.contains('stone-ico')) { const f = document.createElement('i'); f.className = 'stone-fb'; f.textContent = '石'; i.replaceWith(f); return; }
+      i.style.visibility = 'hidden'; if (i.parentElement) i.parentElement.classList.add('img-fail');
+    };
+    document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') imgFail(e.target); }, true);
+    [...document.images].forEach((i) => { if (i.complete && !i.naturalWidth && i.getAttribute('src')) imgFail(i); });   // 程式啟動前就已失敗的（頂部資源列）
     const had = S.load();
-    Audio2.musOn = S.d.settings.music !== false; Audio2.sfxOn = S.d.settings.sfx !== false; FX.noShake = S.d.settings.shake === false;
+    FX.noShake = S.d.settings.shake === false;
     // 點擊推進對話；按鈕
     $('#dlg').addEventListener('click', () => Story.advance());
     $('#skipBtn').onclick = (e) => { e.stopPropagation(); Story.skipNow(); };
@@ -21,6 +35,8 @@ const Game = {
     addEventListener('pointerdown', () => Audio2.unlock(), { once: true });
     document.querySelectorAll('#nav button').forEach((b) => (b.onclick = () => { Audio2.play('page'); UI.go(b.dataset.tab); }));
     $('#btnSet').onclick = () => UI.settings();
+    $('#btnMute').onclick = (e) => { e.stopPropagation(); Audio2.toggleMute(); };   // 主畫面右上角靜音
+    Audio2.applyVol(); $('#btnMute').textContent = Audio2.set.mute ? '靜' : '聲'; $('#btnMute').classList.toggle('off', Audio2.set.mute);
     $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') UI.close(); });
     // 字型與首批素材同時下載
     await Promise.all([document.fonts ? Promise.race([document.fonts.load('700 24px "LXGW WenKai TC"', '問道青冥入道續緣'), U.wait(2000)]).catch(() => {}) : 0, this.preload()]);
@@ -38,7 +54,7 @@ const Game = {
   // 首次載入：先下載標題與開場劇情要用的素材並顯示進度條，其餘（戰鬥、丹房、法寶等）進遊戲後在背景下載
   // 之後由離線快取提供，幾乎瞬間完成
   async preload() {
-    const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/|wuxing|pillar_/;
+    const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/(?!gacha_)|\/ui\/stone|wuxing|pillar_/;
     const list = all.filter((s) => first.test(s)), bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
     const later = all.filter((s) => !first.test(s));
     let done = 0;
@@ -79,7 +95,9 @@ const Game = {
   },
 
   loop(t) {
-    const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t;
+    let dt = Math.min(0.1, (t - this.last) / 1000); this.last = t;
+    // 暴擊定格：這段時間戰鬥與特效暫停
+    if (this.freeze > 0) { this.freeze -= dt; dt = 0; }
     // 洞府靈氣自行運轉
     if (S.d && S.d.root && !S.full()) S.addExp(S.rate() * dt);
     Battle.tick(dt);

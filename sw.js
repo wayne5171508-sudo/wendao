@@ -1,10 +1,10 @@
 // 離線快取：素材先讀快取（版本更新時整批換新），網頁與程式先連網、失敗再用快取
 importScripts('js/asset-list.js');
-const CACHE = 'wendao-20261103172252';
-const CORE = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/asset-list.js', 'js/data.js', 'js/audio.js', 'js/state.js', 'js/fx.js', 'js/aura.js', 'js/story.js', 'js/battle.js', 'js/ui.js', 'js/main.js', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'wendao-20261107120000';
+const CORE = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/asset-list.js', 'js/data.js', 'js/audio.js', 'js/state.js', 'js/fx.js', 'js/aura.js', 'js/story.js', 'js/halo.js', 'js/battle.js', 'js/ui.js', 'js/main.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll([...CORE, ...ASSET_LIST])).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll([...CORE, ...ASSET_LIST]).then(() => Promise.all((typeof AUDIO_LIST !== 'undefined' ? AUDIO_LIST : []).map((u) => c.add(u).catch(() => {}))))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('wendao-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

@@ -176,7 +176,7 @@ const Story = {
   // 通關後的主線劇情；有播放時回傳 true
   afterClear(rid, idx, first) {
     const R = REGIONS.find((r) => r.id === rid);
-    if (!first || idx !== R.stages.length - 1) return false;
+    if (R.test || !first || idx !== R.stages.length - 1) return false;   // 測試關不觸發劇情
     const next = { sect: 'village', village: 'wild', wild: 'realm' }[rid];
     const play = (bg, lines, after) => this.run(async () => {
       UI.mode('story'); this.stage(bg, '', this.heroChar());
@@ -232,7 +232,7 @@ const Story = {
       <button class="seal bt-tap hidden" id="tbTap">渡劫<small>紅圈收攏時按</small></button>`);
     const shield = sc.querySelector('.bt-shield'), warn = sc.querySelector('.bt-warn'), tap = sc.querySelector('#tbTap'), cloud = sc.querySelector('.bt-cloud');
     // 雷雲漸漸壓下、畫面變暗
-    sc.querySelector('.bt-dark').classList.add('on'); cloud.classList.add('on'); Audio2.play('roar');   // 音效：雷雲翻湧
+    sc.querySelector('.bt-dark').classList.add('on'); cloud.classList.add('on'); Audio2.play('roar'); Audio2.loop('meditate', false); Audio2.setMood('trib');   // 雷劫音樂＋雷雲翻湧
     UI.banner(major ? '九霄雷劫' : '小天劫', `${n} 道天雷將至——紅圈收攏時按「渡劫」`);
     requestAnimationFrame(() => shield.classList.add('on'));
     await this.wait(1600);
