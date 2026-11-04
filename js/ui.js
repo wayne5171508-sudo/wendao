@@ -125,7 +125,8 @@ const UI = {
   },
   banner(title, sub) {
     document.querySelectorAll('#scene .banner:not(.static)').forEach((b) => b.remove());
-    const el = document.createElement('div'); el.className = 'banner'; el.innerHTML = `<b>${title}</b>${sub ? `<span>${sub}</span>` : ''}`;
+    const el = document.createElement('div'); el.className = 'banner' + (Battle.on ? ' bt' : ''); el.innerHTML = `<b>${title}</b>${sub ? `<span>${sub}</span>` : ''}`;
+    if (Battle.on) el.style.top = FX.hudBottom() + 2 + 'px';   // 技能名放在血條（含蓄力提示）正下方
     $('#scene').appendChild(el); setTimeout(() => el.remove(), 3500);
   },
   modal(title, html, binds = {}) {

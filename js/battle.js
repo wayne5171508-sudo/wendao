@@ -28,7 +28,8 @@ const Battle = {
     UI.scene(`
       <div class="battle-top"><button class="seal sm ghost" id="bRun">撤</button><span class="wave-tag" id="bWave"></span></div>
       <div class="mon-hud"><h5 id="mName"></h5><div class="bar ${st.waves.some((w) => w.includes('yaojiang')) ? 'boss' : 'hp'}"><i id="mBar"></i><span id="mTxt"></span></div><div id="mCharge"></div></div>
-      <div class="mon" id="mon"><img id="monImg" alt=""></div>
+      <div class="mon" id="mon"><img class="mon-shield" id="monShield" alt=""><img id="monImg" alt=""></div>
+      <div class="combo-n hidden" id="comboN"><b>0</b><span>連擊</span></div>
       <div class="hero-b ready ${this.pose.stance}" id="heroB">${heroArmed(this.main, this.pose.stance, 'pose bstance')}</div>
       <div class="shield hidden" id="shield"></div>`);
     UI.controls(`<div class="bstat">
@@ -39,6 +40,8 @@ const Battle = {
     document.querySelectorAll('.skill').forEach((b) => (b.onclick = () => this.cast(b.dataset.k)));
     $('#bRun').onclick = () => this.end(false, true);
     $('#bAuto').onclick = () => { S.d.auto = !S.d.auto; S.save(); $('#bAuto').classList.toggle('ghost', !S.d.auto); $('#bAuto').textContent = S.d.auto ? '自動施法・開' : '自動施法・關'; };
+    FX.loadSprites(); this.combo = 0; this.lastHit = 0; this.flip = false;
+    Knock.load(FX.SPR_SRC.shield, { round: false, lo: 14 }).then((u) => { const el = $('#monShield'); if (el) el.src = u; }).catch(() => {});
     this.spawn();
     // 背後多層光環，顏色隨主手品階
     Halo.mount('battle', '#heroB .hfig', this.main ? { c: WTIERS[this.main.tier].color, e: WTIERS[this.main.tier].edge } : null);
@@ -91,6 +94,7 @@ const Battle = {
     else if (opts.big) FX.shake($('#scene'), 10);
     Audio2.play(crit || opts.big ? 'hitHeavy' : 'hit');
     if (m.hp <= 0) this.kill();
+    return { crit };
   },
 
   kill() {
@@ -194,19 +198,25 @@ const Battle = {
     const h = this.hero, m = this.mon;
     if (!this.on || !m || m.hp <= 0) return;
     const p = this.monPos(), w = this.wpn, t = w ? w.tier : -1, c = w ? WTIERS[t].color : S.d.root ? ROOTS[S.d.root].color : '#9fe8ff';
-    const tip = this.swordTip();
-    // 揮劍弧光：從主角劍上掃出一道大弧，再補一道細弧
-    FX.slash((tip.x + tip.hx) / 2 || tip.x, ((tip.y + tip.hy) / 2 || tip.y) - 10, 78 + Math.max(0, t) * 8, -0.5, c, 0.26);
-    FX.slash(tip.x, tip.y - 6, 46 + Math.max(0, t) * 5, 0.2, '#ffffff', 0.18);
-    FX.sparks(tip.x, tip.y, c, 4 + Math.max(0, t) * 2, 160);
-    if (t >= 1) FX.wave(tip.x, tip.y, p.x, p.y, c, 0.22);
-    FX.slash(p.x + U.rand(-20, 20), p.y + U.rand(-30, 30), 90 + t * 12, U.rand(-0.8, 0.2), c);
-    FX.sparks(p.x, p.y, t >= 2 ? c : '#dff6ff', 6 + Math.max(0, t) * 3);
-    if (t >= 3) FX.ring(p.x, p.y, c, 16, 120, 0.3, 3);
-    if (t >= 4) FX.burst(p.x, p.y, '#ffd76a', 12, 180, 3, 0.5);
-    if (tag) FX.text(p.x, p.y, tag, c, 16, 'info');
-    if (S.wFx('slow') && !m.slowed) { m.slowed = true; m.interval *= 1.25; FX.text(p.x, p.y, '霜寒', '#bfe8ff', 16, 'info'); }
-    this.dmgMon(h.atk * mult * (h.yiT > 0 ? 1.6 : 1));
+    const combo = tag === '連擊';
+    if (S.wFx('slow') && !m.slowed) { m.slowed = true; m.interval *= 1.25; FX.text(p.x, p.y, '霜寒', '#bfe8ff', 18, 'skill'); }
+    const res = this.dmgMon(h.atk * mult * (h.yiT > 0 ? 1.6 : 1)) || {};
+    // 刀光從主角出手方向（左下）掃向右上，約 0.25 秒；連擊換 combo 素材並左右鏡像輪流；暴擊改播暴擊斬
+    const hx = p.x + U.rand(-14, 14), hy = p.y + U.rand(-24, 10), sz = 205 + Math.max(0, t) * 12;
+    if (res.crit) FX.spr('critSlash', hx, hy, { w: sz * 1.35, ang: U.rand(-0.15, 0.1), dx: 110, dy: -70, life: 0.3, s0: 0.8, s1: 1.25 });
+    else if (combo) { this.flip = !this.flip; FX.spr('combo', hx, hy, { w: sz, flip: this.flip, dx: this.flip ? -90 : 90, dy: -55, life: 0.25 }); }
+    else FX.spr('slash', hx, hy, { w: sz, ang: U.rand(-0.2, 0.15), dx: 95, dy: -60, life: 0.25 });
+    FX.impact(hx, hy, res.crit, t >= 0 ? c : '#ffb070');   // 命中爆點＋火花
+    if (t >= 1) FX.wave(this.swordTip().x, this.swordTip().y, hx, hy, c, 0.2);   // 靈器以上：劍氣飛向怪物
+    this.hitCombo();
+  },
+  // 連擊數：1.4 秒內持續命中就累加，固定顯示在畫面右側
+  hitCombo() {
+    const now = performance.now(); this.combo = now - this.lastHit < 1400 ? this.combo + 1 : 1; this.lastHit = now;
+    const el = $('#comboN'); if (!el) return;
+    el.classList.toggle('hidden', this.combo < 2); el.querySelector('b').textContent = this.combo;
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    clearTimeout(this.comboT); this.comboT = setTimeout(() => el.classList.add('hidden'), 1500);
   },
 
   tick(dt) {

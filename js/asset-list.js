@@ -1,5 +1,5 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
-const ASSET_VER = '20261105190000';
+const ASSET_VER = '20261106100000';
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -35,6 +35,12 @@ const ASSET_LIST = [
   'assets/fabao/zhong_t3.webp',
   'assets/fabao/zhong_t4.webp',
   'assets/fx/faxiang.webp',
+  'assets/fx/hit/combo.webp',
+  'assets/fx/hit/crit_burst.webp',
+  'assets/fx/hit/crit_slash.webp',
+  'assets/fx/hit/demon_shield.webp',
+  'assets/fx/hit/hit.webp',
+  'assets/fx/hit/slash.webp',
   'assets/fx/pillar_ice.webp',
   'assets/fx/pillar_thunder.webp',
   'assets/fx/qi_motes.webp',
