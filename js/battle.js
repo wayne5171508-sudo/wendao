@@ -31,17 +31,19 @@ const Battle = {
       <div class="mon" id="mon"><img class="mon-shield" id="monShield" alt=""><img id="monImg" alt=""></div>
       <div class="combo-n hidden" id="comboN"><b>0</b><span>連擊</span></div>
       <div class="hero-b ready ${this.pose.stance}" id="heroB">${heroArmed(this.main, this.pose.stance, 'pose bstance')}</div>
-      <div class="shield hidden" id="shield"></div>`);
+      <div class="shield hidden" id="shield"><img alt=""></div>`);
     UI.controls(`<div class="bstat">
         <div class="lbl"><span>氣血</span><span id="hTxtB"></span></div><div class="bar hp"><i id="hBarB"></i></div>
         <div class="lbl"><span>靈力</span><span id="pTxtB"></span></div><div class="bar mp"><i id="pBarB"></i></div></div>
-      <div class="skills" style="--n:${this.skillList().length}">${this.skillList().map((k) => `<button class="skill" data-k="${k.id}" style="--c:${k.color}"><b>${k.icon}</b><i class="cd"></i><span class="cdt"></span><small>${k.name}</small></button>`).join('')}</div>
+      <div class="skills" style="--n:${this.skillList().length}">${this.skillList().map((k) => `<button class="skill" data-k="${k.id}" style="--c:${k.color}"><img class="sk-img" src="assets/skill/${k.id}.webp" alt="" onerror="this.remove()"><b>${k.icon}</b><i class="cd"></i><i class="sk-flash"></i><span class="cdt"></span><small>${k.name}</small></button>`).join('')}</div>
       <div class="row center" style="margin-top:18px"><button class="seal sm ${S.d.auto ? '' : 'ghost'}" id="bAuto">${S.d.auto ? '自動施法・開' : '自動施法・關'}</button></div>`);
-    document.querySelectorAll('.skill').forEach((b) => (b.onclick = () => this.cast(b.dataset.k)));
+    document.querySelectorAll('.skill').forEach((b) => (b.onclick = () => { b.classList.remove('press'); void b.offsetWidth; b.classList.add('press'); this.cast(b.dataset.k); }));
     $('#bRun').onclick = () => this.end(false, true);
     $('#bAuto').onclick = () => { S.d.auto = !S.d.auto; S.save(); $('#bAuto').classList.toggle('ghost', !S.d.auto); $('#bAuto').textContent = S.d.auto ? '自動施法・開' : '自動施法・關'; };
     FX.loadSprites(); this.combo = 0; this.lastHit = 0; this.flip = false;
-    Knock.load(FX.SPR_SRC.shield, { round: false, lo: 14 }).then((u) => { const el = $('#monShield'); if (el) el.src = u; }).catch(() => {});
+    // 護體罩素材：主角用原色，妖物（魔焰護體等）加紅黑濾鏡；素材缺失時主角退回 CSS 光罩、妖物不顯示，不影響戰鬥
+    Knock.load(FX.SPR_SRC.heroShield, { lo: 14 }).then((u) => { for (const el of [$('#shield img'), $('#monShield')]) if (el) el.src = u; }).catch(() => { const el = $('#shield'); if (el) el.classList.add('img-fail'); });
+    this.shieldOn = false;
     this.spawn();
     // 背後多層光環，顏色隨主手品階
     Halo.mount('battle', '#heroB .hfig', this.main ? { c: WTIERS[this.main.tier].color, e: WTIERS[this.main.tier].edge } : null);
@@ -114,7 +116,7 @@ const Battle = {
     const h = this.hero; if (h.hp <= 0) return;
     let dmg = Math.max(1, Math.round(raw * U.rand(0.9, 1.1) - h.def * 0.5));
     const hp0 = this.heroPos();
-    if (h.shield > 0) { const a = Math.min(h.shield, dmg); h.shield -= a; dmg -= a; FX.ring(hp0.x, hp0.y - 60, '#8ff0d8', 40, 110, 0.35, 3); if (dmg <= 0) { FX.text(hp0.x, hp0.y - 120, '靈罩吸收', '#8ff0d8', 18, 'hero'); return; } }
+    if (h.shield > 0) { const a = Math.min(h.shield, dmg); h.shield -= a; dmg -= a; FX.ring(hp0.x, hp0.y - 60, '#8ff0d8', 40, 110, 0.35, 3); this.shieldFx(h.shield > 0 ? 'hit' : 'off'); if (dmg <= 0) { FX.text(hp0.x, hp0.y - 120, '靈罩吸收', '#8ff0d8', 18, 'hero'); return; } }
     h.hp -= dmg;
     // 首領第三相：以血養血
     if (src && src.leech && src.hp > 0) { const heal = Math.round(dmg * src.leech); src.hp = Math.min(src.max, src.hp + heal); const mp = this.monPos(); FX.text(mp.x, mp.y, '+' + U.fmt(heal), '#ff6a7a', 16, 'info'); }
@@ -135,30 +137,83 @@ const Battle = {
     const lv = S.artLv(k.from), m = this.monPos(), hp = this.heroPos();
     FX.array(hp.x, hp.y - 4, 110, k.color, 0.7);
     this.cutin(id); Audio2.play('cast');   // 開招式
+    const low = FX.low, alive = () => this.on && this.mon && this.mon.hp > 0;
     if (id === 'yujian') {
+      // 御劍：飛劍環繞主角旋轉（持續約 1.4 秒），三把依序飛出斬向妖物
+      FX.spr('yujianRing', hp.x, hp.y - 120, { w: 260, life: 1.6, s0: 0.5, s1: 1, spin: 2.4, hold: 0.75, ghosts: 0, alpha: 0.9 });
       Audio2.play('wave');
-      for (let i = 0; i < 3; i++) setTimeout(() => { if (!this.on || !this.mon || this.mon.hp <= 0) return; const sx = hp.x + (i - 1) * 70; FX.wave(sx, hp.y - 120, m.x + (i - 1) * 20, m.y, k.color, 0.28); setTimeout(() => this.on && this.mon && this.mon.hp > 0 && (FX.slash(m.x, m.y, 100, -0.4 + i * 0.4, k.color, 0.25), this.dmgMon(h.atk * k.mult, k.color)), 160); }, i * 170);
+      for (let i = 0; i < 3; i++) setTimeout(() => { if (!alive()) return; const sx = hp.x + (i - 1) * 70; FX.wave(sx, hp.y - 120, m.x + (i - 1) * 20, m.y, k.color, 0.28); Audio2.play('swing1'); setTimeout(() => alive() && (FX.slash(m.x, m.y, 100, -0.4 + i * 0.4, k.color, 0.25), FX.impact(m.x + (i - 1) * 20, m.y, false, k.color), this.dmgMon(h.atk * k.mult, k.color)), 160); }, 450 + i * 200);
     } else if (id === 'jianyi') {
+      // 劍意：金色巨劍虛影橫斬（左→右），留下金色裂紋與殘影；之後八息內普攻強化
       h.yiT = 8; Audio2.play('gong');
-      FX.pillar(hp.x, FX.h, 'rgba(255,207,122,0.45)', 80, 1.4); FX.converge(hp.x, hp.y - 80, 'rgba(255,207,122,0.9)', 24, 180, 0.7);
+      FX.dim(0.35, 0.7);
+      FX.spr('jianyi', m.x, m.y + 10, { w: 300, ang: -Math.PI / 2 + 0.12, dx: 160, dy: -10, life: 0.5, s0: 0.85, s1: 1.15, ghosts: 3, hold: 0.55 });
+      setTimeout(() => { if (!alive()) return; FX.spr('jianyi', m.x, m.y + 20, { w: 340, ang: -Math.PI / 2, life: 0.9, s0: 1, s1: 1.05, ghosts: 0, alpha: 0.55, hold: 0.3 }); this.dmgMon(h.atk * 2.2, k.color, { big: true }); FX.sparks(m.x, m.y, '#ffd76a', low ? 4 : 16, 340); }, 180);
       FX.text(hp.x, hp.y - 190, '劍意凜然', k.color, 22, 'hero');
     } else if (id === 'jianqi') {
       FX.wave(hp.x, hp.y - 90, m.x, m.y, k.color, 0.3); Audio2.play('wave');
-      setTimeout(() => { this.dmgMon(h.atk * k.mult, k.color); FX.slash(m.x, m.y, 110, -0.5, k.color, 0.3); FX.sparks(m.x, m.y, '#dff6ff', 12); }, 200);
+      setTimeout(() => { this.dmgMon(h.atk * k.mult, k.color); FX.slash(m.x, m.y, 110, -0.5, k.color, 0.3); FX.impact(m.x, m.y, false, k.color); }, 200);
     } else if (id === 'leifa') {
-      const boost = (1 + 0.15 * (lv - 1)) * (1 + (S.rootFx().thunder || 0));
-      Audio2.play('thunder'); FX.flash = 0.6;
-      for (let i = 0; i < 3; i++) setTimeout(() => FX.bolt(m.x + U.rand(-30, 30), m.y + 20, '#e6d6ff', 5 - i, 0.3), i * 70);
-      setTimeout(() => { this.dmgMon(h.atk * k.mult * boost, k.color, { big: true }); FX.ring(m.x, m.y, '#c9a6ff', 20, 170, 0.45, 5); this.mon.stun = 1; this.mon.charge = 0; }, 120);
+      // 雷法：全畫面變暗＋雲層閃光 → 0.15 秒後主雷柱劈落 → 環形衝擊波、地面裂痕光、電火花 → 震動與 100ms 定格
+      const boost = (1 + 0.15 * (lv - 1)) * (1 + (S.rootFx().thunder || 0)), gy = m.y + 70;
+      FX.dim(0.72, 0.9); FX.flash = 0.25;
+      setTimeout(() => {
+        if (!this.on || !this.mon) return;
+        const key = 'thunder' + (1 + Math.floor(Math.random() * 3)), x = m.x + U.rand(-20, 20);
+        FX.spr(key, x, gy, { w: 330, ay: 0.86, ang: U.rand(-0.08, 0.08), flip: Math.random() < 0.5, life: 0.5, s0: 1, s1: 1.04, ghosts: 0, hold: 0.4 });
+        if (!low) FX.spr('thunder' + (1 + ((+key.slice(-1)) % 3)), x + U.rand(-50, 50), gy, { w: 220, ay: 0.86, flip: Math.random() < 0.5, life: 0.35, s0: 1, s1: 1, ghosts: 0, alpha: 0.5, delay: 0.06 });
+        FX.flash = 0.9; Audio2.play('thunder');
+        FX.ring(x, gy, '#d8c4ff', 16, 220, 0.5, 6); FX.ring(x, gy, '#ffffff', 10, 120, 0.3, 3);   // 環形衝擊波
+        FX.add({ k: 'ring', x, y: gy, r0: 30, r1: 90, color: '#b48cff', life: 0.8, width: 10 });            // 地面裂痕光
+        FX.sparks(x, gy - 40, '#e6d6ff', low ? 6 : 22, 420);
+        this.hitstop(100, 14);
+        if (alive()) { this.dmgMon(h.atk * k.mult * boost, k.color, { big: true }); if (this.mon) { this.mon.stun = 1; this.mon.charge = 0; } }
+      }, 150);
     } else if (id === 'huti') {
       h.shield = Math.round(h.max * k.mult * (1 + 0.1 * (lv - 1))); h.shieldT = 8; Audio2.play('shield');
-      FX.ring(hp.x, hp.y - 70, '#8ff0d8', 20, 140, 0.5, 4); FX.converge(hp.x, hp.y - 70, 'rgba(143,240,216,0.9)', 22, 160, 0.6);
+      this.shieldFx('on');
+      FX.converge(hp.x, hp.y - 70, 'rgba(143,240,216,0.9)', low ? 8 : 22, 160, 0.6);
     } else if (id === 'wanjian') {
-      Audio2.play('wave'); FX.swordRain(m.x, m.y, '#ffe7a0'); FX.flash = 0.4;
-      for (let i = 0; i < 5; i++) setTimeout(() => this.on && this.mon.hp > 0 && this.dmgMon((h.atk * k.mult * (1 + 0.15 * (lv - 1))) / 5, k.color, { big: i === 4 }), 380 + i * 90);
+      // 萬劍齊發：約 0.8 秒內分批落下，後排（小、遠、偏上）到前排（大、近）；每把落點小爆點；最後一波集中在目標並放衝擊波
+      FX.flash = 0.3; Audio2.play('wave'); FX.dim(0.4, 1.3);
+      const waves = low ? 3 : 5, per = low ? 3 : 5, dmg = (h.atk * k.mult * (1 + 0.15 * (lv - 1))) / waves;
+      for (let wv = 0; wv < waves; wv++) {
+        const last = wv === waves - 1, depth = wv / (waves - 1);   // 0 後排 → 1 前排
+        setTimeout(() => {
+          if (!this.on) return;
+          for (let j = 0; j < (last ? per + 2 : per); j++) {
+            const tx = last ? m.x + U.rand(-30, 30) : m.x + U.rand(-130, 130) * (1 - depth * 0.4), ty = last ? m.y + U.rand(-10, 30) : m.y - 60 + depth * 120 + U.rand(-20, 20);
+            const sz = 30 + depth * 34, dl = j * 0.03;
+            FX.spr('rainSword', tx, ty, { w: sz, ay: 1, dy: 260 + depth * 120, dx: U.rand(-20, 20), fall: true, life: 0.22 + dl, delay: dl, s0: 1, s1: 1, ghosts: low ? 0 : 1, hold: 0.85, ang: U.rand(-0.12, 0.12),
+              onEnd: () => { FX.impact(tx, ty, false, '#9ff0e0'); } });
+          }
+          setTimeout(() => {
+            if (!alive()) return;
+            Audio2.play('swing1');   // 同一音效最多 4 個重疊（AudioManager 限制）
+            this.dmgMon(dmg, k.color, { big: last });
+            if (last) { FX.ring(m.x, m.y, '#ffe7a0', 20, 230, 0.6, 7); FX.impact(m.x, m.y, true, '#ffe7a0'); FX.shake($('#scene'), 12); }
+          }, 220 + per * 30);
+        }, wv * (800 / waves));
+      }
     }
   },
-
+  // 護體罩：on 出現（中心放大淡入）、hit 受擊局部閃亮、off 碎裂成光點
+  shieldFx(state) {
+    const el = $('#shield'); if (!el) return;
+    if (state === 'on') {
+      // 對準主角身體（戰鬥立繪前傾，視覺中心不在畫面正中）
+      const hb = document.querySelector('#heroB .hfig'), s0 = $('#scene').getBoundingClientRect();
+      if (hb) { const r = hb.getBoundingClientRect(); el.style.left = r.left - s0.left + r.width * 0.5 + 'px'; el.style.bottom = s0.bottom - r.bottom + r.height * 0.05 + 'px'; el.style.width = Math.max(r.width, r.height * 0.8) * 1.05 + 'px'; }
+      el.classList.remove('hidden', 'off', 'hit'); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); this.shieldOn = true;
+    }
+    else if (state === 'hit') { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); clearTimeout(this.shHitT); this.shHitT = setTimeout(() => el.classList.remove('hit'), 320); }
+    else if (state === 'off' && this.shieldOn) {
+      this.shieldOn = false; el.classList.add('off'); el.classList.remove('on');
+      const r = el.getBoundingClientRect(), s0 = $('#scene').getBoundingClientRect(), cx = r.left - s0.left + r.width / 2, cy = r.top - s0.top + r.height / 2;
+      FX.burst(cx, cy, '#bff4ff', FX.low ? 10 : 34, 220, 3, 0.9); FX.sparks(cx, cy, '#8ff0d8', FX.low ? 4 : 12, 260);
+      setTimeout(() => el.classList.add('hidden'), 450);
+    }
+  },
   // 普攻動作（以程式位移與旋轉模擬，之後補圖可換成逐格立繪）：蓄勢後撤 → 前衝 → 揮劍 → 後座回位
   attackAnim(scale = 1) {
     const el = document.querySelector('#heroB .hfig'); if (!el || !el.animate) return;
@@ -179,7 +234,7 @@ const Battle = {
     setTimeout(() => {
       sc.classList.remove('hitstop'); if (a && a.playState === 'paused') a.play();
       FX.shake(sc, mag);
-      const sct = $('#sceneContent'); if (sct.animate && !FX.noShake) sct.animate([{ transform: 'scale(1.035)' }, { transform: 'scale(1)' }], { duration: 240, easing: 'ease-out' });
+      if (!FX.noShake) for (const el of [$('#mon img#monImg'), $('#heroB')]) if (el && el.animate) el.animate([{ scale: '1.04' }, { scale: '1' }], { duration: 240, easing: 'ease-out' });   // 只放大妖物與主角；不可對整個場景層做 transform，否則血條會掉到特效下面
     }, ms);
   },
   // 起手式劍尖在畫面上的位置（劍光與出劍特效從這裡發出）
@@ -225,6 +280,7 @@ const Battle = {
     for (const k in this.cd) this.cd[k] = Math.max(0, this.cd[k] - dt);
     h.mp = Math.min(h.maxmp, h.mp + h.regen * dt);
     if (h.shieldT > 0) { h.shieldT -= dt; if (h.shieldT <= 0) h.shield = 0; }
+    if (this.shieldOn && !(h.shield > 0)) this.shieldFx('off');
     if (h.yiT > 0) h.yiT -= dt;
     if (this.pause > 0) { this.pause -= dt; this.render(); return; }
     if (!m || m.hp <= 0) { this.render(); return; }
@@ -289,7 +345,6 @@ const Battle = {
     const h = this.hero, m = this.mon;
     $('#hBarB').style.width = (100 * h.hp / h.max) + '%'; $('#hTxtB').textContent = `${U.fmt(h.hp)} / ${U.fmt(h.max)}${h.shield > 0 ? `　靈罩 ${U.fmt(h.shield)}` : ''}`;
     $('#pBarB').style.width = (100 * h.mp / h.maxmp) + '%'; $('#pTxtB').textContent = `${Math.floor(h.mp)} / ${h.maxmp}`;
-    $('#shield').classList.toggle('hidden', !(h.shield > 0));
     if (m) {
       $('#mBar').style.width = (100 * Math.max(0, m.hp) / m.max) + '%'; $('#mTxt').textContent = `${U.fmt(Math.max(0, m.hp))} / ${U.fmt(m.max)}`;
       $('#mCharge').innerHTML = m.charge > 0 ? `<div class="charge"><i style="width:${100 * (1 - m.charge / m.chargeMax)}%"></i></div><div class="charge-tip">${m.boss ? '妖將蓄力「血刃斬」——快開護體或以雷法打斷' : '蓄力重擊——護體或雷法可化解'}</div>` : '';

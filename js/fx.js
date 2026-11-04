@@ -54,7 +54,9 @@ const FX = {
   // 劍光：斜向新月弧
   // ───────── 素材特效（取代舊的平面弧形色塊）─────────
   // 素材在 assets/fx/hit/，黑底；第一次戰鬥時由 Knock 去黑後快取。slash／crit_slash／combo 原圖是「左下→右上」的斜刀光
-  SPR_SRC: { slash: 'assets/fx/hit/slash.webp', combo: 'assets/fx/hit/combo.webp', critSlash: 'assets/fx/hit/crit_slash.webp', hit: 'assets/fx/hit/hit.webp', critBurst: 'assets/fx/hit/crit_burst.webp', shield: 'assets/fx/hit/demon_shield.webp' },
+  SPR_SRC: { slash: 'assets/fx/hit/slash.webp', combo: 'assets/fx/hit/combo.webp', critSlash: 'assets/fx/hit/crit_slash.webp', hit: 'assets/fx/hit/hit.webp', critBurst: 'assets/fx/hit/crit_burst.webp', shield: 'assets/fx/hit/demon_shield.webp',
+    thunder1: 'assets/fx/skill/thunder1.webp', thunder2: 'assets/fx/skill/thunder2.webp', thunder3: 'assets/fx/skill/thunder3.webp',
+    rainSword: 'assets/fx/skill/rain_sword.webp', yujianRing: 'assets/fx/skill/yujian_ring.webp', jianyi: 'assets/fx/skill/jianyi.webp', heroShield: 'assets/fx/skill/shield.webp' },
   sprImg: {}, low: false,
   loadSprites() {
     if (this._sprLoading || typeof Knock === 'undefined') return; this._sprLoading = true;
@@ -65,7 +67,7 @@ const FX = {
   spr(key, x, y, o = {}) {
     const im = this.sprImg[key]; if (!im) return false;
     const w = o.w || 200, h = (w * im.naturalHeight) / im.naturalWidth;   // 依原圖比例
-    this.add({ k: 'spr', key, x, y, w, h, ang: o.ang || 0, s0: o.s0 ?? 0.85, s1: o.s1 ?? 1.15, dx: o.dx || 0, dy: o.dy || 0, flip: !!o.flip, ghosts: this.low ? 0 : o.ghosts ?? 2, life: o.life || 0.25 });
+    this.add({ k: 'spr', key, x, y, w, h, ang: o.ang || 0, s0: o.s0 ?? 0.85, s1: o.s1 ?? 1.15, dx: o.dx || 0, dy: o.dy || 0, flip: !!o.flip, ghosts: this.low ? 0 : o.ghosts ?? 2, life: o.life || 0.25, spin: o.spin || 0, fall: !!o.fall, ay: o.ay ?? 0.5, hold: o.hold || 0, delay: o.delay || 0, alpha: o.alpha ?? 1, onEnd: o.onEnd });
     return true;
   },
   // 舊介面相容：技能、怪物攻擊呼叫的 slash／wave 改用刀光素材（素材未載入時退回簡單光點）
@@ -77,6 +79,7 @@ const FX = {
     const ang = Math.atan2(y1 - y0, x1 - x0) + 0.6;
     if (!this.spr('slash', (x0 + x1) / 2, (y0 + y1) / 2, { w: 120, ang, life, s0: 0.6, s1: 0.8, dx: x1 - x0, dy: y1 - y0, ghosts: 1 })) this.sparks(x1, y1, color, 6, 200);
   },
+  dim(a = 0.6, life = 0.6) { this.add({ k: 'dim', a, life }); },
   // 命中爆點：普通用 hit，暴擊用 crit_burst
   impact(x, y, crit, color) {
     this.spr(crit ? 'critBurst' : 'hit', x, y, { w: crit ? 300 : 170, ang: Math.random() * 6.28 * (crit ? 0 : 1), life: crit ? 0.38 : 0.28, s0: 0.35, s1: crit ? 1.15 : 1, ghosts: 0 });
@@ -158,7 +161,7 @@ const FX = {
     }
     if (this.cranesOn) this.drawCranes(dt);
     // 特效：飄字永遠最後畫，不被刀光、爆點蓋住
-    this.list.sort((a, b) => (a.k === 'text') - (b.k === 'text'));
+    this.list.sort((a, b) => (a.k === 'text') - (b.k === 'text') || (b.k === 'dim') - (a.k === 'dim'));
     for (const p of this.list) {
       p.t += dt;
       if (p.vx !== undefined) { p.x += p.vx * dt; p.y += (p.vy || 0) * dt; if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; } }
@@ -174,17 +177,19 @@ const FX = {
         // 素材特效：載入時已去黑（Knock），用 screen 疊加；先放大、沿出手方向掃過，再淡出，尾端留殘影
         case 'spr': {
           const im = this.sprImg[p.key]; if (!im) break;
-          const e = Math.min(1, t / p.life), ease = 1 - Math.pow(1 - Math.min(1, e / 0.55), 3);
-          const alpha = Math.min(1, t / 0.04) * (e < 0.45 ? 1 : 1 - (e - 0.45) / 0.55);
+          const e = Math.min(1, t / (p.life - p.delay)), ease = p.fall ? e * e : 1 - Math.pow(1 - Math.min(1, e / 0.55), 3);
+          const fadeAt = p.hold || 0.45, alpha = p.alpha * Math.min(1, t / 0.04) * (e < fadeAt ? 1 : 1 - (e - fadeAt) / (1 - fadeAt));
           const draw = (q, a) => {
-            const qq = Math.max(0, q), sc = p.s0 + (p.s1 - p.s0) * qq, x = p.x + p.dx * (qq - 0.5), y = p.y + p.dy * (qq - 0.5);
-            c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang); c.scale(sc * (p.flip ? -1 : 1), sc);
-            c.drawImage(im, -p.w / 2, -p.h / 2, p.w, p.h); c.restore();
+            const qq = Math.max(0, q), sc = p.s0 + (p.s1 - p.s0) * qq, x = p.x + p.dx * (p.fall ? qq - 1 : qq - 0.5), y = p.y + p.dy * (p.fall ? qq - 1 : qq - 0.5);
+            c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc);
+            c.drawImage(im, -p.w / 2, -p.h * p.ay, p.w, p.h); c.restore();
           };
+          if (p.onEnd && e >= 1 && !p.ended) { p.ended = true; p.onEnd(); }
           if (p.ghosts) for (let g = p.ghosts; g >= 1; g--) draw(ease - g * 0.16, alpha * (0.32 / g));   // 殘影
           draw(ease, alpha);
           break;
         }
+        case 'dim': { const e = t / p.life; c.globalCompositeOperation = 'source-over'; c.globalAlpha = (e < 0.2 ? e / 0.2 : 1 - (e - 0.2) / 0.8) * p.a; c.fillStyle = '#050310'; c.fillRect(0, 0, W, H); break; }
         case 'bolt': c.strokeStyle = p.color; c.lineWidth = p.width; c.shadowColor = p.color; c.shadowBlur = 20; c.beginPath(); p.pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); c.lineWidth = p.width * 0.4; c.strokeStyle = '#fff'; c.stroke(); break;
         case 'conv': {
           const e = Math.min(1, t / p.life), ee = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2, sw = Math.sin(ee * Math.PI) * 60 * p.curl;

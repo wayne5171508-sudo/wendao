@@ -1,5 +1,5 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
-const ASSET_VER = '20261106140000';
+const ASSET_VER = '20261106180000';
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -47,6 +47,14 @@ const ASSET_LIST = [
   'assets/fx/qi_motes.webp',
   'assets/fx/qi_orb.webp',
   'assets/fx/ring.webp',
+  'assets/fx/skill/jianyi.webp',
+  'assets/fx/skill/rain_sword.webp',
+  'assets/fx/skill/shield.webp',
+  'assets/fx/skill/sword_rain.webp',
+  'assets/fx/skill/thunder1.webp',
+  'assets/fx/skill/thunder2.webp',
+  'assets/fx/skill/thunder3.webp',
+  'assets/fx/skill/yujian_ring.webp',
   'assets/fx/thunder_bolt.webp',
   'assets/fx/thunder_cloud.webp',
   'assets/fx/thunder_impact.webp',
@@ -72,6 +80,7 @@ const ASSET_LIST = [
   'assets/item/herb_l.webp',
   'assets/item/ore.webp',
   'assets/item/scroll.webp',
+  'assets/item/star.webp',
   'assets/item/stone.webp',
   'assets/loot/art_t0.webp',
   'assets/loot/art_t1.webp',
@@ -93,6 +102,12 @@ const ASSET_LIST = [
   'assets/npc/shixiong.webp',
   'assets/npc/shizun.webp',
   'assets/npc/xuanheng.webp',
+  'assets/skill/huti.webp',
+  'assets/skill/jianqi.webp',
+  'assets/skill/jianyi.webp',
+  'assets/skill/leifa.webp',
+  'assets/skill/wanjian.webp',
+  'assets/skill/yujian.webp',
   'assets/ui/case_frame.webp',
   'assets/ui/stone.webp',
   'assets/weapon/bitao.webp',
