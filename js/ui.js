@@ -39,9 +39,7 @@ const battlePose = (w) => BATTLE_POSE[w ? w.tier : 0];
 // 兵器光效：階級越高越華麗（發光 → 粒子環繞 → 紫金雙光 → 赤金天象）
 const wAura = (w) => {
   if (!w) return '';
-  const n = [0, 0, 6, 10, 14][w.tier];
-  const sparks = Array.from({ length: n }, (_, i) => `<i style="--a:${(i * 360) / n}deg;--d:${3.2 + (i % 3) * 0.7}s"></i>`).join('');
-  return `<div class="waura t${w.tier}" style="${wVars(w)}"><div class="wglow"></div><div class="wring">${sparks}</div></div>`;
+  return `<div class="waura t${w.tier}" style="${wVars(w)}"><div class="wglow"></div></div>`;   // 繞身光點改由 Halo 的靈氣粒子負責
 };
 const heaven = (w) => (w && w.tier >= 4 ? '<div class="heaven"></div>' : '');
 const heroArmed = (w, kind, cls = '') => {

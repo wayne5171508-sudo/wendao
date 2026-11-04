@@ -59,6 +59,44 @@ const HALO_IMG = { sitOuter: ['assets/halo/sit_outer.webp', true], sitInner: ['a
 const haloImgs = {};
 for (const [k, [src, round]] of Object.entries(HALO_IMG)) if (typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(src)) Knock.load(src, { round }).then((u) => { const im = new Image(); im.onload = () => (haloImgs[k] = im); im.src = u; }).catch(() => {});
 
+// ════════════════════════════════════════════
+//  靈氣粒子：素材 assets/fx/qi_motes.webp（8 格黑底，前 5 金、後 3 青）
+//  載入時逐格去黑並做圓形羽化（等同 screen 去黑，但不受父層 opacity／transform 影響），繪製時用 screen 疊加
+// ════════════════════════════════════════════
+const MOTE_SRC = 'assets/fx/qi_motes.webp', MOTE_GOLD = 5, MOTE_N = 8;
+const Motes = {
+  imgs: null,
+  load() {
+    if (this.imgs || this._ld) return; this._ld = true;
+    const im = new Image();
+    im.onload = () => {
+      const S = im.naturalHeight, out = [];
+      for (let k = 0; k < MOTE_N; k++) {
+        const cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d');
+        c.drawImage(im, k * S, 0, S, S, 0, 0, S, S);
+        const d = c.getImageData(0, 0, S, S), p = d.data, h = S / 2;
+        for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+          const i = (y * S + x) * 4, m = Math.max(p[i], p[i + 1], p[i + 2]), r = Math.hypot(x - h, y - h) / h;
+          const a = (m <= 10 ? 0 : (m - 10) / 245) * Math.min(1, Math.max(0, (1 - r) / 0.25));
+          if (a <= 0) { p[i + 3] = 0; continue; }
+          const q = 255 / m; p[i] *= q; p[i + 1] *= q; p[i + 2] *= q; p[i + 3] = a * 255;
+        }
+        c.putImageData(d, 0, 0); out.push(cv);
+      }
+      this.imgs = out;
+    };
+    im.src = MOTE_SRC;
+  },
+  // 依模式設定：打坐多而慢；站立中等；戰鬥少、向外飄散帶拖尾。low＝低階機
+  cfg(mode, low) {
+    const cap = low ? 12 : 30;
+    return mode === 'sit' ? { cap, vy: [-10, -20], out: 0, trail: 0 }
+      : mode === 'battle' ? { cap: Math.round(cap * 0.5), vy: [-12, -22], out: 34, trail: low ? 0 : 3 }
+      : { cap: Math.round(cap * 0.7), vy: [-16, -28], out: 8, trail: 0 };
+  },
+};
+Motes.load();
+
 const Halo = {
   list: [], raf: 0, low: null, slow: 0, ft: [],
   RUNES: '乾坤震巽坎離艮兌天地風雷水火山澤道法自然氣聚丹成',
@@ -77,11 +115,11 @@ const Halo = {
     const host = $('#sceneContent'), el = host && host.querySelector(target);
     if (!el) return null;
     const mk = (cls) => { const cv = document.createElement('canvas'); cv.className = 'halo-cv ' + cls; return cv; };
-    const back = mk('back'), front = mode === 'sit' ? mk('front') : null;
+    const back = mk('back'), front = mk('front');
     host.insertBefore(back, host.firstChild);
     if (front) host.appendChild(front);
     const lv = S.d ? S.d.lv : 0, hue = REALM_HUE[Math.min(3, Math.floor(lv / 3))];
-    const inst = { mode, el, back, front, t: Math.random() * 10, c: color ? color.c : hue.c, e: color ? color.e : hue.e, sub: lv % 3, sprites: {} };
+    const inst = { mode, el, back, front, pool: [], spawnT: 0, t: Math.random() * 10, c: color ? color.c : hue.c, e: color ? color.e : hue.e, sub: lv % 3, sprites: {} };
     this.list.push(inst); this.fit(inst);
     if (!this.raf) { this.last = performance.now(); this.raf = requestAnimationFrame((n) => this.loop(n)); }
     return inst;
@@ -101,7 +139,7 @@ const Halo = {
     for (const I of this.list) {
       const r = $('#sceneContent').getBoundingClientRect();
       if (Math.abs(r.width - I.W) > 1 || Math.abs(r.height - I.H) > 1) this.fit(I);
-      I.t += dt; this.draw(I, r);
+      I.t += dt; I.dt = dt; this.draw(I, r);
     }
     this.raf = requestAnimationFrame((n) => this.loop(n));
   },
@@ -176,6 +214,43 @@ const Halo = {
     const x = er.left - sc.left, y = er.top - sc.top;
     if (I.mode === 'sit') this.drawSit(I, bc, x + er.width / 2, y + er.height * 0.93, er.width, er.height, low);
     else this.drawBack(I, bc, x + er.width * (I.mode === 'battle' ? 0.5 : 0.47), y + er.height * (I.mode === 'battle' ? 0.24 : 0.17), Math.min(er.width * 0.62, er.height * 0.3), low);
+    this.motes(I, bc, I.front.getContext('2d'), { x, y, w: er.width, h: er.height }, low);
+  },
+  // 靈氣粒子：物件池重複利用，數量不超過上限；一部分畫在身後、一部分在身前
+  motes(I, bc, fc, b, low) {
+    const imgs = Motes.imgs; if (!imgs) return;
+    const C = Motes.cfg(I.mode, low), dt = I.dt || 0.016, pool = I.pool;
+    while (pool.length < C.cap) pool.push({ on: false, hx: new Float32Array(4), hy: new Float32Array(4) });
+    let alive = 0; for (let i = 0; i < pool.length; i++) if (pool[i].on) alive++;
+    // 生成：平均生命 4 秒，維持在上限附近
+    I.spawnT -= dt;
+    if (I.spawnT <= 0 && alive < C.cap) {
+      I.spawnT = 4 / C.cap * U.rand(0.6, 1.4);
+      const p = pool.find((q) => !q.on);
+      if (p) {
+        const cx = b.x + b.w / 2, foot = I.mode === 'sit' && Math.random() < 0.5;
+        // 打坐有一半從腳下法陣冒出；其餘從身體中段
+        p.x = foot ? cx + U.rand(-0.55, 0.55) * b.w : cx + U.rand(-0.3, 0.3) * b.w;
+        p.y = foot ? b.y + b.h * U.rand(0.88, 0.98) : b.y + b.h * U.rand(0.25, 0.85);
+        const ang = Math.atan2(p.y - (b.y + b.h * 0.5), p.x - cx);
+        p.vx = Math.cos(ang) * C.out * U.rand(0.5, 1); p.vy = U.rand(C.vy[0], C.vy[1]) + Math.sin(ang) * C.out * 0.4;
+        p.gold = Math.random() < 0.6; p.img = p.gold ? U.randi(0, MOTE_GOLD - 1) : U.randi(MOTE_GOLD, MOTE_N - 1);
+        p.size = U.rand(6, 22); p.life = U.rand(3, 5); p.age = 0; p.ph = Math.random() * 7; p.sw = U.rand(5, 14); p.fl = U.rand(3, 7);
+        p.front = Math.random() < 0.4; p.on = true; p.hx.fill(p.x); p.hy.fill(p.y); p.rot = Math.random() * 6.28; p.spin = U.rand(-0.6, 0.6);
+      }
+    }
+    for (const cv of [bc, fc]) { cv.save(); cv.globalCompositeOperation = 'screen'; }
+    for (let i = 0; i < pool.length; i++) {
+      const p = pool[i]; if (!p.on) continue;
+      p.age += dt; if (p.age >= p.life) { p.on = false; continue; }
+      const k = p.age / p.life;
+      if (C.trail) { p.hx.copyWithin(1, 0); p.hy.copyWithin(1, 0); p.hx[0] = p.x; p.hy[0] = p.y; }
+      p.x += (p.vx + Math.cos(p.age * 1.3 + p.ph) * p.sw) * dt; p.y += p.vy * dt; p.rot += p.spin * dt;
+      const fade = Math.min(1, k / 0.15, (1 - k) / 0.3), a = fade * (0.7 + 0.3 * Math.sin(p.age * p.fl + p.ph)), sz = p.size * (1 - 0.45 * k), cv = p.front ? fc : bc, im = imgs[p.img];
+      if (C.trail) for (let j = C.trail; j >= 1; j--) { cv.globalAlpha = a * 0.22 * (1 - j / (C.trail + 1)); const s2 = sz * (1 - j * 0.15); cv.drawImage(im, p.hx[j] - s2 / 2, p.hy[j] - s2 / 2, s2, s2); }
+      cv.globalAlpha = a; cv.translate(p.x, p.y); cv.rotate(p.rot); cv.drawImage(im, -sz / 2, -sz / 2, sz, sz); cv.setTransform(I.dpr, 0, 0, I.dpr, 0, 0);
+    }
+    for (const cv of [bc, fc]) cv.restore();
   },
   drawSit(I, c, cx, cy, w, h, low) {
     const R = w * 0.6, t = I.t, br = 0.7 + 0.3 * Math.sin(t * 1.4);
