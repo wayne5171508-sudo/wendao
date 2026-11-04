@@ -515,7 +515,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .furnace.brewing .fz.idle { animation: fzShake .12s linear infinite; }
 @keyframes fzShake { 25% { transform: translateX(calc(-50% - 3px)) rotate(-.6deg); } 75% { transform: translateX(calc(-50% + 3px)) rotate(.6deg); } }
 .fz-pill { position: absolute; left: 50%; top: 30%; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; opacity: 0; pointer-events: none; background: radial-gradient(circle at 35% 30%, #fff, var(--c, #ffe7a0) 55%, rgba(0,0,0,.4)); box-shadow: 0 0 20px var(--c, #ffe7a0), 0 0 50px #ffe7a0; }
-.furnace.done-ok .fz-pill { animation: pillRise 1.6s ease-out forwards; }
+.furnace.done-ok .fz-pill { display: none; }   /* 舊的圓球丹藥：改由 .pill-show 顯示實際丹藥圖 */
 @keyframes pillRise { 0% { opacity: 0; transform: translateY(40px) scale(.4); } 25% { opacity: 1; } 100% { opacity: 1; transform: translateY(-70px) scale(1.15); } }
 /* ───── 持逆天劍：赤金光輪、雷光、粒子；換圖時閃光 ───── */
 .hfig.nitian { --c: #ff6a4a; --e: #ffd76a; isolation: isolate; }
@@ -836,3 +836,23 @@ img { object-fit: contain; }
 .seal-img:active:not(:disabled) { transform: scale(.9) rotate(-3deg); }
 .seal-img:disabled { filter: grayscale(.9) brightness(.55); cursor: default; }
 .seal-img.img-fail::after { content: "煉"; color: var(--cinnabar2); font-family: var(--brush); font-size: 20px; }
+
+/* ───── 成丹演出（失敗演出不受影響） ───── */
+.pill-show { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.ps-pillar { position: absolute; left: var(--mx); bottom: calc(100% - var(--my)); width: 46%; translate: -50% 4%; transform-origin: 50% 100%; animation: psPillar var(--stay) ease-out forwards; }
+.ps-pillar img, .ps-ring img { width: 100%; height: auto; display: block; object-fit: contain; mix-blend-mode: screen; }
+@keyframes psPillar { 0% { transform: scaleY(0); opacity: 0; } 12% { transform: scaleY(1.05); opacity: 1; } 55% { opacity: .85; } 100% { transform: scaleY(1); opacity: 0; } }
+.ps-pill { position: absolute; left: var(--mx); top: var(--my); width: 0; height: 0; animation: psRise 1.2s cubic-bezier(.3,.7,.3,1) .15s both; }
+@keyframes psRise { from { transform: translateY(0); } to { transform: translateY(var(--rise)); } }
+.ps-pill .ps-img, .ps-pill .ico { position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; translate: -50% -50%; object-fit: contain; z-index: 2; filter: drop-shadow(0 0 14px var(--c)) drop-shadow(0 0 4px #fff); animation: psSpin 2.4s linear infinite, psIn .5s ease-out .15s both; }
+.ps-pill .ico { width: 56px; height: 56px; font-size: 24px; }
+.pill-show.t3 .ps-pill .ps-img { width: 112px; height: 112px; }
+@keyframes psSpin { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes psIn { from { opacity: 0; scale: .3; } to { opacity: 1; scale: 1; } }
+.ps-ring { position: absolute; left: 50%; top: 38px; width: var(--ring); translate: -50% -50%; transform: scaleY(.38); opacity: 0; animation: psRing 1s ease-out 1.15s forwards, psRingSpin 9s linear 1.15s infinite; }
+@keyframes psRing { from { opacity: 0; scale: .3; } to { opacity: 1; scale: 1; } }
+@keyframes psRingSpin { to { rotate: 360deg; } }
+.ps-name { position: absolute; left: 0; right: 0; top: calc(var(--my) + var(--rise) + 70px); text-align: center; font-family: var(--brush); font-size: 22px; color: #fff4d6; letter-spacing: 2px; text-shadow: 0 0 10px var(--c), 0 2px 4px #000; opacity: 0; animation: psIn .5s ease-out 1.3s forwards; }
+.ps-name b { color: var(--c); font-size: 26px; font-weight: 400; }
+.pill-show { animation: psOut .5s ease-in calc(var(--stay) - 500ms) forwards; }
+@keyframes psOut { to { opacity: 0; } }

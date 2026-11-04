@@ -191,8 +191,8 @@ const UI = {
     Audio2.setMood('sect');
     this.setBg('dongfu', '');
     this.scene(`${heaven(S.wTop())}<div class="hero-stage sit">${S.wTop() ? heroArmed(S.wTop(), 'sit') : `<img src="${IMG_SRC.hero_meditate}" alt="${HERO_NAME}打坐">`}</div>`);
-    Halo.mount('sit', '.hero-stage.sit > *');
-    Audio2.play('meditate');   // 進洞府打坐：靈氣聲播一次   // 腳下法陣＋靈氣絲帶，顏色隨境界
+    Halo.mount('sit', '.hero-stage.sit > *');   // 腳下法陣＋靈氣絲帶，顏色隨境界
+    Audio2.play('meditate');   // 進洞府打坐：靈氣聲播一次
     this.controls(`<div class="cult">
       <div class="cult-head"><h2 id="hLv"></h2><span id="hRate"></span></div>
       <div class="bar xp"><i id="hBar"></i><span id="hTxt"></span></div>
@@ -305,18 +305,36 @@ const UI = {
       await U.wait(r.time * 400);
       const ok = S.craft(r);
       furn.classList.remove('brewing'); furn.classList.add(ok ? 'done-ok' : 'done-fail'); Aura.set(ok ? 'ok' : 'fail');
+      let stay = 1700;
       if (ok) {
-        furn.querySelector('.fz-pill').style.setProperty('--c', ITEMS[r.out].color);
         Audio2.play('up'); FX.burst(mx, my - 40, '#ffe7a0', 40, 260, 3, 1.1); FX.flash = 0.35;
-        this.toast(`成丹——${ITEMS[r.out].name}`, '#ffe7a0');
+        stay = this.pillShow(r.out, 1);
       } else {
         Audio2.play('fail'); FX.shake($('#scene'), 8);   // 音效：炸爐
         this.toast('爐火失控，靈草化為飛灰', '#ff9a9a');
       }
       this.hud();
-      await U.wait(1700);
+      await U.wait(stay);
       if (this.tab === 'alch') this.alch();
     }));
+  },
+
+  // 成丹演出：開爐光柱向上噴出 → 丹藥（統一圖示表）從爐口浮起、旋轉上升到畫面中央 → 下方成丹光環＋「丹藥名 ×數量」
+  // 品階越高光環越大、停留越久；回傳總停留毫秒
+  PILL_TIER: { p_qi: 0, p_heal: 0, p_break: 1, p_zhuji: 2, p_zao: 3 },
+  pillShow(id, n) {
+    const it = ITEMS[id], t = this.PILL_TIER[id] ?? 0, sc = $('#scene').getBoundingClientRect(), mouth = $('#furn .fz-mouth').getBoundingClientRect();
+    const mx = mouth.left - sc.left + mouth.width / 2, my = mouth.top - sc.top + mouth.height / 2, cy = sc.height * 0.4, stay = 2200 + t * 600;
+    const src = iconSrc('item', id), ringW = 150 + t * 40;
+    const el = document.createElement('div'); el.className = `pill-show t${t}`;
+    el.style.cssText = `--mx:${mx}px;--my:${my}px;--rise:${cy - my}px;--ring:${ringW}px;--c:${it.color};--stay:${stay}ms`;
+    el.innerHTML = `<div class="ps-pillar"><img data-knock="assets/fx/alch_pillar.webp" alt=""></div>
+      <div class="ps-pill">${src ? `<img class="ps-img" src="${src}" alt="${it.name}">` : `<i class="ico" style="--c:${it.color}">丹</i>`}<div class="ps-ring"><img data-knock="assets/fx/alch_ring.webp" alt=""></div></div>
+      <div class="ps-name"><b>${it.name}</b> ×${n}</div>`;
+    $('#sceneContent').appendChild(el); Knock.apply(el);
+    setTimeout(() => { if (el.isConnected) FX.burst(mx, cy, it.color, 18 + t * 10, 160 + t * 40, 3, 0.9); }, 1100);
+    setTimeout(() => el.remove(), stay);
+    return stay;
   },
 
   // ───────── 功法 ─────────
