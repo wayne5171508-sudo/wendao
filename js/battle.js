@@ -16,7 +16,8 @@ const Battle = {
     this.wpn = S.wTop();
     this.cd = Object.fromEntries(SKILLS.map((k) => [k.id, 0]));
     this.loot = { exp: 0, stone: 0 };
-    Audio2.setMood(R.mood === 'dungeon' ? 'battle' : R.mood);
+    if (Audio2.mood !== 'battle') this.prevMood = Audio2.mood;
+    Audio2.setMood('battle');
     UI.setBg(R.bg, R.grade || 'dim');
     FX.clear(); FX.ambient = R.grade === 'realm' ? 'realm' : 'qi';
     UI.scene(`
@@ -40,10 +41,11 @@ const Battle = {
   // 兵器技能只在達到階級後出現在技能列
   skillList() { return SKILLS.filter((k) => k.wt === undefined || S.skillOpen(k)); },
   heaven() {
-    FX.stormT = 1; Audio2.play('thunder'); FX.flash = 0.8; FX.shake($('#scene'), 10);
-    const p = this.heroPos(); FX.bolt(p.x + 40, p.y - 160, '#ffb08a', 6, 0.4);
+    FX.stormT = 1;
+    const p = this.heroPos();
+    FX.thunderStrike(p.x + 40, p.y - 160, { color: '#ffb08a', width: 6, shake: 10 });
     UI.banner('逆天劍鳴', '神兵出鞘，天象異變');
-    setTimeout(() => { FX.stormT = 0; }, 2600);
+    setTimeout(() => { if (FX.stormT) FX.stormT = 0; }, 2600);
   },
   // 施法立繪：短暫切入
   cutin(id) {
@@ -119,28 +121,28 @@ const Battle = {
     if (this.cd[id] > 0 || h.mp < k.mp) return;
     h.mp -= k.mp; this.cd[id] = k.cd;
     const lv = S.artLv(k.from), m = this.monPos(), hp = this.heroPos();
+    Audio2.skill(id);
     FX.array(hp.x, hp.y - 4, 110, k.color, 0.7);
     this.cutin(id);
     if (id === 'yujian') {
-      Audio2.play('wave');
       for (let i = 0; i < 3; i++) setTimeout(() => { if (!this.on || !this.mon || this.mon.hp <= 0) return; const sx = hp.x + (i - 1) * 70; FX.wave(sx, hp.y - 120, m.x + (i - 1) * 20, m.y, k.color, 0.28); setTimeout(() => this.on && this.mon && this.mon.hp > 0 && (FX.slash(m.x, m.y, 100, -0.4 + i * 0.4, k.color, 0.25), this.dmgMon(h.atk * k.mult, k.color)), 160); }, i * 170);
     } else if (id === 'jianyi') {
-      h.yiT = 8; Audio2.play('gong');
+      h.yiT = 8;
       FX.pillar(hp.x, FX.h, 'rgba(255,207,122,0.45)', 80, 1.4); FX.converge(hp.x, hp.y - 80, 'rgba(255,207,122,0.9)', 24, 180, 0.7);
       FX.text(hp.x, hp.y - 190, '劍意凜然', k.color, 22);
     } else if (id === 'jianqi') {
-      FX.wave(hp.x, hp.y - 90, m.x, m.y, k.color, 0.3); Audio2.play('wave');
+      FX.wave(hp.x, hp.y - 90, m.x, m.y, k.color, 0.3);
       setTimeout(() => { this.dmgMon(h.atk * k.mult, k.color); FX.slash(m.x, m.y, 110, -0.5, k.color, 0.3); FX.sparks(m.x, m.y, '#dff6ff', 12); }, 200);
     } else if (id === 'leifa') {
       const boost = (1 + 0.15 * (lv - 1)) * (1 + (S.rootFx().thunder || 0));
-      Audio2.play('thunder'); FX.flash = 0.6;
-      for (let i = 0; i < 3; i++) setTimeout(() => FX.bolt(m.x + U.rand(-30, 30), m.y + 20, '#e6d6ff', 5 - i, 0.3), i * 70);
+      FX.thunderStrike(m.x, m.y + 20, { color: '#e6d6ff', width: 5.5, audio: false, shake: 8 });
+      setTimeout(() => FX.bolt(m.x + U.rand(-36, 36), m.y, '#fff6e4', 2.4, 0.26), 90);
       setTimeout(() => { this.dmgMon(h.atk * k.mult * boost, k.color, { big: true }); FX.ring(m.x, m.y, '#c9a6ff', 20, 170, 0.45, 5); this.mon.stun = 1; this.mon.charge = 0; }, 120);
     } else if (id === 'huti') {
-      h.shield = Math.round(h.max * k.mult * (1 + 0.1 * (lv - 1))); h.shieldT = 8; Audio2.play('shield');
+      h.shield = Math.round(h.max * k.mult * (1 + 0.1 * (lv - 1))); h.shieldT = 8;
       FX.ring(hp.x, hp.y - 70, '#8ff0d8', 20, 140, 0.5, 4); FX.converge(hp.x, hp.y - 70, 'rgba(143,240,216,0.9)', 22, 160, 0.6);
     } else if (id === 'wanjian') {
-      Audio2.play('wave'); FX.swordRain(m.x, m.y, '#ffe7a0'); FX.flash = 0.4;
+      FX.swordRain(m.x, m.y, '#ffe7a0'); FX.flash = 0.4;
       for (let i = 0; i < 5; i++) setTimeout(() => this.on && this.mon.hp > 0 && this.dmgMon((h.atk * k.mult * (1 + 0.15 * (lv - 1))) / 5, k.color, { big: i === 4 }), 380 + i * 90);
     }
   },
@@ -195,7 +197,7 @@ const Battle = {
       h.t = h.interval;
       // 普攻：切到起手式出劍，再收回持劍
       const hb = $('#heroB'); hb.classList.add('strike'); clearTimeout(this.strikeT); this.strikeT = setTimeout(() => hb.classList.remove('strike'), 360);
-      Audio2.play(U.pick(['swing1', 'swing2']));
+      Audio2.swing(this.wpn ? this.wpn.tier : 0);
       setTimeout(() => this.swing(1), 120);
       if (S.wFx('combo') && U.chance(0.3)) setTimeout(() => this.swing(0.6, '連擊'), 330);
     }
@@ -259,6 +261,7 @@ const Battle = {
   end(win, fled) {
     if (!this.on) return;
     this.on = false; FX.ambient = 'qi';
+    if (this.prevMood) Audio2.setMood(this.prevMood);
     const R = this.R, key = `${R.id}-${this.idx}`, first = win && !S.d.cleared[key];
     if (fled) { UI.toast('暫且撤退，回到歷練地圖'); UI.go('map'); return; }
     if (!win) {

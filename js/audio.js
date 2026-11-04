@@ -48,16 +48,19 @@ const Audio2 = {
   play(name) {
     if (!this.ctx) return;
     switch (name) {
-      case 'swing1': this.noise(0.13, 0.22, 3200, 0.7); break;
-      case 'swing2': this.noise(0.13, 0.22, 2600, 0.7); break;
-      case 'swing3': this.noise(0.22, 0.3, 1800, 0.6); this.tone(700, 0.25, 'triangle', 0.08, 500); break;
+      case 'swing1': this.swing(0); break;
+      case 'swing2': this.swing(1); break;
+      case 'swing3': this.swing(3); break;
       case 'hit': this.noise(0.07, 0.35, 900, 1.2); this.tone(140, 0.09, 'square', 0.07, -60); break;
       case 'hitHeavy': this.noise(0.14, 0.45, 500, 1); this.tone(90, 0.18, 'square', 0.1, -40); break;
       case 'hurt': this.tone(240, 0.22, 'sawtooth', 0.12, -140); this.noise(0.1, 0.2, 600); break;
       case 'blink': this.tone(1200, 0.18, 'sine', 0.12, -800); this.noise(0.18, 0.12, 5000, 2); break;
       case 'wave': this.tone(900, 0.28, 'triangle', 0.13, 700); this.noise(0.22, 0.14, 4200, 2); break;
       case 'dash': this.noise(0.32, 0.2, 1800, 0.5); this.tone(500, 0.3, 'sine', 0.1, 700); break;
-      case 'thunder': this.noise(0.7, 0.5, 260, 0.4); this.noise(0.14, 0.35, 3200, 0.5); break;
+      case 'thunder':
+        this.noise(0.85, 0.5, 70, 0.6, 0, 'lowpass'); this.noise(0.45, 0.32, 180, 0.8);
+        this.tone(48, 0.55, 'sine', 0.26, -18); this.noise(0.16, 0.42, 2800, 0.45); this.noise(0.22, 0.2, 420, 0.5, 0.04);
+        break;
       case 'shield': this.tone(440, 0.6, 'sine', 0.13, 440); this.tone(660, 0.6, 'sine', 0.09, 330); break;
       case 'pickup': this.tone(1046, 0.14, 'sine', 0.12, 300); this.tone(1568, 0.18, 'sine', 0.06, 0, 0.05); break;
       case 'bell': this.tone(523, 1.6, 'sine', 0.14); this.tone(1318, 1.2, 'sine', 0.05); this.tone(2093, 0.8, 'sine', 0.03); break;
@@ -74,6 +77,30 @@ const Audio2 = {
       case 'qi': this.tone(180, 2.4, 'sine', 0.07, 180); this.tone(270, 2.4, 'sine', 0.05, 270); break;
     }
   },
+  // 普攻：低音衝擊＋破空，階級越高音色越沉、越亮
+  swing(tier = 0) {
+    if (!this.ctx) return;
+    const t = Math.max(0, Math.min(4, tier | 0));
+    const body = [150, 180, 130, 100, 72][t], air = [2400, 2800, 1900, 1400, 880][t], bite = [560, 680, 500, 360, 220][t];
+    this.noise(0.06, 0.5, body, 1.5, 0, 'lowpass');
+    this.noise(0.11, 0.34, air, 0.65);
+    this.tone(bite, 0.09, t >= 3 ? 'sawtooth' : 'triangle', 0.2, -bite * 0.5);
+    if (t >= 2) this.tone(bite * 1.6, 0.14, 'sine', 0.1, t >= 4 ? 220 : 90);
+    if (t >= 4) this.noise(0.18, 0.22, 360, 0.45, 0.02);
+  },
+  // 每個技能在起手各一句，音量拉高到聽得見
+  skill(id) {
+    if (!this.ctx) return;
+    switch (id) {
+      case 'jianqi': this.tone(780, 0.2, 'triangle', 0.26, 720); this.noise(0.16, 0.24, 3800, 1.1); break;
+      case 'leifa': this.play('thunder'); break;
+      case 'huti': this.tone(392, 0.42, 'sine', 0.26, 160); this.tone(622, 0.48, 'sine', 0.18, 90); this.tone(830, 0.36, 'triangle', 0.12, 0, 0.05); break;
+      case 'wanjian': this.tone(174, 0.5, 'sawtooth', 0.18, -30); this.tone(349, 0.4, 'triangle', 0.22, 180); this.noise(0.32, 0.3, 1600, 0.45); this.tone(1046, 0.18, 'sine', 0.12, 360, 0.06); break;
+      case 'yujian': this.noise(0.14, 0.28, 2600, 0.55); this.tone(880, 0.1, 'square', 0.1, 280); this.tone(1320, 0.09, 'triangle', 0.12, 180, 0.07); this.tone(1760, 0.09, 'sine', 0.1, 140, 0.14); break;
+      case 'jianyi': this.tone(196, 0.65, 'sine', 0.28, -24); this.tone(294, 0.55, 'triangle', 0.16, 30); this.noise(0.35, 0.14, 520, 0.4); break;
+      default: this.play('wave');
+    }
+  },
 
   // ───────── 配樂 ─────────
   // 五聲音階（宮商角徵羽），依場景換調
@@ -84,6 +111,7 @@ const Audio2 = {
     wild:    { root: 130.81, steps: [0, 3, 5, 7, 10], density: 0.4, flute: 0.18 },
     dungeon: { root: 110.0, steps: [0, 3, 5, 7, 10], density: 0.28, flute: 0.08 },
     battle:  { root: 110.0, steps: [0, 3, 5, 7, 10], density: 0.75, flute: 0.05 },
+    gacha:   { root: 185.0, steps: [0, 1, 3, 6, 7, 10], density: 0.96, flute: 0.06 },
   },
   setMood(m) { if (this.mood === m) return; this.mood = m; this.retuneDrone(); },
 
@@ -113,7 +141,7 @@ const Audio2 = {
   },
   schedule() {
     const c = this.ctx; if (!c) return;
-    const S = this.SCALES[this.mood] || this.SCALES.title, step = this.mood === 'battle' ? 0.42 : 0.62;
+    const S = this.SCALES[this.mood] || this.SCALES.title, step = this.mood === 'gacha' ? 0.24 : this.mood === 'battle' ? 0.42 : 0.62;
     while (this.nextT < c.currentTime + 0.4) {
       const t = this.nextT; this.beat++;
       if (Math.random() < S.density) {

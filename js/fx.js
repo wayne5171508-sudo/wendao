@@ -54,10 +54,44 @@ const FX = {
   // 劍光：斜向新月弧
   slash(x, y, r, ang, color, life = 0.28) { this.add({ k: 'slash', x, y, r, ang, color, life }); },
   wave(x0, y0, x1, y1, color, life = 0.32) { this.add({ k: 'wave', x0, y0, x1, y1, color, life }); },
+  boltPath(x0, y0, x1, y1, segs, amp) {
+    const pts = [{ x: x0, y: y0 }];
+    for (let i = 1; i < segs; i++) {
+      const t = i / segs, j = Math.sin(t * Math.PI);
+      pts.push({ x: U.lerp(x0, x1, t) + U.rand(-amp, amp) * j, y: U.lerp(y0, y1, t) + U.rand(-amp, amp) * 0.35 * j });
+    }
+    pts.push({ x: x1, y: y1 });
+    return pts;
+  },
   bolt(x, y, color = '#e6d6ff', width = 4, life = 0.32) {
-    const pts = []; let px = x + U.rand(-60, 60);
-    for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push({ x: U.lerp(px, x, t) + (i && i < 12 ? U.rand(-22, 22) : 0), y: U.lerp(-20, y, t) }); }
-    this.add({ k: 'bolt', pts, color, width, life });
+    const x0 = x + U.rand(-48, 48), pts = this.boltPath(x0, -16, x, y, 14, 26), branches = [];
+    const forks = width >= 5 ? 3 : 2;
+    for (let b = 0; b < forks; b++) {
+      const p = pts[3 + Math.floor(Math.random() * Math.max(1, pts.length - 6))];
+      const ang = U.rand(-1, 1), len = U.rand(36, 100);
+      branches.push(this.boltPath(p.x, p.y, p.x + Math.sin(ang) * len, p.y + Math.abs(Math.cos(ang)) * len * 0.55, 5, 14));
+    }
+    this.add({ k: 'bolt', pts, branches, color, width, life });
+  },
+  // 落雷：分叉電光、白閃、短震、雷鳴，並疊上 thunder_*.webp
+  thunderStrike(x, y, opt = {}) {
+    const color = opt.color || '#e6d6ff';
+    this.bolt(x, y, color, opt.width || 5.5, opt.life || 0.42);
+    this.bolt(x + U.rand(-28, 28), y * 0.9, '#fff6e4', Math.max(2, (opt.width || 5) * 0.4), 0.26);
+    this.flash = opt.flash == null ? 0.85 : opt.flash;
+    if (opt.shake !== 0) this.shake($('#scene'), opt.shake || 9);
+    if (opt.audio !== false) Audio2.play('thunder');
+    if (opt.webp !== false) this.boltWebp(x, y, opt.webpScale || 1);
+  },
+  boltWebp(x, y, scale) {
+    const sc = $('#sceneContent'); if (!sc) return;
+    const bolt = document.createElement('img'), hit = document.createElement('img');
+    bolt.className = 'bt-bolt'; bolt.src = 'assets/fx/thunder_bolt.webp'; bolt.alt = '';
+    bolt.style.left = x + 'px'; bolt.style.height = Math.max(90, y + 30) + 'px';
+    bolt.style.setProperty('--w', String(0.85 * scale)); bolt.style.setProperty('--b', '1.4');
+    hit.className = 'bt-impact'; hit.src = 'assets/fx/thunder_impact.webp'; hit.alt = '';
+    hit.style.left = x + 'px'; hit.style.top = (y + 8) + 'px'; hit.style.setProperty('--s', String(0.75 * scale));
+    sc.append(bolt, hit); setTimeout(() => { bolt.remove(); hit.remove(); }, 720);
   },
   text(x, y, str, color = '#fff', size = 22) {
     // 不飄進頂部怪物名牌與血條（約佔畫面上方 110px）：起點至少在血條下方「字高＋飄升距離」
@@ -144,7 +178,11 @@ const FX = {
           c.fillStyle = '#fff'; c.beginPath(); c.arc(-12, 0, 40, -0.8, 0.8); c.arc(-20, 0, 36, 0.7, -0.7, true); c.closePath(); c.fill();
           break;
         }
-        case 'bolt': c.strokeStyle = p.color; c.lineWidth = p.width; c.shadowColor = p.color; c.shadowBlur = 20; c.beginPath(); p.pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke(); c.lineWidth = p.width * 0.4; c.strokeStyle = '#fff'; c.stroke(); break;
+        case 'bolt': {
+          const stroke = (pts, w, col) => { c.beginPath(); pts.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.strokeStyle = col; c.lineWidth = w; c.shadowColor = p.color; c.shadowBlur = 16; c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = Math.max(1, w * 0.35); c.shadowBlur = 0; c.stroke(); };
+          stroke(p.pts, p.width, p.color); (p.branches || []).forEach((b) => stroke(b, p.width * 0.45, p.color));
+          break;
+        }
         case 'conv': {
           const e = Math.min(1, t / p.life), ee = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2, sw = Math.sin(ee * Math.PI) * 60 * p.curl;
           const dx = p.tx - p.sx, dy = p.ty - p.sy, l = Math.hypot(dx, dy) || 1, x = U.lerp(p.sx, p.tx, ee) + (-dy / l) * sw, y = U.lerp(p.sy, p.ty, ee) + (dx / l) * sw;
@@ -182,6 +220,39 @@ const FX = {
     this.list = this.list.filter((p) => p.t < p.life);
     if (this.flash > 0) { c.fillStyle = `rgba(230,220,255,${this.flash * 0.45})`; c.fillRect(0, 0, W, H); this.flash = Math.max(0, this.flash - dt * 2.5); }
   },
+
+  // 洞府打坐：光點從光環升起。手機少一點；減少動態時不跑；分頁隱藏時停筆
+  meditate(cv) {
+    this.medStop();
+    if (!cv) return;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const cap = reduce ? 0 : Math.min(innerWidth, innerHeight) < 760 ? 12 : 24;
+    if (!cap) return;
+    this.medCv = cv;
+    const box = cv.parentElement.getBoundingClientRect(), dpr = Math.min(1.5, devicePixelRatio || 1);
+    cv.width = Math.max(1, Math.round(box.width * dpr)); cv.height = Math.max(1, Math.round(box.height * dpr));
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = box.width, H = box.height;
+    const spawn = (anywhere) => ({ x: W * (0.32 + Math.random() * 0.36), y: anywhere ? Math.random() * H * 0.8 : H * 0.7, r: 1 + Math.random() * 1.7, vy: -(10 + Math.random() * 20), vx: (Math.random() - 0.5) * 10, a: 0.28 + Math.random() * 0.5, life: 2.2 + Math.random() * 2, t: anywhere ? Math.random() * 1.5 : 0, gold: Math.random() < 0.3 });
+    const ps = Array.from({ length: cap }, () => spawn(true));
+    let last = performance.now();
+    const loop = (now) => {
+      if (!cv.isConnected) { this.medStop(); return; }
+      this.medRaf = requestAnimationFrame(loop);
+      if (document.hidden) return;
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      ctx.clearRect(0, 0, W, H); ctx.globalCompositeOperation = 'lighter';
+      for (const p of ps) {
+        p.t += dt; if (p.t > p.life) Object.assign(p, spawn(false));
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        const k = Math.sin(Math.min(1, p.t / p.life) * Math.PI) * p.a;
+        ctx.fillStyle = p.gold ? `rgba(255,214,140,${k})` : `rgba(160,226,255,${k})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+      }
+    };
+    this.medRaf = requestAnimationFrame(loop);
+  },
+  medStop() { if (this.medRaf) cancelAnimationFrame(this.medRaf); this.medRaf = 0; this.medCv = null; },
 };
 
 function blob(c, x, y, r, color) { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); }

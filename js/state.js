@@ -20,7 +20,7 @@ const S = {
     };
   },
   load() {
-    try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { this.d = Object.assign(this.fresh(), JSON.parse(raw)); this.migrate(); this.fixSlots(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; return true; } } catch (e) {}
+    try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { this.d = Object.assign(this.fresh(), JSON.parse(raw)); this.migrate(); this.fixSlots(); this.fixGacha(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; return true; } } catch (e) {}
     this.d = this.fresh(); return false;
   },
   // v1 的隨機法寶改為兵器系統：舊法寶折成靈石
@@ -32,13 +32,25 @@ const S = {
   },
   // 佩戴欄只能放已擁有的兵器
   fixSlots() { this.d.wslot = this.d.wslot.map((id) => (id && this.d.weapons[id] ? id : null)); },
+  // 保底是「距上次仙階的抽數」，合法範圍 0..pity-1。舊檔若一直累加，載入時夾回上限，其餘欄位不動
+  fixGacha() {
+    const d = this.d, cap = GACHA.pity - 1;
+    if (!d.gacha || typeof d.gacha !== 'object' || Array.isArray(d.gacha)) d.gacha = { wpn: 0, art: 0 };
+    const norm = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(cap, Math.floor(n)) : 0; };
+    d.gacha.wpn = norm(d.gacha.wpn); d.gacha.art = norm(d.gacha.art);
+  },
+  pityLeft(pool) {
+    const g = this.d && this.d.gacha, n = g ? Number(g[pool]) : NaN;
+    const cur = Number.isFinite(n) && n > 0 ? Math.min(GACHA.pity - 1, Math.floor(n)) : 0;
+    return GACHA.pity - cur;
+  },
   save() { if (!this.d) return; this.d.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.d)); } catch (e) {} },
   // 匯入存檔：驗證格式後覆蓋；成功回傳 true，失敗回傳原因
   importText(text) {
     let d;
     try { d = JSON.parse(text); } catch (e) { return '存檔格式不正確，無法讀取'; }
     if (!d || typeof d !== 'object' || typeof d.lv !== 'number' || !d.inv || typeof d.inv !== 'object' || !d.root) return '這不是《問道青冥》的存檔';
-    const keep = this.d; this.d = Object.assign(this.fresh(), d); this.migrate(); this.fixSlots();
+    const keep = this.d; this.d = Object.assign(this.fresh(), d); this.migrate(); this.fixSlots(); this.fixGacha();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.d)); } catch (e) { this.d = keep; return '瀏覽器無法寫入存檔'; }
     return true;
   },
@@ -104,17 +116,23 @@ const S = {
 
   // ───────── 機緣抽取 ─────────
   rollTier(pool) {
-    const g = this.d.gacha;
+    const g = this.d.gacha || (this.d.gacha = { wpn: 0, art: 0 });
+    let n = Number(g[pool]);
+    if (!Number.isFinite(n) || n < 0) n = 0;
+    else n = Math.floor(n);
     let tier;
-    if (++g[pool] >= GACHA.pity) tier = U.chance(1 / 6) ? 4 : 3;
+    // 每抽 +1；滿保底必出仙階以上。自然抽到仙、神同樣歸零，計數不會超過 pity-1
+    if (++n >= GACHA.pity) tier = U.chance(1 / 6) ? 4 : 3;
     else { let r = Math.random(); tier = GACHA.rates.findIndex((p) => (r -= p) < 0); if (tier < 0) tier = 0; }
-    if (tier >= 3) g[pool] = 0;
+    g[pool] = tier >= 3 ? 0 : n;
     return tier;
   },
   // 單抽每日首抽免費；十連保底一個靈階以上。回傳結果陣列，靈石不足回傳 null
   draw(pool, n) {
     const t = this.today(), free = n === 1 && !t.free, cost = n === 10 ? GACHA.cost10 : GACHA.cost;
-    if (!free && !this.take('stone', cost)) return null;
+    // 費用一定是正數扣除。付不起就整次取消（不抽、不加保底）；扣完不會是負數
+    if (!free && (!(cost > 0) || !this.take('stone', cost))) return null;
+    if (!free && this.d.inv.stone < 0) this.d.inv.stone = 0;
     if (free) t.free = true;
     const tiers = Array.from({ length: n }, () => this.rollTier(pool));
     if (n === 10 && tiers.every((x) => x === 0)) tiers[9] = 1;
@@ -123,7 +141,7 @@ const S = {
   },
   grantWeapon(tier) {
     const w = WEAPONS.find((x) => x.tier === tier), isNew = !this.d.weapons[w.id];
-    return { tier, type: 'w', id: w.id, name: w.name, isNew, note: this.gainWeapon(w.id) };
+    return { tier, type: 'w', id: w.id, name: w.name, isNew, note: this.gainWeapon(w.id, { gacha: true }) };
   },
   grantArt(tier) {
     const R = ART_GACHA[tier];
@@ -188,10 +206,16 @@ const S = {
   skillOpen(sk) { if (sk.wt !== undefined) { const t = this.wTop(); return !!t && t.tier >= sk.wt; } return this.artLv(sk.from) > 0; },
 
   // ───────── 兵器 ─────────
-  // 取得兵器；已擁有則折成玄鐵與靈石，回傳說明文字
-  gainWeapon(id) {
+  // 取得兵器；已擁有則折成玄鐵與靈石，回傳說明文字。機緣除外：折返靈石會蓋過十連花費
+  gainWeapon(id, opt) {
     const w = WEAPONS.find((x) => x.id === id);
-    if (this.d.weapons[id]) { const ore = 5 * (w.tier + 1), st = 200 * (w.tier + 1); this.add('ore', ore); this.add('stone', st); return `${w.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
+    if (this.d.weapons[id]) {
+      const ore = 5 * (w.tier + 1), st = 200 * (w.tier + 1);
+      this.add('ore', ore);
+      if (opt && opt.gacha) return `${w.name}重複，化為玄鐵 ×${ore}`;
+      this.add('stone', st);
+      return `${w.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`;
+    }
     this.d.weapons[id] = { lv: 0, brk: 0, fail: 0 };
     // 主手空著就放主手；主手已有劍就放副手，並標記讓法寶頁高亮
     if (!this.d.wslot[0]) this.d.wslot[0] = id;
