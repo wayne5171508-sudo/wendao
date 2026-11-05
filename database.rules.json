@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "users": {
+      "$uid": { ".read": "auth != null", ".write": "auth != null && auth.uid === $uid" }
+    },
+    "pids": {
+      "$pid": { ".read": "auth != null", ".write": "auth != null && newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)" }
+    },
+    "status": {
+      "$uid": { ".read": "auth != null", ".write": "auth != null && auth.uid === $uid" }
+    },
+    "saves": {
+      "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" }
+    },
+    "inbox": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$msg": { ".write": "auth != null && (auth.uid === $uid || (!data.exists() && newData.child('from').val() === auth.uid))" }
+      }
+    }
+  }
+}

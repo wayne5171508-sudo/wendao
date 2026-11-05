@@ -64,7 +64,7 @@ const stoneText = (t) => escHtml(t).replace(/靈石\s*([+＋\-−]?)\s*([\d,.]+[
 // 新增素材只要照檔名放進去，不必改程式。找不到圖才退回「彩色圓球＋單字」並在 console 警告一次；圖片載入失敗時 main.js 也會換回圓球
 const ICON_DIR = { item: 'assets/item/', art: 'assets/art/', ui: 'assets/ui/' };
 // 圓球備援的單字與顏色（物品用 ITEMS 的顏色）
-const ICON_BALL = { exp: ['修', '#f2dc94'], stone: ['石'], scroll: ['卷'], ore: ['鐵'], star: ['砂'], sign: ['簽', '#9fe8d8'], quest: ['任', '#ffe7a0'], alch_seal: ['煉', '#ff8a6a'] };
+const ICON_BALL = { exp: ['修', '#f2dc94'], stone: ['石'], scroll: ['卷'], ore: ['鐵'], star: ['砂'], sign: ['簽', '#9fe8d8'], quest: ['任', '#ffe7a0'], alch_seal: ['煉', '#ff8a6a'], partner: ['侶', '#ff9ec4'] };
 const iconWarned = {};
 const iconSrc = (kind, id) => {
   const p = `${ICON_DIR[kind]}${id}.webp`;
@@ -224,11 +224,12 @@ const UI = {
       // 每個畫面只有一顆朱紅主印：修為滿時是「突破」，平時是「歷練」
       const canBreak = full && d.lv < MAX_LV;
       $('#hAct').innerHTML = canBreak
-        ? `<button class="seal glow" id="bBreak">突破<small>${isMajor(d.lv) ? '大境界・引天劫' : '衝擊瓶頸'}</small></button><button class="seal sm ghost" id="bMap">歷練</button>`
-        : `<button class="seal" id="bMap">歷練<small>斬妖得修為與靈石</small></button>${S.has('p_qi') ? `<button class="seal sm ghost" id="bQi">聚氣<small>×${d.inv.p_qi}</small></button>` : ''}`;
+        ? `<button class="seal glow" id="bBreak">突破<small>${isMajor(d.lv) ? '大境界・引天劫' : '衝擊瓶頸'}</small></button><button class="seal sm ghost" id="bMap">歷練</button><button class="seal sm ghost" id="bDao">道侶</button>`
+        : `<button class="seal" id="bMap">歷練<small>斬妖得修為與靈石</small></button>${S.has('p_qi') ? `<button class="seal sm ghost" id="bQi">聚氣<small>×${d.inv.p_qi}</small></button>` : ''}<button class="seal sm ghost" id="bDao">道侶<small>合修</small></button>`;
       const b = $('#bBreak'); if (b) b.onclick = () => this.breakModal();
       const q = $('#bQi'); if (q) q.onclick = () => { const r = S.usePill('p_qi'); if (r === true) { this.toast('丹藥化開，修為大進', '#9fe8ff'); FX.converge(FX.w / 2, FX.h * 0.6, 'rgba(159,232,255,0.9)', 26, 220, 1); Audio2.play('qi'); this.homeRefresh(true); this.hud(); } else if (r) this.toast(r); };
       $('#bMap').onclick = () => this.go('map');
+      const bd = $('#bDao'); if (bd) bd.onclick = () => { Audio2.play('page'); this.dao(); };
       $('#hTip').textContent = full ? (d.lv >= MAX_LV ? '已臻此界之巔。' : '修為已滿，靈氣在丹田翻湧。') : '洞府中靈氣自行運轉，離線時也會累積（最多八個時辰）。';
     }
   },
@@ -352,7 +353,7 @@ const UI = {
   arts() {
     Audio2.setMood('sect');
     this.setBg('sect', 'dim');
-    const best = ['wanjian', 'leifa', 'huti', 'jianqi'].find((id) => S.skillOpen(SKILLS.find((k) => k.id === id))) || 'jianqi';
+    const best = ['wanjian', 'leifa', 'huti', 'jianqi', 'yujian', 'jianyi'].find((id) => CAST_IMG[id] && S.skillOpen(SKILLS.find((k) => k.id === id))) || Object.keys(CAST_IMG)[0];
     this.scene(`<div class="hero-stage cast"><img src="${CAST_IMG[best]}" alt="${HERO_NAME}施展${SKILLS.find((k) => k.id === best).name}"></div>`);
     const rows = ARTS.map((A) => {
       const st = S.artState(A), reqOk = S.d.lv >= A.req * 3;
@@ -374,7 +375,7 @@ const UI = {
     Audio2.setMood('sect');
     this.setBg('sect', 'dim');
     const top = S.wTop(), nitian = S.d.wslot[0] === 'nitian', key = nitian ? 'nitian' : top ? 'hold' : 'front';
-    const fig = nitian ? `<div class="hfig nitian" style="aspect-ratio:${747 / 1045}">${wAura(WEAPONS.find((w) => w.id === 'nitian'))}<img src="assets/hero/hold_nitian.webp" alt="${HERO_NAME}持逆天劍"><i class="nt-bolt"></i></div>`
+    const fig = nitian ? `<div class="hfig nitian" style="aspect-ratio:${Char.ar('hold_nitian', 747 / 1045)}">${wAura(WEAPONS.find((w) => w.id === 'nitian'))}<img src="assets/hero/hold_nitian.webp" alt="${HERO_NAME}持逆天劍"><i class="nt-bolt"></i></div>`
       : top ? heroArmed(top, 'hold') : `<img src="${IMG_SRC.hero_front}" alt="${HERO_NAME}">`;
     this.scene(`${heaven(top)}<div class="hero-stage gear ${this._heroKey && this._heroKey !== key ? 'swap' : ''}">${fig}</div>`);
     if (key === 'nitian' && this._heroKey && this._heroKey !== key) { FX.flash = 0.6; Audio2.play('thunder'); }   // 神器出鞘
@@ -622,12 +623,14 @@ const UI = {
         <div class="li"><i class="ico" style="--c:#c8b48a">靜</i><div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">震</i><div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">卷</i><div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
+        <div class="li"><i class="ico" style="--c:#9fe8d8">雲</i><div><h4>雲端帳號</h4><p>${Cloud.on ? `已登入 ${Cloud.user.email || Cloud.user.name}，存檔自動同步` : '以 Google 登入，存檔上雲、可與道侶連線'}</p></div><button class="seal sm ${Cloud.on ? 'ghost' : ''}" id="sCloud">${Cloud.on ? '登出' : '登入'}</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">存</i><div><h4>匯出存檔</h4><p>下載存檔檔案，也可複製文字備份</p></div><button class="seal sm ghost" id="sExp">匯出</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">讀</i><div><h4>匯入存檔</h4><p>換手機或清除快取後還原進度</p></div><button class="seal sm ghost" id="sImp">匯入</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">歸</i><div><h4>回標題畫面</h4><p>存檔後回到標題，可再「續緣」</p></div><button class="seal sm ghost" id="sTitle">回標題</button></div>
         <div class="li"><i class="ico" style="--c:#ff8a8a">重</i><div><h4>重新修行</h4><p>刪除存檔，從青石村重新開始</p></div><button class="seal sm" id="sReset">重修</button></div>
       </div>`, {
       '#sMute': () => { Audio2.toggleMute(); this.settings(); },
+      '#sCloud': async () => { if (Cloud.on) { await Cloud.signOut(); this.settings(); } else { this.close(); Cloud.signIn(); } },
       '#sShake': () => { FX.noShake = !FX.noShake; d.settings.shake = !FX.noShake; S.save(); this.settings(); },
       '#sStory': () => { this.close(); Story.replay(); },
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),

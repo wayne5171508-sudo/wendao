@@ -389,6 +389,7 @@ const Battle = {
     }
     // 結算
     S.addExp(this.loot.exp); S.add('stone', this.loot.stone);
+    Dao.onExplore();   // 道侶同行（在線）時親密度提升
     const got = [];
     for (const [id, pr, a, b] of DROPS[R.id]) if (U.chance(pr * (first ? 1.5 : 1))) { const n = U.randi(a, b); S.add(id, n); got.push(`${ico(id)}<span>${ITEMS[id].name} ×${n}</span>`); }
     // 秘境妖將掉落兵器

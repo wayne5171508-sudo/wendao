@@ -25,7 +25,7 @@ const Game = {
     };
     document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') imgFail(e.target); }, true);
     [...document.images].forEach((i) => { if (i.complete && !i.naturalWidth && i.getAttribute('src')) imgFail(i); });   // 程式啟動前就已失敗的（頂部資源列）
-    const had = S.load();
+    const had = S.load(); Char.apply(); Cloud.init();
     FX.noShake = S.d.settings.shake === false;
     // 點擊推進對話；按鈕
     $('#dlg').addEventListener('click', () => Story.advance());
@@ -56,7 +56,7 @@ const Game = {
   async preload() {
     const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/(?!gacha_)|\/ui\/stone|wuxing|pillar_/;
     const list = all.filter((s) => first.test(s)), bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
-    const later = all.filter((s) => !first.test(s));
+    const later = all.filter((s) => !first.test(s) && !s.startsWith('assets/dual/'));
     let done = 0;
     const tick = () => { done++; const p = Math.round((100 * done) / list.length); bar.style.width = p + '%'; txt.textContent = `載入中 ${p}%`; };
     const one = (src) => new Promise((res) => { const i = new Image(); i.onload = i.onerror = () => { tick(); res(); }; i.src = src; });
@@ -71,16 +71,21 @@ const Game = {
       <div class="tbtns">${hasSave ? `<span id="saveInfo">${lvName(S.d.lv)}・${ROOTS[S.d.root].name}（${S.d.grade || '黃'}品）</span>` : ''}
         <button class="seal${hasSave ? ' ghost' : ''}" id="tNew">入道<span class="cap">新的修行</span></button>
         ${hasSave ? '<button class="seal" id="tCont">續緣<span class="cap">繼續修行</span></button>' : ''}</div>
-      <button class="t-imp" id="tImp">匯入存檔</button>`);
+      <button class="t-imp" id="tImp">匯入存檔</button><button class="t-imp t-cloud" id="tCloud">${Cloud.on ? '雲端已登入' : '雲端登入'}</button>`);
     $('#tNew').onclick = () => {
       if (hasSave) { UI.modal('新的修行', '<p class="big">將覆蓋現有存檔，確定嗎？</p><div class="row center"><button class="seal" id="nY">重新入道</button><button class="seal ghost sm" id="nN">取消</button></div>', { '#nY': () => { UI.close(); this.begin(); }, '#nN': () => UI.close() }); return; }
       this.begin();
     };
     const c = $('#tCont'); if (c) c.onclick = () => this.resume();
     $('#tImp').onclick = () => UI.importSave(true);
+    $('#tCloud').onclick = () => (Cloud.on ? UI.toast(`已登入 ${Cloud.user.email || ''}`, '#9fe8d8') : Cloud.signIn());
   },
   async begin() {
-    Audio2.unlock(); S.reset(); S.d = S.fresh(); S.save();
+    Audio2.unlock(); S.reset(); S.d = S.fresh();
+    // 選擇角色（男主／女修），之後名稱、劇情稱呼、立繪都跟著切換
+    S.d.dao.char = await new Promise((res) => UI.modal('選擇修行之人', `<div class="list">${Object.values(CHARACTERS).map((C) => `<div class="li"><i class="ico" style="--c:${C.gender === 'f' ? '#ff9ec4' : '#9fe8ff'}">${C.gender === 'f' ? '女' : '男'}</i><div><h4>${C.name}</h4><p>${C.gender === 'f' ? '女修' : '男修'}</p></div><button class="seal sm" data-ch="${C.id}">選擇</button></div>`).join('')}</div>`,
+      { '[data-ch]': (el) => { UI.close(); res(el.dataset.ch); } }));
+    Char.apply(); S.save();
     await UI.fade(true); UI.fade(false);
     Story.intro();
   },
