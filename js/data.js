@@ -16,7 +16,7 @@ const U = {
   today() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; },
 };
 
-const HERO_NAME = '林清遠';
+let HERO_NAME = '林清遠';   // 依所選角色變更（js/dao.js 的 CHARACTERS）
 const STAGES = ['初期', '中期', '後期'];
 const REALMS = ['練氣', '築基', '金丹', '元嬰'];
 const MAX_LV = REALMS.length * 3 - 1;

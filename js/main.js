@@ -25,7 +25,7 @@ const Game = {
     };
     document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') imgFail(e.target); }, true);
     [...document.images].forEach((i) => { if (i.complete && !i.naturalWidth && i.getAttribute('src')) imgFail(i); });   // 程式啟動前就已失敗的（頂部資源列）
-    const had = S.load();
+    const had = S.load(); Char.apply();
     FX.noShake = S.d.settings.shake === false;
     // 點擊推進對話；按鈕
     $('#dlg').addEventListener('click', () => Story.advance());
@@ -80,7 +80,11 @@ const Game = {
     $('#tImp').onclick = () => UI.importSave(true);
   },
   async begin() {
-    Audio2.unlock(); S.reset(); S.d = S.fresh(); S.save();
+    Audio2.unlock(); S.reset(); S.d = S.fresh();
+    // 選擇角色（男主／女修），之後名稱、劇情稱呼、立繪都跟著切換
+    S.d.dao.char = await new Promise((res) => UI.modal('選擇修行之人', `<div class="list">${Object.values(CHARACTERS).map((C) => `<div class="li"><i class="ico" style="--c:${C.gender === 'f' ? '#ff9ec4' : '#9fe8ff'}">${C.gender === 'f' ? '女' : '男'}</i><div><h4>${C.name}</h4><p>${C.gender === 'f' ? '女修' : '男修'}</p></div><button class="seal sm" data-ch="${C.id}">選擇</button></div>`).join('')}</div>`,
+      { '[data-ch]': (el) => { UI.close(); res(el.dataset.ch); } }));
+    Char.apply(); S.save();
     await UI.fade(true); UI.fade(false);
     Story.intro();
   },

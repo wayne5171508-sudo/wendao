@@ -64,7 +64,7 @@ const stoneText = (t) => escHtml(t).replace(/靈石\s*([+＋\-−]?)\s*([\d,.]+[
 // 新增素材只要照檔名放進去，不必改程式。找不到圖才退回「彩色圓球＋單字」並在 console 警告一次；圖片載入失敗時 main.js 也會換回圓球
 const ICON_DIR = { item: 'assets/item/', art: 'assets/art/', ui: 'assets/ui/' };
 // 圓球備援的單字與顏色（物品用 ITEMS 的顏色）
-const ICON_BALL = { exp: ['修', '#f2dc94'], stone: ['石'], scroll: ['卷'], ore: ['鐵'], star: ['砂'], sign: ['簽', '#9fe8d8'], quest: ['任', '#ffe7a0'], alch_seal: ['煉', '#ff8a6a'] };
+const ICON_BALL = { exp: ['修', '#f2dc94'], stone: ['石'], scroll: ['卷'], ore: ['鐵'], star: ['砂'], sign: ['簽', '#9fe8d8'], quest: ['任', '#ffe7a0'], alch_seal: ['煉', '#ff8a6a'], partner: ['侶', '#ff9ec4'] };
 const iconWarned = {};
 const iconSrc = (kind, id) => {
   const p = `${ICON_DIR[kind]}${id}.webp`;
@@ -224,11 +224,12 @@ const UI = {
       // 每個畫面只有一顆朱紅主印：修為滿時是「突破」，平時是「歷練」
       const canBreak = full && d.lv < MAX_LV;
       $('#hAct').innerHTML = canBreak
-        ? `<button class="seal glow" id="bBreak">突破<small>${isMajor(d.lv) ? '大境界・引天劫' : '衝擊瓶頸'}</small></button><button class="seal sm ghost" id="bMap">歷練</button>`
-        : `<button class="seal" id="bMap">歷練<small>斬妖得修為與靈石</small></button>${S.has('p_qi') ? `<button class="seal sm ghost" id="bQi">聚氣<small>×${d.inv.p_qi}</small></button>` : ''}`;
+        ? `<button class="seal glow" id="bBreak">突破<small>${isMajor(d.lv) ? '大境界・引天劫' : '衝擊瓶頸'}</small></button><button class="seal sm ghost" id="bMap">歷練</button><button class="seal sm ghost" id="bDao">道侶</button>`
+        : `<button class="seal" id="bMap">歷練<small>斬妖得修為與靈石</small></button>${S.has('p_qi') ? `<button class="seal sm ghost" id="bQi">聚氣<small>×${d.inv.p_qi}</small></button>` : ''}<button class="seal sm ghost" id="bDao">道侶<small>合修</small></button>`;
       const b = $('#bBreak'); if (b) b.onclick = () => this.breakModal();
       const q = $('#bQi'); if (q) q.onclick = () => { const r = S.usePill('p_qi'); if (r === true) { this.toast('丹藥化開，修為大進', '#9fe8ff'); FX.converge(FX.w / 2, FX.h * 0.6, 'rgba(159,232,255,0.9)', 26, 220, 1); Audio2.play('qi'); this.homeRefresh(true); this.hud(); } else if (r) this.toast(r); };
       $('#bMap').onclick = () => this.go('map');
+      const bd = $('#bDao'); if (bd) bd.onclick = () => { Audio2.play('page'); this.dao(); };
       $('#hTip').textContent = full ? (d.lv >= MAX_LV ? '已臻此界之巔。' : '修為已滿，靈氣在丹田翻湧。') : '洞府中靈氣自行運轉，離線時也會累積（最多八個時辰）。';
     }
   },
