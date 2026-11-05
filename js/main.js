@@ -25,7 +25,7 @@ const Game = {
     };
     document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') imgFail(e.target); }, true);
     [...document.images].forEach((i) => { if (i.complete && !i.naturalWidth && i.getAttribute('src')) imgFail(i); });   // 程式啟動前就已失敗的（頂部資源列）
-    const had = S.load(); Char.apply();
+    const had = S.load(); Char.apply(); Cloud.init();
     FX.noShake = S.d.settings.shake === false;
     // 點擊推進對話；按鈕
     $('#dlg').addEventListener('click', () => Story.advance());
@@ -71,13 +71,14 @@ const Game = {
       <div class="tbtns">${hasSave ? `<span id="saveInfo">${lvName(S.d.lv)}・${ROOTS[S.d.root].name}（${S.d.grade || '黃'}品）</span>` : ''}
         <button class="seal${hasSave ? ' ghost' : ''}" id="tNew">入道<span class="cap">新的修行</span></button>
         ${hasSave ? '<button class="seal" id="tCont">續緣<span class="cap">繼續修行</span></button>' : ''}</div>
-      <button class="t-imp" id="tImp">匯入存檔</button>`);
+      <button class="t-imp" id="tImp">匯入存檔</button><button class="t-imp t-cloud" id="tCloud">${Cloud.on ? '雲端已登入' : '雲端登入'}</button>`);
     $('#tNew').onclick = () => {
       if (hasSave) { UI.modal('新的修行', '<p class="big">將覆蓋現有存檔，確定嗎？</p><div class="row center"><button class="seal" id="nY">重新入道</button><button class="seal ghost sm" id="nN">取消</button></div>', { '#nY': () => { UI.close(); this.begin(); }, '#nN': () => UI.close() }); return; }
       this.begin();
     };
     const c = $('#tCont'); if (c) c.onclick = () => this.resume();
     $('#tImp').onclick = () => UI.importSave(true);
+    $('#tCloud').onclick = () => (Cloud.on ? UI.toast(`已登入 ${Cloud.user.email || ''}`, '#9fe8d8') : Cloud.signIn());
   },
   async begin() {
     Audio2.unlock(); S.reset(); S.d = S.fresh();

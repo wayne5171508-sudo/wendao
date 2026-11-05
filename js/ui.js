@@ -623,12 +623,14 @@ const UI = {
         <div class="li"><i class="ico" style="--c:#c8b48a">靜</i><div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">震</i><div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">卷</i><div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
+        <div class="li"><i class="ico" style="--c:#9fe8d8">雲</i><div><h4>雲端帳號</h4><p>${Cloud.on ? `已登入 ${Cloud.user.email || Cloud.user.name}，存檔自動同步` : '以 Google 登入，存檔上雲、可與道侶連線'}</p></div><button class="seal sm ${Cloud.on ? 'ghost' : ''}" id="sCloud">${Cloud.on ? '登出' : '登入'}</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">存</i><div><h4>匯出存檔</h4><p>下載存檔檔案，也可複製文字備份</p></div><button class="seal sm ghost" id="sExp">匯出</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">讀</i><div><h4>匯入存檔</h4><p>換手機或清除快取後還原進度</p></div><button class="seal sm ghost" id="sImp">匯入</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">歸</i><div><h4>回標題畫面</h4><p>存檔後回到標題，可再「續緣」</p></div><button class="seal sm ghost" id="sTitle">回標題</button></div>
         <div class="li"><i class="ico" style="--c:#ff8a8a">重</i><div><h4>重新修行</h4><p>刪除存檔，從青石村重新開始</p></div><button class="seal sm" id="sReset">重修</button></div>
       </div>`, {
       '#sMute': () => { Audio2.toggleMute(); this.settings(); },
+      '#sCloud': async () => { if (Cloud.on) { await Cloud.signOut(); this.settings(); } else { this.close(); Cloud.signIn(); } },
       '#sShake': () => { FX.noShake = !FX.noShake; d.settings.shake = !FX.noShake; S.save(); this.settings(); },
       '#sStory': () => { this.close(); Story.replay(); },
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),

@@ -115,10 +115,12 @@ const Dao = {
     DaoNet.send({ type: 'bond', name: CHARACTERS[this.g.char].name, pid: this.g.pid });
     this.note(`與${name}結為道侶`); S.save(); return true;
   },
+  // 連線締結成功（雙方都呼叫）
+  bondWith(P) { this.g.partner = { name: P.name, pid: P.pid || null, uid: P.uid || null, since: Date.now() }; this.g.intimacy = 0; this.note(`與${P.name}結為道侶`); S.save(); },
   // 解除：親密度歸零；合修室、雙修靈力、印記、悟性心魔抗性保留（屬於自己的修行）
-  unbond() {
+  unbond(silent) {
     if (!this.g.partner) return false;
-    DaoNet.send({ type: 'unbond', pid: this.g.pid });
+    if (!silent) DaoNet.send({ type: 'unbond', pid: this.g.pid });
     this.note(`與${this.g.partner.name}解除道侶`); this.g.partner = null; this.g.intimacy = 0; this.g.streak = 0; S.save(); return true;
   },
   gift(id) {
@@ -154,11 +156,11 @@ const Dao = {
     S.save(); return { exp: S.d.exp - before, cost };
   },
   // 雙修結算（演出結束或跳過時呼叫一次）
-  dualResult(id, intensity) {
-    const R = this.room(id), g = this.g, t = this.today(), lv = this.lv(), cost = R.upkeep * (1 + Math.floor(S.d.lv / 3)) * 2;
+  dualResult(id, intensity, guest) {
+    const R = this.room(id), g = this.g, t = this.today(), lv = this.lv(), cost = guest ? 0 : R.upkeep * (1 + Math.floor(S.d.lv / 3)) * 2;
     if (t.dual >= DAO.dualDaily) return { err: `今日雙修已達 ${DAO.dualDaily} 次` };
     if (!S.take('stone', cost)) return { err: `靈石不足（需 ${cost}）` };
-    t.dual++; g.sessions++; g.rooms[id].uses++;
+    t.dual++; g.sessions++; if (g.rooms[id]) g.rooms[id].uses++;
     const before = S.d.exp; S.addExp(S.rate() * DAO.dualSec * R.bonus * DAO.dualMult(lv));
     const yest = new Date(Date.now() - 864e5), ys = `${yest.getFullYear()}-${yest.getMonth() + 1}-${yest.getDate()}`;
     g.streak = g.lastDual === U.today() ? g.streak : g.lastDual === ys ? g.streak + 1 : 1; g.lastDual = U.today();
@@ -192,8 +194,8 @@ const DualShow = {
   on(fn) { this.handlers.push(fn); },
   emit(evt) { for (const fn of this.handlers) { try { fn(evt); } catch (e) { console.warn('[雙修演出] 外部處理錯誤', e); } } },
   // 回傳 Promise：演出結束（含跳過）時 resolve
-  play(roomId, intensity, speed = 1) {
-    const g = Dao.g, style = g.rooms[roomId].style, flags = Dao.flags();
+  play(roomId, intensity, speed = 1, style0) {
+    const g = Dao.g, style = style0 || (g.rooms[roomId] ? g.rooms[roomId].style : Dao.room(roomId).styles[0].id), flags = Dao.flags();
     this.state = 'playing'; this.speed = speed; this.skipFlag = false; this.idx = -1;
     this.ctx = { room: roomId, style, scene: roomScene(roomId, style), intensity, flags };
     return new Promise(async (done) => {
@@ -266,7 +268,8 @@ Story.say = ((say0) => function (who, text) { return say0.call(this, who, Char.t
 Object.assign(UI, {
   daoRoom: 'lingquan', daoInt: 'mild', daoSpeed: 1,
   dao() {
-    const g = Dao.g, C = Char.cur(), P = g.partner, lv = Dao.lv(), next = Dao.nextAt(), t = Dao.today(), online = DaoNet.online();
+    const g = Dao.g, C = Char.cur(), P = g.partner, lv = Dao.lv(), next = Dao.nextAt(), t = Dao.today(), online = DaoNet.online(), cloud = typeof Cloud !== 'undefined' && Cloud.on;
+    this.tab = 'dao'; this.navLock();
     Audio2.setMood('sect'); this.setBg('dongfu', 'dim'); Audio2.loop && Audio2.loop('meditate', false);
     this.scene(`<div class="dao-hero"><div class="banner static" style="animation:none;top:20%"><b style="font-size:clamp(30px,9vw,48px)">道侶・合修</b><span>${P ? `${C.name} ✦ ${P.name}・${Dao.lvName()}` : '尚未結為道侶'}</span></div></div>`);
     const partner = P
@@ -275,8 +278,14 @@ Object.assign(UI, {
          <div class="dao-gifts"><small>贈送靈物（今日 ${t.gift}/${DAO.giftDaily}）</small>${Object.keys(DAO.gifts).filter((k) => S.has(k)).map((k) => `<button class="dao-gift" data-gift="${k}">${mIco(k)}${ITEMS[k].name}<b>+${DAO.gifts[k]}</b></button>`).join('') || '<p class="note">身上沒有可贈送的靈物</p>'}</div>
          <div class="row" style="gap:8px;justify-content:flex-end"><button class="seal sm ghost" id="dSim">${g.simOnline ? '模擬在線・開' : '模擬在線・關'}</button><button class="seal sm ghost" id="dUnbond">解除道侶</button></div>
          <p class="note">「模擬在線」為測試用：目前尚未接上連線服務，開啟後視為道侶在線，可測試雙修流程。</p>`
-      : `<p class="note">${Dao.canBond() ? '於青冥宗廣場與心儀之人締結道侶。輸入對方的道號（與道侶編號，可留空）。' : '需先通過青冥宗三場試劍，才能在宗門廣場締結道侶。'}</p>
-         <div class="dao-form"><input id="dName" maxlength="8" placeholder="道侶道號" ${Dao.canBond() ? '' : 'disabled'}><input id="dPid" maxlength="12" placeholder="道侶編號（選填）" ${Dao.canBond() ? '' : 'disabled'}><button class="seal sm" id="dBond" ${Dao.canBond() ? '' : 'disabled'}>締結</button></div>`;
+      : !Dao.canBond() ? '<p class="note">需先通過青冥宗三場試劍，才能在宗門廣場締結道侶。</p>'
+      : cloud ? `<p class="note">輸入對方的道侶編號（對方需已登入），對方同意後即結為道侶。</p>
+         <div class="dao-form"><input id="dPid" maxlength="12" placeholder="對方的道侶編號"><button class="seal sm" id="dBond">送出邀請</button></div>`
+      : `<p class="note">登入雲端帳號後，可與另一支手機上的道侶連線。未登入時可先以道號締結（單機）。</p>
+         <div class="dao-form"><input id="dName" maxlength="8" placeholder="道侶道號"><input id="dPid" maxlength="12" placeholder="道侶編號（選填）"><button class="seal sm" id="dBond">締結</button></div>`;
+    const acct = typeof Cloud === 'undefined' ? '' : cloud
+      ? `<p class="note">雲端：已登入 ${Cloud.user.email || Cloud.user.name}　<button class="link-btn" id="dOut">登出</button></p>`
+      : `<div class="row" style="gap:8px;align-items:center;margin:4px 0 8px"><button class="seal sm" id="dIn">Google 登入</button><span class="note" style="margin:0">登入後存檔上雲、可與道侶連線</span></div>`;
     const rooms = DUAL_ROOMS.map((R) => {
       const own = Dao.owned(R.id), r = g.rooms[R.id];
       if (!own) {
@@ -297,15 +306,23 @@ Object.assign(UI, {
         <button class="seal sm" id="dMark" ${g.mark < DAO.markMax && g.dualQi >= mc ? '' : 'disabled'}>印記<small>${g.mark < DAO.markMax ? mc : '圓滿'}</small></button></div>
       ${DAO.skills.map((k) => `<div class="li"><div><h4>${k.name}<em>${g.skills[k.id] ? '已領悟' : `雙修靈力 ${k.cost}`}</em></h4><p>${k.desc}</p></div><button class="seal sm ${g.skills[k.id] ? 'ghost' : ''}" data-dskill="${k.id}" ${!g.skills[k.id] && g.dualQi >= k.cost ? '' : 'disabled'}>${g.skills[k.id] ? '已悟' : '領悟'}</button></div>`).join('')}`;
     this.controls(`<div class="row spread"><div class="sec-title" style="flex:1">道侶</div><button class="seal sm ghost" id="dBack">返回</button></div>
-      <p class="note">角色：${C.name}　我的道侶編號：<b>${g.pid}</b></p>${partner}
+      <p class="note">角色：${C.name}　我的道侶編號：<b class="dao-pid">${g.pid}</b></p>${acct}${partner}
       <div class="sec-title">合修室</div><div class="list">${rooms}</div>${act}
       <div class="sec-title">道侶修行</div><div class="list">${growth}</div>`);
     const $$ = (s, fn) => document.querySelectorAll(s).forEach((b) => (b.onclick = (e) => fn(b, e)));
     $$('#dBack', () => this.go('home'));
-    $$('#dBond', () => { const r = Dao.bond($('#dName').value, $('#dPid').value); if (r === true) { Audio2.play('bell'); this.toast(`與${Dao.g.partner.name}結為道侶`, '#ff9ec4'); } else this.toast(r, '#ff9a9a'); this.dao(); });
+    $$('#dBond', async (b) => {
+      b.disabled = true;
+      const r = cloud ? await Cloud.requestBond($('#dPid').value) : Dao.bond($('#dName').value, $('#dPid').value);
+      if (r === true) { Audio2.play('bell'); this.toast(`與${Dao.g.partner.name}結為道侶`, '#ff9ec4'); } else this.toast(r, '#ff9a9a');
+      if (this.tab === 'dao') this.dao();
+    });
+    $$('#dIn', () => Cloud.signIn());
+    $$('#dOut', async () => { await Cloud.signOut(); this.dao(); });
     $$('#dUnbond', () => this.modal('解除道侶', `<p class="big">確定與${P.name}解除道侶？</p><p class="note" style="text-align:center">親密度將歸零；合修室、雙修靈力與印記保留。</p><div class="row center"><button class="seal" id="uY">解除</button><button class="seal ghost sm" id="uN">再想想</button></div>`,
       { '#uY': () => { Dao.unbond(); this.close(); this.dao(); }, '#uN': () => this.close() }));
     $$('#dSim', () => { g.simOnline = !g.simOnline; S.save(); this.dao(); });
+    $$('.dao-pid', () => { try { navigator.clipboard.writeText(g.pid); this.toast('已複製道侶編號', '#ff9ec4'); } catch (e) {} });
     $$('[data-gift]', (b) => { const r = Dao.gift(b.dataset.gift); if (r === true) { Audio2.play('pickup'); this.toast(`贈送${ITEMS[b.dataset.gift].name}，親密度 +${DAO.gifts[b.dataset.gift]}`, '#ff9ec4'); } else this.toast(r, '#ff9a9a'); this.dao(); this.hud(); });
     $$('[data-unlock]', (b) => { if (Dao.unlock(b.dataset.unlock)) { Audio2.play('gong'); this.toast(`開闢${Dao.room(b.dataset.unlock).name}`, '#ffe7a0'); this.daoRoom = b.dataset.unlock; } this.dao(); this.hud(); });
     $$('[data-style]', (b, e) => { e.stopPropagation(); const [r, s] = b.dataset.style.split(':'); Dao.setStyle(r, s); this.daoRoom = r; Audio2.play('page'); this.dao(); });
@@ -317,29 +334,37 @@ Object.assign(UI, {
     $$('#dSolo', () => { const r = Dao.solo(this.daoRoom); if (!r) return; if (r.err) { this.toast(r.err, '#ff9a9a'); return; } Audio2.play('qi'); this.toast(`於${Dao.room(this.daoRoom).name}閉關，修為 +${U.fmt(r.exp)}（靈石 −${U.fmt(r.cost)}）`, '#9fe8ff'); this.dao(); this.hud(); });
     $$('#dDual', () => this.daoDual());
   },
-  // 邀請 → 對方接受 → 傳送 → 演出 → 結算
+  // 邀請 → 對方接受 → 傳送 → 演出 → 結算（房主）
   async daoDual() {
     const room = this.daoRoom, R = Dao.room(room), P = Dao.g.partner;
     const inv = await DaoNet.invite(room);
-    if (!inv.ok) { this.toast(`${P ? P.name : '道侶'}不在線，可先單人閉關`, '#ff9a9a'); return; }
+    if (!inv.ok) { this.toast(inv.reason === 'offline' ? `${P ? P.name : '道侶'}不在線，可先單人閉關` : inv.reason === 'busy' ? `${P.name}正忙，稍後再邀` : inv.reason === 'timeout' ? `${P.name}沒有回應` : `${P.name}婉拒了邀請`, '#ff9a9a'); return; }
+    const opts = { room, style: Dao.g.rooms[room].style, intensity: this.daoInt, speed: this.daoSpeed };
+    if (typeof Cloud !== 'undefined') Cloud.toPartner({ type: 'dualStart', ...opts });
     this.toast(`${P.name}已接受邀請，傳送至${R.name}`, '#ff9ec4');
+    await this.daoDualRun(opts);
+  },
+  // 雙方共用：演出與結算；guest 為受邀方（用房主的合修室與風格，不付維持費）
+  async daoDualRun(o) {
+    const R = Dao.room(o.room), sync = (m) => typeof Cloud !== 'undefined' && Cloud.toPartner({ type: 'dualCtl', ...m });
+    UI.close(); this.daoSpeed = o.speed || 1;
     await this.fade(true);
     $('#app').classList.add('gacha-show'); requestAnimationFrame(() => FX.resize());
     this.scene(`<div class="dual-show" id="dualShow"><div class="ds-bg"></div><div class="ds-art"></div>
       <div class="ds-top"><b id="dsStage"></b><span id="dsStep"></span></div><p class="ds-text" id="dsText"></p>
       <div class="ds-ctrl"><button class="seal sm ghost" id="dsFast">加速 ×1</button><button class="seal sm ghost" id="dsSkip">跳過</button></div></div>`);
     this.fade(false);
-    $('#dsFast').onclick = () => { this.daoSpeed = this.daoSpeed === 1 ? 2 : 1; DualShow.setSpeed(this.daoSpeed); $('#dsFast').textContent = `加速 ×${this.daoSpeed}`; };
-    $('#dsSkip').onclick = () => DualShow.skip();
+    $('#dsFast').onclick = () => { this.daoSpeed = this.daoSpeed === 1 ? 2 : 1; DualShow.setSpeed(this.daoSpeed); $('#dsFast').textContent = `加速 ×${this.daoSpeed}`; sync({ speed: this.daoSpeed }); };
+    $('#dsSkip').onclick = () => { DualShow.skip(); sync({ skip: true }); };
     $('#dsFast').textContent = `加速 ×${this.daoSpeed}`;
-    await DualShow.play(room, this.daoInt, this.daoSpeed);
-    const res = Dao.dualResult(room, this.daoInt);
+    await DualShow.play(o.room, o.intensity, this.daoSpeed, o.style);
+    const res = Dao.dualResult(o.room, o.intensity, o.guest);
     $('#app').classList.remove('gacha-show'); requestAnimationFrame(() => FX.resize());
     if (res.err) { this.toast(res.err, '#ff9a9a'); this.dao(); return; }
     Audio2.play('up'); this.hud();
     this.modal('雙修圓滿', `<div class="list">
       <div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(res.exp)}</h4><p>${R.name}・雙修倍率 ×${DAO.dualMult(Dao.lv()).toFixed(2)}</p></div><span></span></div>
-      <div class="li">${ico('stone')}<div><h4>靈氣消耗 ${stoneAmt(res.cost, '−')}</h4></div><span></span></div>
+      ${res.cost ? `<div class="li">${ico('stone')}<div><h4>靈氣消耗 ${stoneAmt(res.cost, '−')}</h4></div><span></span></div>` : ''}
       <div class="li"><i class="ico" style="--c:#ff9ec4">緣</i><div><h4>親密度 +${res.intimacy}</h4><p>${Dao.lvName()}</p></div><span></span></div>
       <div class="li"><i class="ico" style="--c:#c9a6ff">靈</i><div><h4>雙修靈力 +${res.qi}</h4><p>連續雙修 ${res.streak} 日</p></div><span></span></div>
       ${res.resonance ? `<div class="li"><i class="ico" style="--c:#ffd76a">鳴</i><div><h4>道侶共鳴・${res.resonance.name}</h4><p>${res.resonance.text}</p></div><span></span></div>` : ''}

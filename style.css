@@ -894,3 +894,7 @@ img { object-fit: contain; }
 .ds-text { position: absolute; left: 8%; right: 8%; bottom: 13%; text-align: center; font-family: var(--brush); font-size: 18px; line-height: 1.7; color: #fff4f8; text-shadow: 0 1px 4px #000; opacity: 0; }
 .ds-text.in { animation: fadeIn .8s forwards; }
 .ds-ctrl { position: absolute; right: 10px; top: calc(max(10px, env(safe-area-inset-top))); display: flex; gap: 6px; z-index: 2; }
+
+.t-cloud { right: auto; left: 16px; }
+.link-btn { background: none; border: none; color: #9fe8d8; text-decoration: underline; font-size: 12px; cursor: pointer; padding: 0 4px; }
+.dao-pid { color: #ff9ec4; letter-spacing: 2px; cursor: copy; }
