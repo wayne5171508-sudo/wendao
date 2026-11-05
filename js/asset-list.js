@@ -1,5 +1,5 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
-const ASSET_VER = '20261107120000';
+const ASSET_VER = '20261107150000';
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -125,6 +125,24 @@ const ASSET_LIST = [
   'assets/skill/leifa.webp',
   'assets/skill/wanjian.webp',
   'assets/skill/yujian.webp',
+  'assets/stage/stage_cave_1.webp',
+  'assets/stage/stage_cave_2.webp',
+  'assets/stage/stage_cave_3.webp',
+  'assets/stage/stage_demon_hard.webp',
+  'assets/stage/stage_demon_hell.webp',
+  'assets/stage/stage_demon_normal.webp',
+  'assets/stage/stage_hill_1.webp',
+  'assets/stage/stage_hill_2.webp',
+  'assets/stage/stage_hill_3.webp',
+  'assets/stage/stage_hill_4.webp',
+  'assets/stage/stage_hill_5.webp',
+  'assets/stage/stage_trial_1.webp',
+  'assets/stage/stage_trial_2.webp',
+  'assets/stage/stage_trial_3.webp',
+  'assets/stage/stage_village_1.webp',
+  'assets/stage/stage_village_2.webp',
+  'assets/stage/stage_village_3.webp',
+  'assets/stage/stage_village_4.webp',
   'assets/ui/alch_seal.webp',
   'assets/ui/case_frame.webp',
   'assets/ui/quest.webp',

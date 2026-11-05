@@ -85,6 +85,15 @@ const gIco = (kind, id, cls = '', color) => {
 // mIco：材料標籤、文字裡的小圖示，高度約等於字高
 const mIco = (id, kind = 'item') => { if (id === 'stone') return stoneIco(); const src = iconSrc(kind, id); return src ? `<img class="mat-ico" src="${src}" alt="">` : ''; };
 const ico = (id) => (id === 'stone' ? `<i class="ico img">${stoneIco()}</i>` : gIco('item', id));
+// 關卡圖示：assets/stage/stage_<區域 icon>_<序號或 iconKeys>.webp；不在素材清單或載入失敗就退回數字圓球（頭目關紅色）
+// state：done 已通關（保留勾勾）、locked 未解鎖（灰階＋鎖頭）、cur 目前可挑戰（呼吸光）；boss 頭目關加紅金外圈
+const stageIco = (R, i, state, boss) => {
+  const key = R.iconKeys ? R.iconKeys[i] : i + 1, p = `assets/stage/stage_${R.icon}_${key}.webp`, c = boss ? '#ff6a6a' : '#d8c48a';
+  const ok = R.icon && (typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(p));
+  if (R.icon && !ok && !iconWarned[p]) { iconWarned[p] = 1; console.warn(`[圖示] 找不到關卡素材 ${p}，改用數字圓球`); }
+  const cls = `stage-ico ${state} ${boss ? 'boss' : ''}`;
+  return ok ? `<i class="ico img item ${cls}" data-ball="${i + 1}" style="--c:${c}"><img class="item-ico" src="${p}" alt=""></i>` : `<i class="ico ${cls}" style="--c:${c}">${i + 1}</i>`;
+};
 // 功法品階（決定圖示外框光色）：引氣 凡、青冥劍訣與金剛 靈、雷法與護體 法寶、萬劍歸宗 神
 const ART_TIER = { yinqi: 0, qingming: 1, jingang: 1, leifa: 2, huti: 2, wanjian: 4 };
 const artIco = (A) => { const lv = S.artLv(A.id), t = ART_TIER[A.id] ?? 0; return gIco('art', A.id, `art t${t} ${lv >= ART_MAX ? 'max' : ''} ${lv ? '' : 'dim'}`, WTIERS[t].color); };
@@ -265,7 +274,9 @@ const UI = {
       const key = `${rid}-${i}`, done = S.d.cleared[key], open = R.test || i === 0 || S.d.cleared[`${rid}-${i - 1}`];
       const lastBoss = st.waves.some((w) => MONSTERS[w.replace('*', '')].boss);
       const foes = [...new Set(st.waves.map((w) => MONSTERS[w.replace('*', '')].name))].join('、');
-      return `<div class="li ${open ? '' : 'locked'} ${done ? 'done' : ''}"><i class="ico" style="--c:${lastBoss ? '#ff6a6a' : '#d8c48a'}">${i + 1}</i><div><h4>${st.name}</h4><p>${foes}<br>${R.scale ? `難度依你的境界（${lvName(S.d.lv)}）自動調整` : `建議 ${lvName(Math.min(MAX_LV, Math.round(st.p)))}`}</p></div>
+      // 頭目關：資料可用 bossIcon 指定，否則看是否有首領怪
+      const boss = st.bossIcon ?? lastBoss, state = !open ? 'locked' : done ? 'done' : 'cur';
+      return `<div class="li ${open ? '' : 'locked'} ${done ? 'done' : ''}">${stageIco(R, i, state, boss)}<div><h4>${st.name}</h4><p>${foes}<br>${R.scale ? `難度依你的境界（${lvName(S.d.lv)}）自動調整` : `建議 ${lvName(Math.min(MAX_LV, Math.round(st.p)))}`}</p></div>
         <button class="seal sm ${done ? 'ghost' : ''}" data-i="${i}" ${open && (left === null || left > 0) ? '' : 'disabled'}>${done ? '再戰' : '挑戰'}</button></div>`;
     }).join('');
     this.controls(`<div class="row spread"><div class="sec-title" style="flex:1">${R.name}</div><button class="seal sm ghost" id="sBack">返回</button></div>
