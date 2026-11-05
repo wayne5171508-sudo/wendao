@@ -51,7 +51,7 @@ const DAO = {
   // 贈送靈物：物品 id → 親密度
   gifts: { herb_q: 1, herb_c: 1, herb_b: 3, herb_l: 5, star: 8, p_qi: 4, p_heal: 3, p_break: 8, p_zhuji: 15, p_zao: 30 },
   giftDaily: 10,          // 每日最多贈送次數
-  dualDaily: 3,           // 每日雙修次數上限（單人閉關不限）
+  // 雙修邀請不限每日次數（原本一日最多 3 次，已取消）。存檔 today.dual 仍累計，只作紀錄，不阻擋邀請。單人閉關本來就不限。
   soloSec: 90,            // 單人閉關：相當於幾息的自然修煉 × 合修室加成
   dualSec: 180,           // 雙修：相當於幾息的自然修煉 × 雙修倍率
   dualMult: (lv) => 2.5 + lv * 0.25,   // 親密度越高倍率越高
@@ -162,7 +162,6 @@ const Dao = {
   // 雙修結算（演出結束或跳過時呼叫一次）
   dualResult(id, intensity, guest) {
     const R = this.room(id), g = this.g, t = this.today(), lv = this.lv(), cost = guest ? 0 : R.upkeep * (1 + Math.floor(S.d.lv / 3)) * 2;
-    if (t.dual >= DAO.dualDaily) return { err: `今日雙修已達 ${DAO.dualDaily} 次` };
     if (!S.take('stone', cost)) return { err: `靈石不足（需 ${cost}）` };
     t.dual++; g.sessions++; if (g.rooms[id]) g.rooms[id].uses++;
     const before = S.d.exp; S.addExp(S.rate() * DAO.dualSec * R.bonus * DAO.dualMult(lv));
@@ -317,7 +316,7 @@ Object.assign(UI, {
     const ints = Dao.intensities().map((x) => `<button class="${this.daoInt === x.id ? 'on' : ''}" data-int="${x.id}" ${x.open ? '' : 'disabled'}>${x.name}${x.open ? '' : `<small>需${DAO.levels[x.need].name}</small>`}</button>`).join('');
     const act = anyRoom ? `<div class="tabs dao-int">${ints}</div>
       <div class="row center gacha-btns"><button class="seal ghost" id="dSolo">閉關<small>單人・無雙修加成</small></button>
-      <button class="seal" id="dDual" ${dual && t.dual < DAO.dualDaily ? '' : 'disabled'}>邀請雙修<small>${!P ? '尚無道侶' : !online ? '道侶離線' : `今日 ${t.dual}/${DAO.dualDaily}`}</small></button></div>` : '<p class="note">先以探索所得材料開闢一間合修室。</p>';
+      <button class="seal" id="dDual" ${dual ? '' : 'disabled'}>邀請雙修<small>${!P ? '尚無道侶' : !online ? '道侶離線' : '不限次數'}</small></button></div>` : '<p class="note">先以探索所得材料開闢一間合修室。</p>';
     const mc = DAO.markCost(g.mark);
     const growth = `<div class="li"><div><h4>雙修靈力 ${g.dualQi}<em>連續雙修 ${g.streak} 日</em></h4><p>道侶印記 第 ${g.mark} 層：攻擊、氣血 +${Math.round(g.mark * DAO.markStat * 100)}%　悟性 +${Math.round(g.wux * 100)}%　心魔抗性 +${Math.round(g.xin * 100)}%</p></div>
         <button class="seal sm" id="dMark" ${g.mark < DAO.markMax && g.dualQi >= mc ? '' : 'disabled'}>印記<small>${g.mark < DAO.markMax ? mc : '圓滿'}</small></button></div>
