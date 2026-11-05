@@ -199,34 +199,34 @@ const monStats = (type, p, elite) => {
 
 // 地圖：區域與關卡；p 為難度（對應約略的境界等級）
 const REGIONS = [
-  { id: 'sect', name: '青冥宗', sub: '演武場試煉', bg: 'sect', mood: 'sect', stages: [
+  { id: 'sect', icon: 'trial', name: '青冥宗', sub: '演武場試煉', bg: 'sect', mood: 'sect', stages: [
     { name: '試劍・山精傀儡', p: 0,   waves: ['shanjing', 'shanjing'] },
     { name: '試劍・靈狼幻影', p: 0.4, waves: ['yaoshou', 'yaoshou', 'shanjing'] },
     { name: '試劍・遊魂符陣', p: 0.8, waves: ['youhun', 'yaoshou', 'youhun*'] },
   ] },
-  { id: 'village', name: '山腳村', sub: '首次下山', bg: 'village', mood: 'village', stages: [
+  { id: 'village', icon: 'village', name: '山腳村', sub: '首次下山', bg: 'village', mood: 'village', stages: [
     { name: '村外狼患', p: 1.3, waves: ['yaoshou', 'yaoshou', 'yaoshou*'] },
     { name: '竹林山精', p: 1.7, waves: ['shanjing', 'yaoshou', 'shanjing*'] },
     { name: '古井夜魂', p: 2.1, waves: ['youhun', 'youhun', 'youhun*'] },
     { name: '亂葬屍傀', p: 2.6, waves: ['shikui', 'youhun', 'shikui*'] },
   ] },
-  { id: 'wild', name: '落霞嶺', sub: '野外', bg: 'wild', mood: 'wild', grade: 'wild', stages: [
+  { id: 'wild', icon: 'hill', name: '落霞嶺', sub: '野外', bg: 'wild', mood: 'wild', grade: 'wild', stages: [
     { name: '嶺下山徑', p: 3.0, waves: ['shanjing', 'yaoshou', 'shikui'] },
     { name: '枯林屍陣', p: 3.5, waves: ['shikui', 'shikui', 'youhun*'] },
     { name: '魔修營地', p: 4.0, waves: ['moxiu', 'yaoshou', 'moxiu'] },
     { name: '斷崖遊魂', p: 4.6, waves: ['youhun', 'moxiu', 'youhun*'] },
-    { name: '魔修頭目', p: 5.2, waves: ['shikui', 'moxiu', 'moxiu*'] },
+    { name: '魔修頭目', bossIcon: true, p: 5.2, waves: ['shikui', 'moxiu', 'moxiu*'] },
   ] },
-  { id: 'realm', name: '幽冥古洞', sub: '秘境・每日三次', bg: 'realm', mood: 'dungeon', grade: 'realm', daily: 3, stages: [
+  { id: 'realm', icon: 'cave', name: '幽冥古洞', sub: '秘境・每日三次', bg: 'realm', mood: 'dungeon', grade: 'realm', daily: 3, stages: [
     { name: '古洞外圍', p: 5.6, waves: ['moxiu', 'shikui', 'youhun*'] },
     { name: '血泉迴廊', p: 6.2, waves: ['shikui*', 'moxiu', 'moxiu*'] },
     { name: '妖將血池', p: 6.8, waves: ['shikui', 'yaojiang'] },
   ] },
   // 測試用：隨時可進、不限次數；難度依當下境界自動調整（scale）
-  { id: 'trial', name: '心魔試煉', sub: '測試・九幽天魔', bg: 'realm', mood: 'dungeon', grade: 'realm', test: true, scale: true, stages: [
-    { name: '心魔劫・普通', p: 0.3, waves: ['tianmo'] },     // p 為「目前境界＋p」
-    { name: '心魔劫・困難', p: 1.2, waves: ['tianmo'] },
-    { name: '心魔劫・地獄', p: 2.2, waves: ['tianmo'] },
+  { id: 'trial', icon: 'demon', iconKeys: ['normal', 'hard', 'hell'], name: '心魔試煉', sub: '測試・九幽天魔', bg: 'realm', mood: 'dungeon', grade: 'realm', test: true, scale: true, stages: [
+    { name: '心魔劫・普通', bossIcon: false, p: 0.3, waves: ['tianmo'] },     // p 為「目前境界＋p」
+    { name: '心魔劫・困難', bossIcon: false, p: 1.2, waves: ['tianmo'] },
+    { name: '心魔劫・地獄', bossIcon: true, p: 2.2, waves: ['tianmo'] },
   ] },
 ];
 
