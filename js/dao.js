@@ -13,7 +13,11 @@
 // textSub：劇情文字替換（劇本原本以男主撰寫）
 const CHARACTERS = {
   qingyuan: { id: 'qingyuan', name: '林清遠', given: '清遠', gender: 'm', assetDir: 'assets/hero/', textSub: [] },
-  yunxi: { id: 'yunxi', name: '蘇雲汐', given: '雲汐', gender: 'f', assetDir: 'assets/hero_yunxi/',
+  // sword：該角色立繪的寬高比與劍身座標 [劍柄x,y, 劍尖x,y]（圖內比例），覆蓋 HERO_SWORD；castDir：施法立繪資料夾（缺圖就不顯示施法切入）
+  yunxi: { id: 'yunxi', name: '蘇雲汐', given: '雲汐', gender: 'f', assetDir: 'assets/hero_yunxi/', castDir: 'assets/cast_yunxi/',
+    sword: { hold: { ar: 683 / 1100, blade: [0.25, 0.57, 0.03, 0.95] }, sit: { ar: 816 / 665, blade: [0.06, 0.69, 0.94, 0.69] }, back: { ar: 847 / 726, hilt: null },
+      bhold: { ar: 1118 / 748, blade: [0.21, 0.49, 0.0, 0.75] }, bstance: { ar: 1020 / 775, blade: [0.73, 0.7, 0.99, 0.97] }, blean: { ar: 1652 / 1100, blade: [0.57, 0.42, 0.99, 0.67] } },
+    ar: { hold_nitian: 1260 / 1100 },
     textSub: [['林清遠', '蘇雲汐'], ['清遠', '雲汐'], ['少年', '少女'], ['他在石階', '她在石階']] },
 };
 
@@ -247,8 +251,21 @@ const Char = {
     return src;
   },
   text(s) { for (const [a, b] of this.cur().textSub) s = s.split(a).join(b); return s; },
+  // 立繪寬高比（gear 頁持逆天劍等直接寫死比例的地方用）
+  ar(name, def) { const a = this.cur().ar; return (a && a[name]) || def; },
   apply() {
     const C = this.cur(); HERO_NAME = C.name;
+    document.body.className = document.body.className.replace(/\bchar-\w+/g, '').trim() + ' char-' + C.id;
+    // 立繪設定：先還原男主，再套該角色的寬高比、劍身座標
+    if (!this.sword0) this.sword0 = JSON.parse(JSON.stringify(HERO_SWORD));
+    for (const [k, v] of Object.entries(this.sword0)) HERO_SWORD[k] = { ...v };
+    for (const [k, v] of Object.entries(C.sword || {})) if (HERO_SWORD[k]) { Object.assign(HERO_SWORD[k], v); if (v.hilt === null) delete HERO_SWORD[k].hilt; }
+    // 施法立繪：女角有圖用女角，沒圖就不顯示（不會跳出男主）
+    if (!this.cast0) this.cast0 = { ...CAST_IMG };
+    for (const k of Object.keys(this.cast0)) {
+      const p = C.castDir ? C.castDir + k + '.webp' : this.cast0[k];
+      if (!C.castDir || typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(p)) CAST_IMG[k] = p; else delete CAST_IMG[k];
+    }
     if (typeof PEOPLE !== 'undefined' && PEOPLE.hero) PEOPLE.hero.name = C.name;
     // 畫面上所有 <img>（含之後動態插入）自動換成該角色的立繪
     const fix = (i) => { const s = i.getAttribute('src'); if (s && s.startsWith('assets/hero/')) { const n = this.path(s); if (n !== s) i.setAttribute('src', n); } };
@@ -372,13 +389,27 @@ Object.assign(UI, {
   },
 });
 // 預設演出處理：依事件更新畫面（外部演出可另外用 DualShow.on() 接上）
+// 演出圖：assets/dual/<合修室>/<階段>_<強度>.webp，同一組可再加 _2、_3…；選「直白」會連「適中」一起播，選「完全」三組都播
+const dualArt = (room, stage, intensity) => {
+  const has = (p) => typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p), out = [], order = DAO.intensity.map((x) => x.id);
+  for (const it of order.slice(0, order.indexOf(intensity) + 1))
+    for (let i = 1; i <= 6; i++) { const p = `assets/dual/${room}/${stage}_${it}${i > 1 ? '_' + i : ''}.webp`; if (has(p)) out.push(p); else if (i > 1) break; }
+  return out;
+};
 DualShow.on((e) => {
   const box = $('#dualShow'); if (!box) return;
+  clearInterval(box._cyc);
   if (e.stage === 'end') return;
-  const sceneImg = `assets/dual/scene/${e.scene}.webp`, art = `assets/dual/${e.room}/${e.stage}_${e.intensity}.webp`, has = (p) => typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p);
+  const sceneImg = `assets/dual/scene/${e.scene}.webp`, has = (p) => typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p);
   box.querySelector('.ds-bg').style.backgroundImage = has(sceneImg) ? `url(${sceneImg})` : '';
   box.querySelector('.ds-bg').dataset.scene = e.scene;
-  box.querySelector('.ds-art').innerHTML = has(art) ? `<img src="${art}" alt="">` : `<div class="ds-ph">${e.anim}<br>${e.fx}</div>`;
+  const arts = dualArt(e.room, e.stage, e.intensity), art = box.querySelector('.ds-art');
+  if (!arts.length) art.innerHTML = `<div class="ds-ph">${e.anim}<br>${e.fx}</div>`;
+  else {
+    let i = 0; const show = () => { art.innerHTML = `<img src="${arts[i % arts.length]}" alt="">`; i++; };
+    show();
+    if (arts.length > 1) box._cyc = setInterval(() => (DualShow.state === 'playing' ? show() : clearInterval(box._cyc)), Math.max(900, (DAO.stages[e.index].dur * 1000) / (DualShow.speed || 1) / arts.length));
+  }
   $('#dsStage').textContent = e.stageName; $('#dsStep').textContent = `${e.index + 1} / ${DAO.stages.length}`;
   const tx = $('#dsText'); tx.textContent = dualText(e.stage, e.intensity); tx.classList.remove('in'); void tx.offsetWidth; tx.classList.add('in');
   if (e.stage === 'climax') { FX.flash = 0.6; FX.burst(FX.w / 2, FX.h * 0.45, '#ffd76a', 40, 260, 3, 1.2); Audio2.play('gong'); }

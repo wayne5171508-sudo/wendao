@@ -353,7 +353,7 @@ const UI = {
   arts() {
     Audio2.setMood('sect');
     this.setBg('sect', 'dim');
-    const best = ['wanjian', 'leifa', 'huti', 'jianqi'].find((id) => S.skillOpen(SKILLS.find((k) => k.id === id))) || 'jianqi';
+    const best = ['wanjian', 'leifa', 'huti', 'jianqi', 'yujian', 'jianyi'].find((id) => CAST_IMG[id] && S.skillOpen(SKILLS.find((k) => k.id === id))) || Object.keys(CAST_IMG)[0];
     this.scene(`<div class="hero-stage cast"><img src="${CAST_IMG[best]}" alt="${HERO_NAME}施展${SKILLS.find((k) => k.id === best).name}"></div>`);
     const rows = ARTS.map((A) => {
       const st = S.artState(A), reqOk = S.d.lv >= A.req * 3;
@@ -375,7 +375,7 @@ const UI = {
     Audio2.setMood('sect');
     this.setBg('sect', 'dim');
     const top = S.wTop(), nitian = S.d.wslot[0] === 'nitian', key = nitian ? 'nitian' : top ? 'hold' : 'front';
-    const fig = nitian ? `<div class="hfig nitian" style="aspect-ratio:${747 / 1045}">${wAura(WEAPONS.find((w) => w.id === 'nitian'))}<img src="assets/hero/hold_nitian.webp" alt="${HERO_NAME}持逆天劍"><i class="nt-bolt"></i></div>`
+    const fig = nitian ? `<div class="hfig nitian" style="aspect-ratio:${Char.ar('hold_nitian', 747 / 1045)}">${wAura(WEAPONS.find((w) => w.id === 'nitian'))}<img src="assets/hero/hold_nitian.webp" alt="${HERO_NAME}持逆天劍"><i class="nt-bolt"></i></div>`
       : top ? heroArmed(top, 'hold') : `<img src="${IMG_SRC.hero_front}" alt="${HERO_NAME}">`;
     this.scene(`${heaven(top)}<div class="hero-stage gear ${this._heroKey && this._heroKey !== key ? 'swap' : ''}">${fig}</div>`);
     if (key === 'nitian' && this._heroKey && this._heroKey !== key) { FX.flash = 0.6; Audio2.play('thunder'); }   // 神器出鞘
