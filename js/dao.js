@@ -294,7 +294,7 @@ Object.assign(UI, {
     const g = Dao.g, C = Char.cur(), P = g.partner, lv = Dao.lv(), next = Dao.nextAt(), t = Dao.today(), online = DaoNet.online(), cloud = typeof Cloud !== 'undefined' && Cloud.on;
     this.tab = 'dao'; this.navLock();
     Audio2.setMood('sect'); this.setBg('dongfu', 'dim'); Audio2.loop && Audio2.loop('meditate', false);
-    this.scene(`<div class="dao-hero"><div class="banner static" style="animation:none;top:20%"><b style="font-size:clamp(30px,9vw,48px)">道侶・合修</b><span>${P ? `${C.name} ✦ ${P.name}・${Dao.lvName()}` : '尚未結為道侶'}</span></div></div>`);
+    this.scene(`<div class="dao-hero"><div class="banner static" style="animation:none;top:20%"><b style="font-size:clamp(30px,9vw,48px)">道侶・合修</b><span>${P ? `${escHtml(HERO_NAME)} ✦ ${P.name}・${Dao.lvName()}` : '尚未結為道侶'}</span></div></div>`);
     const partner = P
       ? `<div class="li">${gIco('ui', 'partner', '', '#ff9ec4')}<div><h4>${P.name}<em>${Dao.lvName()}・${online ? '<b style="color:#8ff0b8">在線</b>' : '離線'}</em></h4>
           <div class="bar xp" style="margin-top:6px"><i style="width:${next ? (100 * g.intimacy) / next : 100}%"></i><span>親密度 ${g.intimacy}${next ? ` / ${next}` : '（已滿）'}</span></div></div><span></span></div>
