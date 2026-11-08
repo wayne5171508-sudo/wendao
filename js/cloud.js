@@ -38,6 +38,7 @@ const FirebaseAdapter = {
   signOut() { return this.auth.signOut(); },
   async get(p) { return (await this.db.ref(p).get()).val(); },
   set(p, v) { return this.db.ref(p).set(v); },
+  update(v) { return this.db.ref().update(v); },
   remove(p) { return this.db.ref(p).remove(); },
   push(p, v) { return this.db.ref(p).push(v); },
   on(p, cb) { const r = this.db.ref(p), f = (s) => cb(s.val()); r.on('value', f); return () => r.off('value', f); },
@@ -86,10 +87,11 @@ const Cloud = {
   async register() {
     const u = this.user, g = S.d.dao;
     if (!u || this.registered === u.uid) return; this.registered = u.uid;
-    const own = await this.A.get(`pids/${g.pid}`);
-    if (own && own !== u.uid) { g.pid = Math.random().toString(36).slice(2, 10).toUpperCase(); S.save(); }   // 編號撞到別人：換一個
-    await this.A.set(`pids/${g.pid}`, u.uid);
-    await this.A.set(`users/${u.uid}`, { name: HERO_NAME, char: g.char, pid: g.pid, at: Date.now() });
+    // 一個帳號只佔一個編號（規則也會擋）：帳號已有編號就沿用（換裝置時本機編號會不同）
+    const prev = ((await this.A.get(`users/${u.uid}`)) || {}).pid;
+    if (prev && (await this.A.get(`pids/${prev}`)) === u.uid) { if (g.pid !== prev) { g.pid = prev; S.save(); } }
+    else { const own = await this.A.get(`pids/${g.pid}`); if (own && own !== u.uid) { g.pid = Math.random().toString(36).slice(2, 10).toUpperCase(); S.save(); } }   // 編號撞到別人：換一個
+    await this.A.update({ [`pids/${g.pid}`]: u.uid, [`users/${u.uid}`]: { name: HERO_NAME, char: g.char, pid: g.pid, at: Date.now() } });   // 同一次寫入，規則才能互相核對
     this.A.presence(u.uid);
     this.offs.push(this.A.onChild(`inbox/${u.uid}`, (id, m) => { this.A.remove(`inbox/${u.uid}/${id}`); this.handle(m); }));
     this.watchPartner(); g.outbox = []; await this.upload(); this.refresh();
@@ -117,7 +119,7 @@ const Cloud = {
     const uid = await this.A.get(`pids/${pid}`); if (!uid) return '找不到這個道侶編號（對方需先登入）';
     const info = (await this.A.get(`users/${uid}`)) || {};
     this.send(uid, { type: 'bondReq', pid: S.d.dao.pid, char: S.d.dao.char });
-    UI.toast(`已向${info.name || '對方'}送出締結邀請，等待回應`, '#ff9ec4');
+    UI.toast(`已向${info.name ? escHtml(String(info.name).slice(0, 20)) : '對方'}送出締結邀請，等待回應`, '#ff9ec4');
     const r = await this.wait('bond', 120000);
     if (!r) return '對方沒有回應（可能不在線），稍後再試';
     if (r.type === 'bondNo') return `${r.fromName}婉拒了締結`;
@@ -125,6 +127,8 @@ const Cloud = {
   },
   // 收到的訊息
   async handle(m) {
+    // 收件匣任何人都能寫：名字與編號一進來就跳脫，之後彈窗、提示、存進道侶資料都安全
+    m.fromName = escHtml(String(m.fromName || '').slice(0, 20)); m.pid = escHtml(String(m.pid || '').slice(0, 12));
     const g = S.d.dao, P = g.partner, fromPartner = P && P.uid === m.from;
     switch (m.type) {
       case 'bondReq': {

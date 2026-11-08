@@ -97,6 +97,7 @@ const Dao = {
     for (const k of ['intimacy', 'dualQi', 'mark', 'wux', 'xin', 'sessions', 'streak']) { g[k] = Number(g[k]); if (!Number.isFinite(g[k]) || g[k] < 0) g[k] = 0; }
     g.mark = Math.min(DAO.markMax, Math.floor(g.mark)); g.wux = Math.min(DAO.wuxCap, g.wux); g.xin = Math.min(DAO.xinCap, g.xin);
     if (!Array.isArray(g.outbox)) g.outbox = []; if (!Array.isArray(g.log)) g.log = [];
+    if (g.partner && /[<>"]/.test(g.partner.name)) g.partner.name = escHtml(g.partner.name);   // 舊存檔裡未跳脫的道侶名字
     for (const R of DUAL_ROOMS) { const r = g.rooms[R.id]; if (r && !R.styles.some((s) => s.id === r.style)) r.style = R.styles[0].id; }
   },
   get g() { return S.d.dao; },
