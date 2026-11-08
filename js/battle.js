@@ -396,7 +396,7 @@ const Battle = {
       const wid = first && !S.d.weapons[BOSS_WEAPON.first] ? BOSS_WEAPON.first : U.chance(BOSS_WEAPON.rareP) ? BOSS_WEAPON.rare : null;
       if (wid) {
         const w = WEAPONS.find((x) => x.id === wid), note = S.gainWeapon(wid), sub = S.subNotice(wid);
-        got.push(`<i class="ico" style="--c:${WTIERS[w.tier].color}">兵</i><span style="color:${WTIERS[w.tier].color}">${note || `${w.name}（${WTIERS[w.tier].name}）`}${sub ? '<small class="subnote">已放入副手，可到法寶頁與主手互換</small>' : ''}</span>`);
+        got.push(`<i class="ico img item" data-ball="兵" style="--c:${WTIERS[w.tier].color}"><img class="item-ico" src="${W_IMG(w.id)}" alt=""></i><span style="color:${WTIERS[w.tier].color}">${note || `${w.name}（兵器）`}${sub ? '<small class="subnote">已放入副手，可到法寶頁與主手互換</small>' : ''}</span>`);
         if (sub) setTimeout(() => UI.toast(sub, WTIERS[w.tier].color), 400);
       }
     }
