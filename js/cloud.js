@@ -44,8 +44,9 @@ const FirebaseAdapter = {
   on(p, cb) { const r = this.db.ref(p), f = (s) => cb(s.val()); r.on('value', f); return () => r.off('value', f); },
   onChild(p, cb) { const r = this.db.ref(p), f = (s) => cb(s.key, s.val()); r.on('child_added', f); return () => r.off('child_added', f); },
   presence(uid) {
-    const st = this.db.ref(`status/${uid}`), TS = firebase.database.ServerValue.TIMESTAMP;
-    this.db.ref('.info/connected').on('value', (s) => { if (!s.val()) return; st.onDisconnect().set({ online: false, at: TS }).then(() => st.set({ online: true, at: TS })); });
+    const st = this.db.ref(`status/${uid}`), TS = firebase.database.ServerValue.TIMESTAMP, c = this.db.ref('.info/connected');
+    const f = (s) => { if (!s.val()) return; st.onDisconnect().set({ online: false, at: TS }).then(() => st.set({ online: true, at: TS })).catch((e) => console.warn('[雲端] 上線狀態更新失敗', e)); };
+    c.on('value', f); return () => c.off('value', f);   // 回傳解除函式：換帳號、登出時一起解除
   },
   offline(uid) { return this.db.ref(`status/${uid}`).set({ online: false, at: Date.now() }); },
 };
@@ -92,7 +93,7 @@ const Cloud = {
     if (prev && (await this.A.get(`pids/${prev}`)) === u.uid) { if (g.pid !== prev) { g.pid = prev; S.save(); } }
     else { const own = await this.A.get(`pids/${g.pid}`); if (own && own !== u.uid) { g.pid = Math.random().toString(36).slice(2, 10).toUpperCase(); S.save(); } }   // 編號撞到別人：換一個
     await this.A.update({ [`pids/${g.pid}`]: u.uid, [`users/${u.uid}`]: { name: HERO_NAME, char: g.char, pid: g.pid, at: Date.now() } });   // 同一次寫入，規則才能互相核對
-    this.A.presence(u.uid);
+    const pOff = this.A.presence(u.uid); if (pOff) this.offs.push(pOff);
     this.offs.push(this.A.onChild(`inbox/${u.uid}`, (id, m) => { this.A.remove(`inbox/${u.uid}/${id}`); this.handle(m); }));
     this.watchPartner(); g.outbox = []; await this.upload(); this.refresh();
   },
@@ -109,7 +110,11 @@ const Cloud = {
   queueUpload() { if (this.user && !this.saveT) this.saveT = setTimeout(() => this.upload(), 10000); },
 
   // ───────── 傳訊 ─────────
-  send(uid, m) { if (!this.user || !uid) return false; this.A.push(`inbox/${uid}`, { ...m, from: this.user.uid, fromName: HERO_NAME, at: Date.now() }); return true; },
+  send(uid, m) {
+    if (!this.user || !uid) return false;
+    Promise.resolve(this.A.push(`inbox/${uid}`, { ...m, from: this.user.uid, fromName: HERO_NAME, at: Date.now() })).catch((e) => { console.warn('[雲端] 訊息送出失敗', e); UI.toast('訊息沒送出，請確認網路後再試', '#ff9a9a'); });
+    return true;
+  },
   toPartner(m) { const P = S.d.dao.partner; return P && P.uid ? this.send(P.uid, m) : false; },
   wait(key, ms) { return new Promise((res) => { const t = setTimeout(() => { delete this.pending[key]; res(null); }, ms); this.pending[key] = (m) => { clearTimeout(t); delete this.pending[key]; res(m); }; }); },
   async requestBond(pid) {
