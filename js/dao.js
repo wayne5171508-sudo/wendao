@@ -221,8 +221,8 @@ const DualShow = {
 // 外部文字（選用）：assets/dual/text.json，格式 { "<stage>_<intensity>": "文字", "<stage>": "文字" }
 let DUAL_TEXT = null;
 const DUAL_TEXT_DEFAULT = {
-  approach: '靈泉氤氳，兩人並肩而坐，掌心相抵。', unveil: '外袍輕解，周身靈氣再無阻隔。', merge: '神識相依，兩股真元緩緩交融。',
-  climax: '靈力奔湧如潮，修為一舉衝開關竅！', afterglow: '雲收霧散，彼此相視一笑，道心更堅。',
+  approach: '靈霧繚繞，兩人相擁而立，額頭輕抵。', unveil: '靈氣如絲纏繞周身，衣袂翻飛，再無阻隔。', merge: '緊緊相擁，神識相依，兩股真元緩緩交融。',
+  climax: '靈力奔湧如潮，修為一舉衝開關竅！', afterglow: '雲收霧散，兩人仍相擁不放，相視一笑，道心更堅。',
 };
 const dualText = (stage, intensity) => (DUAL_TEXT && (DUAL_TEXT[`${stage}_${intensity}`] || DUAL_TEXT[stage])) || DUAL_TEXT_DEFAULT[stage] || '';
 fetch('assets/dual/text.json').then((r) => (r.ok ? r.json() : null)).then((j) => (DUAL_TEXT = j)).catch(() => {});
