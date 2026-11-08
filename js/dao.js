@@ -72,6 +72,8 @@ const DUAL_ROOMS = [
     styles: [{ id: 'cloud', name: '流雲錦帳' }, { id: 'dawn', name: '朝霞仙榻' }, { id: 'starry', name: '星河天幕' }] },
 ];
 const roomScene = (room, style) => `room_${room}_${style}`;   // 外部場景資源 ID
+// 場景 ID → 顯示名稱（例如 room_lingquan_moon → 月照靈泉）；畫面只顯示名稱，內部 ID 不外露
+const SCENE_NAME = Object.fromEntries(DUAL_ROOMS.flatMap((R) => R.styles.map((st) => [roomScene(R.id, st.id), st.name])));
 
 // ════════ 連線接口（目前單機） ════════
 // 之後接 Firebase／Supabase 時，只要實作同名方法：online()、invite()、send()；收到事件呼叫 Dao.onNet(evt)
@@ -318,7 +320,7 @@ Object.assign(UI, {
       }
       const styles = R.styles.map((s) => `<button class="${r.style === s.id ? 'on' : ''}" data-style="${R.id}:${s.id}">${s.name}</button>`).join('');
       return `<div class="li dao-room ${this.daoRoom === R.id ? 'sel' : ''}" data-room="${R.id}"><div><h4>${R.name}<em>修煉加成 ×${R.bonus}・已用 ${r.uses} 次</em></h4><div class="tabs dao-styles">${styles}</div>
-        <p class="note">場景：${roomScene(R.id, r.style)}</p></div><span></span></div>`;
+        <p class="note">場景：${SCENE_NAME[roomScene(R.id, r.style)] || R.name}</p></div><span></span></div>`;
     }).join('');
     const anyRoom = DUAL_ROOMS.some((R) => Dao.owned(R.id)), dual = Dao.mode() === 'dual';
     const ints = Dao.intensities().map((x) => `<button class="${this.daoInt === x.id ? 'on' : ''}" data-int="${x.id}" ${x.open ? '' : 'disabled'}>${x.name}${x.open ? '' : `<small>需${DAO.levels[x.need].name}</small>`}</button>`).join('');
