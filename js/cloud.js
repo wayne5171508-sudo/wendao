@@ -38,13 +38,15 @@ const FirebaseAdapter = {
   signOut() { return this.auth.signOut(); },
   async get(p) { return (await this.db.ref(p).get()).val(); },
   set(p, v) { return this.db.ref(p).set(v); },
+  update(v) { return this.db.ref().update(v); },
   remove(p) { return this.db.ref(p).remove(); },
   push(p, v) { return this.db.ref(p).push(v); },
   on(p, cb) { const r = this.db.ref(p), f = (s) => cb(s.val()); r.on('value', f); return () => r.off('value', f); },
   onChild(p, cb) { const r = this.db.ref(p), f = (s) => cb(s.key, s.val()); r.on('child_added', f); return () => r.off('child_added', f); },
   presence(uid) {
-    const st = this.db.ref(`status/${uid}`), TS = firebase.database.ServerValue.TIMESTAMP;
-    this.db.ref('.info/connected').on('value', (s) => { if (!s.val()) return; st.onDisconnect().set({ online: false, at: TS }).then(() => st.set({ online: true, at: TS })); });
+    const st = this.db.ref(`status/${uid}`), TS = firebase.database.ServerValue.TIMESTAMP, c = this.db.ref('.info/connected');
+    const f = (s) => { if (!s.val()) return; st.onDisconnect().set({ online: false, at: TS }).then(() => st.set({ online: true, at: TS })).catch((e) => console.warn('[雲端] 上線狀態更新失敗', e)); };
+    c.on('value', f); return () => c.off('value', f);   // 回傳解除函式：換帳號、登出時一起解除
   },
   offline(uid) { return this.db.ref(`status/${uid}`).set({ online: false, at: Date.now() }); },
 };
@@ -67,27 +69,31 @@ const Cloud = {
   async onUser(u) {
     this.offs.forEach((f) => f()); this.offs = []; this.user = u; this.partnerOnline = false; this.registered = null;   // 換帳號或重新登入：重新註冊、重新監聽收件匣
     if (!u) { this.refresh(); return; }
-    // 雲端存檔：本機沒進度就直接用雲端；兩邊都有且雲端較新時讓玩家選
+    // 雲端存檔：本機沒進度就直接用雲端；兩邊都有、且雲端不是本機上次同步的那份（別台裝置或新手機）時一律讓玩家選
     const cs = await this.A.get(`saves/${u.uid}`);
-    if (cs && cs.data && (!S.d || !S.d.root)) return this.adopt(cs.data);   // 本機還沒入道（新手機）：直接用雲端
-    if (cs && cs.data && cs.at > ((S.d && S.d.last) || 0) + 5000) {
-      const pick = await new Promise((res) => UI.modal('雲端存檔', `<p class="big">雲端有較新的存檔</p><p class="note" style="text-align:center">雲端：${new Date(cs.at).toLocaleString()}<br>本機：${new Date(S.d.last).toLocaleString()}</p>
+    let cd = null; if (cs && cs.data) try { cd = JSON.parse(cs.data); } catch (e) { console.warn('[雲端] 雲端存檔損毀，略過'); }
+    if (cd && cd.root && (!S.d || !S.d.root)) { if (this.adopt(cs.data)) return; }   // 本機還沒入道（新手機）：直接用雲端
+    else if (cd && cd.root && S.d.cloudAt !== `${u.uid}:${cs.at}`) {
+      const info = (d, t) => `${escHtml(lvName(d.lv))}・${ROOTS[d.root] ? ROOTS[d.root].name : '?'}<br>${new Date(t).toLocaleString()}`;
+      const pick = await new Promise((res) => UI.modal('雲端存檔', `<p class="big">雲端與本機各有一份存檔</p><p class="note" style="text-align:center">雲端：${info(cd, cs.at)}<br><br>本機：${info(S.d, S.d.last)}</p>
         <div class="row center"><button class="seal" id="cC">用雲端</button><button class="seal ghost sm" id="cL">用本機</button></div>`, { '#cC': () => { UI.close(); res('c'); }, '#cL': () => { UI.close(); res('l'); } }));
-      if (pick === 'c') return this.adopt(cs.data);
+      if (pick === 'c' && this.adopt(cs.data)) return;
     }
     if (!S.d || !S.d.root) { this.refresh(); return; }   // 還沒入道：先不註冊，入道後再上傳
     await this.register();
   },
-  adopt(data) { try { localStorage.setItem(SAVE_KEY, data); } catch (e) {} location.reload(); },
+  // 套用雲端存檔：走匯入的格式檢查並換掉 S.d，重新整理前的自動存檔就會寫入雲端這份，不會蓋回本機舊檔
+  adopt(data) { const r = S.importText(data); if (r !== true) { UI.toast(`雲端存檔無法使用（${r}），保留本機進度`, '#ff9a9a'); return false; } location.reload(); return true; },
   // 公開資料、道侶編號、上下線、收件匣、道侶狀態
   async register() {
     const u = this.user, g = S.d.dao;
     if (!u || this.registered === u.uid) return; this.registered = u.uid;
-    const own = await this.A.get(`pids/${g.pid}`);
-    if (own && own !== u.uid) { g.pid = Math.random().toString(36).slice(2, 10).toUpperCase(); S.save(); }   // 編號撞到別人：換一個
-    await this.A.set(`pids/${g.pid}`, u.uid);
-    await this.A.set(`users/${u.uid}`, { name: HERO_NAME, char: g.char, pid: g.pid, at: Date.now() });
-    this.A.presence(u.uid);
+    // 一個帳號只佔一個編號（規則也會擋）：帳號已有編號就沿用（換裝置時本機編號會不同）
+    const prev = ((await this.A.get(`users/${u.uid}`)) || {}).pid;
+    if (prev && (await this.A.get(`pids/${prev}`)) === u.uid) { if (g.pid !== prev) { g.pid = prev; S.save(); } }
+    else { const own = await this.A.get(`pids/${g.pid}`); if (own && own !== u.uid) { g.pid = Math.random().toString(36).slice(2, 10).toUpperCase(); S.save(); } }   // 編號撞到別人：換一個
+    await this.A.update({ [`pids/${g.pid}`]: u.uid, [`users/${u.uid}`]: { name: HERO_NAME, char: g.char, pid: g.pid, at: Date.now() } });   // 同一次寫入，規則才能互相核對
+    const pOff = this.A.presence(u.uid); if (pOff) this.offs.push(pOff);
     this.offs.push(this.A.onChild(`inbox/${u.uid}`, (id, m) => { this.A.remove(`inbox/${u.uid}/${id}`); this.handle(m); }));
     this.watchPartner(); g.outbox = []; await this.upload(); this.refresh();
   },
@@ -100,11 +106,15 @@ const Cloud = {
   },
   refresh() { if (UI.tab === 'dao' && !Battle.on && $('#dBack')) UI.dao(); UI.cloudBadge && UI.cloudBadge(); },
   // 存檔上傳（S.save 後 10 秒合併一次；切到背景時立即）
-  async upload() { if (!this.user || !S.d || !S.d.root) return; clearTimeout(this.saveT); this.saveT = 0; try { await this.A.set(`saves/${this.user.uid}`, { at: S.d.last || Date.now(), data: JSON.stringify(S.d) }); } catch (e) { console.warn('[雲端] 存檔上傳失敗', e); } },
+  async upload() { if (!this.user || !S.d || !S.d.root) return; clearTimeout(this.saveT); this.saveT = 0; const at = S.d.last || Date.now(); S.d.cloudAt = `${this.user.uid}:${at}`; try { await this.A.set(`saves/${this.user.uid}`, { at, data: JSON.stringify(S.d) }); } catch (e) { console.warn('[雲端] 存檔上傳失敗', e); } },
   queueUpload() { if (this.user && !this.saveT) this.saveT = setTimeout(() => this.upload(), 10000); },
 
   // ───────── 傳訊 ─────────
-  send(uid, m) { if (!this.user || !uid) return false; this.A.push(`inbox/${uid}`, { ...m, from: this.user.uid, fromName: HERO_NAME, at: Date.now() }); return true; },
+  send(uid, m) {
+    if (!this.user || !uid) return false;
+    Promise.resolve(this.A.push(`inbox/${uid}`, { ...m, from: this.user.uid, fromName: HERO_NAME, at: Date.now() })).catch((e) => { console.warn('[雲端] 訊息送出失敗', e); UI.toast('訊息沒送出，請確認網路後再試', '#ff9a9a'); });
+    return true;
+  },
   toPartner(m) { const P = S.d.dao.partner; return P && P.uid ? this.send(P.uid, m) : false; },
   wait(key, ms) { return new Promise((res) => { const t = setTimeout(() => { delete this.pending[key]; res(null); }, ms); this.pending[key] = (m) => { clearTimeout(t); delete this.pending[key]; res(m); }; }); },
   async requestBond(pid) {
@@ -114,7 +124,7 @@ const Cloud = {
     const uid = await this.A.get(`pids/${pid}`); if (!uid) return '找不到這個道侶編號（對方需先登入）';
     const info = (await this.A.get(`users/${uid}`)) || {};
     this.send(uid, { type: 'bondReq', pid: S.d.dao.pid, char: S.d.dao.char });
-    UI.toast(`已向${info.name || '對方'}送出締結邀請，等待回應`, '#ff9ec4');
+    UI.toast(`已向${info.name ? escHtml(String(info.name).slice(0, 20)) : '對方'}送出締結邀請，等待回應`, '#ff9ec4');
     const r = await this.wait('bond', 120000);
     if (!r) return '對方沒有回應（可能不在線），稍後再試';
     if (r.type === 'bondNo') return `${r.fromName}婉拒了締結`;
@@ -122,6 +132,8 @@ const Cloud = {
   },
   // 收到的訊息
   async handle(m) {
+    // 收件匣任何人都能寫：名字與編號一進來就跳脫，之後彈窗、提示、存進道侶資料都安全
+    m.fromName = escHtml(String(m.fromName || '').slice(0, 20)); m.pid = escHtml(String(m.pid || '').slice(0, 12));
     const g = S.d.dao, P = g.partner, fromPartner = P && P.uid === m.from;
     switch (m.type) {
       case 'bondReq': {

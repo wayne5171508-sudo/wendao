@@ -20,9 +20,24 @@ const S = {
     };
   },
   load() {
-    try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { this.d = Object.assign(this.fresh(), JSON.parse(raw)); this.migrate(); this.fixSlots(); this.fixPity(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; return true; } } catch (e) {}
-    this.d = this.fresh(); return false;
+    let raw = null;
+    try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
+    if (!raw) { this.d = this.fresh(); return false; }
+    const fix = (p) => { this.d = Object.assign(this.fresh(), p); this.migrate(); this.fixSlots(); this.fixPity(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; };
+    try { fix(JSON.parse(raw)); return true; }
+    catch (e) {
+      // 讀檔失敗：先備份原始資料，再把型別不對的欄位換回預設值重試；仍失敗才當成沒存檔
+      console.warn('[存檔] 讀取失敗，原檔已備份到 ' + SAVE_KEY + '_backup', e);
+      this.backupRaw(raw); this.loadError = true;
+      try {
+        const p = JSON.parse(raw), f = this.fresh();
+        for (const k of Object.keys(f)) if (f[k] !== null && p[k] !== undefined && (p[k] === null || typeof p[k] !== typeof f[k] || Array.isArray(p[k]) !== Array.isArray(f[k]))) p[k] = f[k];
+        fix(p); this.recovered = true; return true;
+      } catch (e2) {}
+      this.d = this.fresh(); return false;
+    }
   },
+  backupRaw(raw) { try { localStorage.setItem(SAVE_KEY + '_backup', raw || localStorage.getItem(SAVE_KEY)); } catch (e) {} },
   // v1 的隨機法寶改為兵器系統：舊法寶折成靈石
   migrate() {
     const d = this.d;
@@ -220,20 +235,20 @@ const S = {
   skillOpen(sk) { if (sk.wt !== undefined) { const t = this.wTop(); return !!t && t.tier >= sk.wt; } return this.artLv(sk.from) > 0; },
 
   // ───────── 兵器 ─────────
-  // 取得兵器；已擁有則折成玄鐵與少量靈石（靈石一定低於單抽價，抽卡不會倒賺），回傳說明文字
+  // 取得兵器；已擁有則折成玄鐵（不退靈石），回傳說明文字
   gainWeapon(id) {
     const w = WEAPONS.find((x) => x.id === id);
-    if (this.d.weapons[id]) { const ore = 5 * (w.tier + 1), st = 20 * (w.tier + 1); this.add('ore', ore); this.add('stone', st); return `${w.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
+    if (this.d.weapons[id]) { const ore = 5 * (w.tier + 1); this.add('ore', ore); return `${w.name}重複，化為玄鐵 ×${ore}`; }
     this.d.weapons[id] = { lv: 0, brk: 0, fail: 0 };
     // 主手空著就放主手；主手已有劍就放副手，並標記讓法寶頁高亮
     if (!this.d.wslot[0]) this.d.wslot[0] = id;
     else if (!this.d.wslot[1]) { this.d.wslot[1] = id; this.d.freshW = id; }
     return null;
   },
-  // 取得法寶；法寶欄空著就直接佩上；重複則折成玄鐵與少量靈石
+  // 取得法寶；法寶欄空著就直接佩上；重複則折成玄鐵（不退靈石）
   gainFabao(id) {
     const f = FABAO.find((x) => x.id === id);
-    if (this.d.fabao[id]) { const ore = 5 * (f.tier + 1), st = 20 * (f.tier + 1); this.add('ore', ore); this.add('stone', st); return `${f.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
+    if (this.d.fabao[id]) { const ore = 5 * (f.tier + 1); this.add('ore', ore); return `${f.name}重複，化為玄鐵 ×${ore}`; }
     this.d.fabao[id] = { lv: 0, brk: 0, fail: 0 };
     if (!this.d.fslot) this.d.fslot = id;
     return null;

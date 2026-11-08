@@ -1,13 +1,33 @@
 {
   "rules": {
     "users": {
-      "$uid": { ".read": "auth != null", ".write": "auth != null && auth.uid === $uid" }
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name', 'char', 'pid', 'at'])",
+        "name": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "char": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{1,16}$/)" },
+        "at": { ".validate": "newData.isNumber()" },
+        "pid": { ".validate": "newData.isString() && newData.parent().parent().parent().child('pids').child(newData.val()).val() === $uid && (!data.exists() || data.val() === newData.val() || newData.parent().parent().parent().child('pids').child(data.val()).val() !== $uid)" },
+        "$other": { ".validate": false }
+      }
     },
     "pids": {
-      "$pid": { ".read": "auth != null", ".write": "auth != null && newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)" }
+      "$pid": {
+        ".read": "auth != null",
+        ".write": "auth != null && newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid) && newData.parent().parent().child('users').child(auth.uid).child('pid').val() === $pid",
+        ".validate": "newData.isString() && $pid.matches(/^[A-Z0-9]{4,12}$/)"
+      }
     },
     "status": {
-      "$uid": { ".read": "auth != null", ".write": "auth != null && auth.uid === $uid" }
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['online', 'at'])",
+        "online": { ".validate": "newData.isBoolean()" },
+        "at": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
     },
     "saves": {
       "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" }
@@ -15,7 +35,24 @@
     "inbox": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        "$msg": { ".write": "auth != null && (auth.uid === $uid || (!data.exists() && newData.child('from').val() === auth.uid))" }
+        "$msg": {
+          ".write": "auth != null && (auth.uid === $uid || (!data.exists() && newData.child('from').val() === auth.uid))",
+          ".validate": "newData.hasChildren(['type', 'from', 'fromName', 'at'])",
+          "type": { ".validate": "newData.isString() && newData.val().matches(/^(bondReq|bondOk|bondNo|unbond|gift|invite|inviteOk|inviteNo|dualStart|dualCtl|explore)$/)" },
+          "from": { ".validate": "newData.val() === auth.uid" },
+          "fromName": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "at": { ".validate": "newData.isNumber()" },
+          "pid": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{4,12}$/)" },
+          "char": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{1,16}$/)" },
+          "item": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,24}$/)" },
+          "room": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,24}$/)" },
+          "style": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,24}$/)" },
+          "intensity": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,24}$/)" },
+          "why": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,24}$/)" },
+          "speed": { ".validate": "newData.isNumber() && newData.val() >= 0.5 && newData.val() <= 4" },
+          "skip": { ".validate": "newData.isBoolean()" },
+          "$other": { ".validate": false }
+        }
       }
     }
   }

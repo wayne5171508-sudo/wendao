@@ -46,6 +46,9 @@ const Game = {
       if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
     }, 2500);
     this.title(had && S.d.root);
+    if (S.loadError) UI.modal('存檔讀取異常', S.recovered && S.d.root
+      ? '<p class="big">存檔有部分資料損毀，已修復</p><p class="note" style="text-align:center">損毀的欄位已換回預設值，原始存檔已另存備份。<br>可按「續緣」繼續修行。</p><div class="row center"><button class="seal" id="leOk">知道了</button></div>'
+      : '<p class="big">存檔損毀，無法讀取</p><p class="note" style="text-align:center">原始存檔已另存備份，請勿清除瀏覽器資料。<br>有匯出過存檔可用「匯入存檔」還原；按「入道」會開始新的修行。</p><div class="row center"><button class="seal" id="leOk">知道了</button></div>', { '#leOk': () => UI.close() });
     requestAnimationFrame((t) => { this.last = t; this.loop(t); });
     addEventListener('visibilitychange', () => { if (document.hidden) S.save(); else if (S.d.root && !Battle.on) { const o = S.offline(); if (o) { UI.offlineModal(o); UI.hud(); } } });
     addEventListener('beforeunload', () => S.save());
