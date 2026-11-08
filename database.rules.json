@@ -4,8 +4,9 @@
       "$uid": {
         ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['name', 'char', 'pid', 'at'])",
-        "name": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        ".validate": "newData.hasChildren(['name', 'char', 'pid', 'at']) && (!data.child('renameAt').exists() || newData.child('renameAt').exists())",
+        "name": { ".validate": "newData.isString() && newData.val().matches(/^[一-鿿A-Za-z0-9]{2,8}$/) && (!data.exists() || data.val() === newData.val() || (newData.parent().child('renameAt').isNumber() && (!data.parent().child('renameAt').exists() || newData.parent().child('renameAt').val() >= data.parent().child('renameAt').val() + 86400000)))" },
+        "renameAt": { ".validate": "newData.isNumber() && newData.val() <= now && (!data.exists() || newData.val() >= data.val())" },
         "char": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{1,16}$/)" },
         "at": { ".validate": "newData.isNumber()" },
         "pid": { ".validate": "newData.isString() && newData.parent().parent().parent().child('pids').child(newData.val()).val() === $uid && (!data.exists() || data.val() === newData.val() || newData.parent().parent().parent().child('pids').child(data.val()).val() !== $uid)" },
