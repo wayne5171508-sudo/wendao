@@ -164,7 +164,7 @@ const Story = {
     const el = document.createElement('div'); el.className = 'root-card';
     el.innerHTML = `<div class="rc-head"><b style="color:${R.color}">${R.name}</b><span class="rc-grade" style="--g:${G.color}">${grade}品</span></div>
       <p class="rc-desc">${rootDesc(root, grade)}${R.rare ? '<br><em>異靈根，百年難遇</em>' : ''}</p>
-      <p class="rc-note">品階：天 ×2、地 ×1.5、玄 ×1.2、黃 ×1（靈根加成倍率）</p>
+      <p class="rc-note">品階：天&nbsp;×2、地&nbsp;×1.5、玄&nbsp;×1.2、黃&nbsp;×1（靈根加成倍率）</p>
       <div class="row center">${replay ? '' : left > 0 ? `<button class="seal sm ghost" id="rcAgain">重新測試<small>剩 ${left} 次</small></button>` : '<button class="seal sm ghost" id="rcAgain" disabled>已無重測機會</button>'}<button class="seal" id="rcOk">確認靈根</button></div>`;
     $('#sceneContent').appendChild(el); $('#skipBtn').classList.add('hidden');
     return new Promise((res) => {
