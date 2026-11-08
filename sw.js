@@ -1,6 +1,6 @@
 // 離線快取：安裝時只預載網頁與程式（核心檔案），素材用到時才存進快取
 // 網頁與程式先連網、失敗再用快取；素材先讀快取。CACHE 版本由 deploy.sh 每次部署自動改，舊快取（含素材）整批換新
-const CACHE = 'wendao-20261108155445';
+const CACHE = 'wendao-20261108164149';
 const CORE = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/asset-list.js', 'js/data.js', 'js/audio.js', 'js/state.js', 'js/fx.js', 'js/aura.js', 'js/story.js', 'js/halo.js', 'js/battle.js', 'js/ui.js', 'js/dao.js', 'js/cloud.js', 'js/main.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
