@@ -17,13 +17,14 @@ const S = {
       cleared: {}, unlocked: { sect: false, village: false, wild: false, realm: false },
       daily: { date: U.today(), realm: 0, free: false, sign: false }, pityArtifact: 0, pityTechnique: 0,
       story: {}, auto: false, settings: { music: true, sfx: true },
+      name: '', renameCount: 0, lastRenameAt: 0,   // 自訂名字（空字串＝用角色預設名）、更名次數、上次更名時間
     };
   },
   load() {
     let raw = null;
     try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
     if (!raw) { this.d = this.fresh(); return false; }
-    const fix = (p) => { this.d = Object.assign(this.fresh(), p); this.migrate(); this.fixSlots(); this.fixPity(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; };
+    const fix = (p) => { this.d = Object.assign(this.fresh(), p); this.migrate(); this.fixSlots(); this.fixPity(); this.fixName(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; };
     try { fix(JSON.parse(raw)); return true; }
     catch (e) {
       // 讀檔失敗：先備份原始資料，再把型別不對的欄位換回預設值重試；仍失敗才當成沒存檔
@@ -46,6 +47,33 @@ const S = {
     delete d.bag; delete d.equip; delete d.nextId; d.ver = 2;
   },
   // 佩戴欄只能放已擁有的兵器
+  // 名字欄位：舊存檔補預設值；匯入或被改過的存檔若名字不合規則，退回角色預設名
+  fixName() {
+    const d = this.d;
+    if (typeof d.name !== 'string' || (d.name && this.nameError(d.name))) d.name = '';
+    if (!(d.renameCount >= 0)) d.renameCount = 0;
+    if (!(d.lastRenameAt >= 0)) d.lastRenameAt = 0;
+  },
+  // 名字是否可用：可用回傳空字串，否則回傳原因
+  nameError(n) {
+    n = String(n || '');
+    if (n.length < 2) return '名字至少 2 個字';
+    if (n.length > 8) return '名字最多 8 個字';
+    if (!NAME_RE.test(n)) return '名字只能用中文、英文、數字，不能有空白或符號';
+    const low = n.toLowerCase();
+    if (NAME_BANNED.some((w) => low.includes(w.toLowerCase()))) return '名字含有不能使用的字詞';
+    return '';
+  },
+  renameCost() { return this.d.renameCount > 0 ? RENAME_COST : 0; },
+  renameWait() { return this.d.renameCount > 0 ? Math.max(0, this.d.lastRenameAt + RENAME_CD - Date.now()) : 0; },
+  // 更名前檢查：可以更名回傳空字串，否則回傳原因
+  renameCheck(n) {
+    const e = this.nameError(n); if (e) return e;
+    if (n === HERO_NAME) return '和目前的名字相同';
+    const w = this.renameWait(); if (w > 0) return `更名冷卻中，還要 ${Math.ceil(w / 3600000)} 小時`;
+    if (!this.has('stone', this.renameCost())) return `靈石不足（需要 ${this.renameCost()}）`;
+    return '';
+  },
   fixSlots() { this.d.wslot = this.d.wslot.map((id) => (id && this.d.weapons[id] ? id : null)); if (!this.d.fabao || typeof this.d.fabao !== 'object') this.d.fabao = {}; if (this.d.fslot && !this.d.fabao[this.d.fslot]) this.d.fslot = null; },
   // 保底計數：兩池各自一個欄位。舊存檔的 gacha.{wpn,art} 搬過來；非數字或異常大數字一律修正到 0～89
   fixPity() {
@@ -62,7 +90,7 @@ const S = {
     let d;
     try { d = JSON.parse(text); } catch (e) { return '存檔格式不正確，無法讀取'; }
     if (!d || typeof d !== 'object' || typeof d.lv !== 'number' || !d.inv || typeof d.inv !== 'object' || !d.root) return '這不是《問道青冥》的存檔';
-    const keep = this.d; this.d = Object.assign(this.fresh(), d); this.migrate(); this.fixSlots(); this.fixPity();
+    const keep = this.d; this.d = Object.assign(this.fresh(), d); this.migrate(); this.fixSlots(); this.fixPity(); this.fixName();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.d)); } catch (e) { this.d = keep; return '瀏覽器無法寫入存檔'; }
     return true;
   },

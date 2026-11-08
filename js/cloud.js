@@ -49,6 +49,7 @@ const FirebaseAdapter = {
     c.on('value', f); return () => c.off('value', f);   // 回傳解除函式：換帳號、登出時一起解除
   },
   offline(uid) { return this.db.ref(`status/${uid}`).set({ online: false, at: Date.now() }); },
+  connected() { return new Promise((res) => this.db.ref('.info/connected').once('value', (s) => res(s.val() === true))); },
 };
 
 const Cloud = {
@@ -89,10 +90,20 @@ const Cloud = {
     const u = this.user, g = S.d.dao;
     if (!u || this.registered === u.uid) return; this.registered = u.uid;
     // 一個帳號只佔一個編號（規則也會擋）：帳號已有編號就沿用（換裝置時本機編號會不同）
-    const prev = ((await this.A.get(`users/${u.uid}`)) || {}).pid;
+    const srv = (await this.A.get(`users/${u.uid}`)) || {}, prev = srv.pid;
     if (prev && (await this.A.get(`pids/${prev}`)) === u.uid) { if (g.pid !== prev) { g.pid = prev; S.save(); } }
     else { const own = await this.A.get(`pids/${g.pid}`); if (own && own !== u.uid) { g.pid = Math.random().toString(36).slice(2, 10).toUpperCase(); S.save(); } }   // 編號撞到別人：換一個
-    await this.A.update({ [`pids/${g.pid}`]: u.uid, [`users/${u.uid}`]: { name: HERO_NAME, char: g.char, pid: g.pid, at: Date.now() } });   // 同一次寫入，規則才能互相核對
+    // 名字以較新的一次更名為準：雲端較新就套用到本機；本機較新（例如沒登入時改的）就連同更名時間一起寫上去
+    let nameUp = {};
+    if (srv.name && srv.name !== HERO_NAME) {
+      if ((srv.renameAt || 0) >= (S.d.lastRenameAt || 0)) this.takeName(srv);
+      else nameUp = { [`users/${u.uid}/renameAt`]: S.d.lastRenameAt };
+    }
+    // 逐欄寫入（不整筆覆蓋），保留雲端的 renameAt；和編號同一次寫入，規則才能互相核對
+    const base = () => ({ [`pids/${g.pid}`]: u.uid, [`users/${u.uid}/name`]: HERO_NAME, [`users/${u.uid}/char`]: g.char, [`users/${u.uid}/pid`]: g.pid, [`users/${u.uid}/at`]: Date.now() });
+    try { await this.A.update({ ...base(), ...nameUp }); }
+    catch (e) { if (!srv.name) throw e; this.takeName(srv); await this.A.update(base()); }   // 本機的名字被規則擋下（例如冷卻中）：改用雲端的名字
+
     const pOff = this.A.presence(u.uid); if (pOff) this.offs.push(pOff);
     this.offs.push(this.A.onChild(`inbox/${u.uid}`, (id, m) => { this.A.remove(`inbox/${u.uid}/${id}`); this.handle(m); }));
     this.watchPartner(); g.outbox = []; await this.upload(); this.refresh();
@@ -101,8 +112,29 @@ const Cloud = {
     if (this.pOff) { this.pOff(); this.pOff = null; }
     const P = S.d.dao.partner; this.partnerOnline = false;
     if (!P || !P.uid) return;
-    this.pOff = this.A.on(`status/${P.uid}`, (st) => { const on = !!(st && st.online); if (on !== this.partnerOnline) { this.partnerOnline = on; if (on) UI.toast(`道侶${P.name}上線了`, '#ff9ec4'); this.refresh(); } });
+    const off1 = this.A.on(`status/${P.uid}`, (st) => { const on = !!(st && st.online); if (on !== this.partnerOnline) { this.partnerOnline = on; if (on) UI.toast(`道侶${P.name}上線了`, '#ff9ec4'); this.refresh(); } });
+    // 道侶更名：監聽對方的公開名字，即時換掉自己存檔裡的道侶名字（舊的收件匣訊息維持原名）
+    const off2 = this.A.on(`users/${P.uid}/name`, (n) => {
+      if (typeof n !== 'string' || S.nameError(n) || n === P.name) return;
+      P.name = escHtml(n); S.save(); this.refresh();
+    });
+    this.pOff = () => { off1(); off2(); };
     this.offs.push(() => this.pOff && this.pOff());
+  },
+  // 套用雲端的名字到本機（雲端比較新、或本機的名字被規則擋下時）
+  takeName(srv) {
+    S.d.name = S.nameError(srv.name) ? '' : srv.name;
+    S.d.lastRenameAt = Math.max(S.d.lastRenameAt || 0, srv.renameAt || 0);
+    Char.apply(); S.save();
+  },
+  // 更名寫入雲端：公開名字、更名時間、整份存檔用同一次寫入，不會只改一半。成功回傳 true，失敗回傳原因
+  // 離線時 Firebase 會把寫入排隊、不會回報失敗，所以先確認在線，離線就直接拒絕
+  async rename(name, at) {
+    if (!this.user) return true;   // 沒登入雲端：只改本機
+    if (!(await this.A.connected())) return '目前離線，連上網路後才能更名';
+    const uid = this.user.uid, sat = S.d.last = Date.now(); S.d.cloudAt = `${uid}:${sat}`;
+    try { await this.A.update({ [`users/${uid}/name`]: name, [`users/${uid}/renameAt`]: at, [`saves/${uid}`]: { at: sat, data: JSON.stringify(S.d) } }); return true; }
+    catch (e) { console.warn('[雲端] 更名寫入失敗', e); return '雲端寫入失敗'; }
   },
   refresh() { if (UI.tab === 'dao' && !Battle.on && $('#dBack')) UI.dao(); UI.cloudBadge && UI.cloudBadge(); },
   // 存檔上傳（S.save 後 10 秒合併一次；切到背景時立即）

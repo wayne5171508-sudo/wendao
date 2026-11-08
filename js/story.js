@@ -50,7 +50,7 @@ const Story = {
   hideDlg() { $('#dlg').classList.add('hidden'); },
   stage(bg, grade, chars = '') { UI.setBg(bg, grade); UI.scene(chars); },
   // 入門後有佩劍就換背劍立繪
-  heroChar(side = 'left') { const w = S.d.root && S.wTop(); return `<div class="char hero" data-who="hero" style="${side}:4%">${w ? heroArmed(w, 'back') : `<img src="${IMG_SRC.hero_front}" alt="${HERO_NAME}">`}</div>`; },
+  heroChar(side = 'left') { const w = S.d.root && S.wTop(); return `<div class="char hero" data-who="hero" style="${side}:4%">${w ? heroArmed(w, 'back') : `<img src="${IMG_SRC.hero_front}" alt="${escHtml(HERO_NAME)}">`}</div>`; },
   card(title, sub) { return new Promise((res) => { const el = document.createElement('div'); el.className = 'card'; el.innerHTML = `<b>${title}</b><span>${sub}</span>`; $('#app').appendChild(el); Audio2.play('gong'); this.wait(3200).then(() => { el.remove(); res(); }); }); },
 
   // ───────── 第一章 ─────────
@@ -129,8 +129,8 @@ const Story = {
     UI.setBg('title', 'dim');
     UI.scene(`<div class="stele" id="stele"><img class="st-base" src="assets/bg/stele.webp" alt="測靈石"><i class="st-dusk"></i><div class="st-glow"><img src="assets/bg/stele.webp" alt=""></div>
       <img class="st-light" src="assets/fx/wuxing.webp" alt=""><img class="st-pillar" alt="">
-      <div class="st-hero"><img class="sh-top" src="assets/hero/walk_back.webp" alt=""><img class="sh-bot" src="assets/hero/walk_back.webp" alt="${HERO_NAME}"></div>
-      <img class="st-press" src="assets/hero/press_stele.webp" alt="${HERO_NAME}手按測靈石"><i class="st-hand"></i></div>`);
+      <div class="st-hero"><img class="sh-top" src="assets/hero/walk_back.webp" alt=""><img class="sh-bot" src="assets/hero/walk_back.webp" alt="${escHtml(HERO_NAME)}"></div>
+      <img class="st-press" src="assets/hero/press_stele.webp" alt="${escHtml(HERO_NAME)}手按測靈石"><i class="st-hand"></i></div>`);
     const st = $('#stele'), hero = st.querySelector('.st-hero');
     const at = (fx, fy) => { const r = st.getBoundingClientRect(), sc = $('#scene').getBoundingClientRect(); return { x: r.left - sc.left + fx * r.width, y: r.top - sc.top + fy * r.height }; };
     await this.wait(400);

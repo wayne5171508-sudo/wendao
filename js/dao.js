@@ -117,7 +117,7 @@ const Dao = {
     if (!this.canBond()) return '需先通過青冥宗試劍，於宗門廣場締結';
     if (!name) return '請輸入道侶的道號';
     this.g.partner = { name, pid: pid || null, since: Date.now() }; this.g.intimacy = 0;
-    DaoNet.send({ type: 'bond', name: CHARACTERS[this.g.char].name, pid: this.g.pid });
+    DaoNet.send({ type: 'bond', name: HERO_NAME, pid: this.g.pid });
     this.note(`與${name}結為道侶`); S.save(); return true;
   },
   // 連線締結成功（雙方都呼叫）
@@ -251,11 +251,16 @@ const Char = {
     if (!this.warned[p]) { this.warned[p] = 1; console.warn(`[角色] ${C.name} 缺少立繪 ${p}，暫用男主圖`); }
     return src;
   },
-  text(s) { for (const [a, b] of this.cur().textSub) s = s.split(a).join(b); return s; },
+  text(s) {
+    const C = this.cur(); for (const [a, b] of C.textSub) s = s.split(a).join(b);
+    // 自訂名字：劇本裡的全名與名（例如「林清遠」「清遠」）都換成新名字；全名先換，才不會只換到一半
+    if (S.d && S.d.name) { const n = escHtml(S.d.name); s = s.split(C.name).join(n).split(C.given).join(n); }
+    return s;
+  },
   // 立繪寬高比（gear 頁持逆天劍等直接寫死比例的地方用）
   ar(name, def) { const a = this.cur().ar; return (a && a[name]) || def; },
   apply() {
-    const C = this.cur(); HERO_NAME = C.name;
+    const C = this.cur(); HERO_NAME = (S.d && S.d.name) || C.name;
     document.body.className = document.body.className.replace(/\bchar-\w+/g, '').trim() + ' char-' + C.id;
     // 立繪設定：先還原男主，再套該角色的寬高比、劍身座標
     if (!this.sword0) this.sword0 = JSON.parse(JSON.stringify(HERO_SWORD));
@@ -267,7 +272,7 @@ const Char = {
       const p = C.castDir ? C.castDir + k + '.webp' : this.cast0[k];
       if (!C.castDir || typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(p)) CAST_IMG[k] = p; else delete CAST_IMG[k];
     }
-    if (typeof PEOPLE !== 'undefined' && PEOPLE.hero) PEOPLE.hero.name = C.name;
+    if (typeof PEOPLE !== 'undefined' && PEOPLE.hero) PEOPLE.hero.name = HERO_NAME;
     // 畫面上所有 <img>（含之後動態插入）自動換成該角色的立繪
     const fix = (i) => { const s = i.getAttribute('src'); if (s && s.startsWith('assets/hero/')) { const n = this.path(s); if (n !== s) i.setAttribute('src', n); } };
     if (!this.mo) {
@@ -324,7 +329,7 @@ Object.assign(UI, {
         <button class="seal sm" id="dMark" ${g.mark < DAO.markMax && g.dualQi >= mc ? '' : 'disabled'}>印記<small>${g.mark < DAO.markMax ? mc : '圓滿'}</small></button></div>
       ${DAO.skills.map((k) => `<div class="li"><div><h4>${k.name}<em>${g.skills[k.id] ? '已領悟' : `雙修靈力 ${k.cost}`}</em></h4><p>${k.desc}</p></div><button class="seal sm ${g.skills[k.id] ? 'ghost' : ''}" data-dskill="${k.id}" ${!g.skills[k.id] && g.dualQi >= k.cost ? '' : 'disabled'}>${g.skills[k.id] ? '已悟' : '領悟'}</button></div>`).join('')}`;
     this.controls(`<div class="row spread"><div class="sec-title" style="flex:1">道侶</div><button class="seal sm ghost" id="dBack">返回</button></div>
-      <p class="note">角色：${C.name}　我的道侶編號：<b class="dao-pid">${g.pid}</b></p>${acct}${partner}
+      <p class="note">角色：${escHtml(HERO_NAME)}　我的道侶編號：<b class="dao-pid">${g.pid}</b></p>${acct}${partner}
       <div class="sec-title">合修室</div><div class="list">${rooms}</div>${act}
       <div class="sec-title">道侶修行</div><div class="list">${growth}</div>`);
     const $$ = (s, fn) => document.querySelectorAll(s).forEach((b) => (b.onclick = (e) => fn(b, e)));
