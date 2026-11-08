@@ -203,7 +203,7 @@ const Cloud = {
   // 道侶連線：有登入且道侶有雲端帳號時改走真正的連線
   const online0 = DaoNet.online.bind(DaoNet), invite0 = DaoNet.invite.bind(DaoNet), send0 = DaoNet.send.bind(DaoNet);
   const linked = () => Cloud.on && S.d.dao.partner && S.d.dao.partner.uid;
-  DaoNet.online = () => (linked() ? Cloud.partnerOnline || S.d.dao.simOnline : online0());
+  DaoNet.online = () => (linked() ? Cloud.partnerOnline || (DEV && S.d.dao.simOnline) : online0());
   DaoNet.invite = async (room) => {
     if (!linked()) return invite0(room);
     if (!Cloud.partnerOnline) return { ok: false, reason: 'offline' };

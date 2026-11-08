@@ -76,7 +76,7 @@ const roomScene = (room, style) => `room_${room}_${style}`;   // 外部場景資
 // 之後接 Firebase／Supabase 時，只要實作同名方法：online()、invite()、send()；收到事件呼叫 Dao.onNet(evt)
 // 單機版：道侶一律離線；送出的事件（贈禮、邀請、狀態）先放進 outbox，接上連線後再補送
 const DaoNet = {
-  online() { return !!(S.d.dao && S.d.dao.simOnline); },   // 測試用「模擬道侶在線」
+  online() { return DEV && !!(S.d.dao && S.d.dao.simOnline); },   // 測試用「模擬道侶在線」（只在開發模式有效）
   async invite(roomId) {
     if (!this.online()) return { ok: false, reason: 'offline' };
     return { ok: true };   // 模擬：在線就直接接受
@@ -299,8 +299,8 @@ Object.assign(UI, {
       ? `<div class="li">${gIco('ui', 'partner', '', '#ff9ec4')}<div><h4>${P.name}<em>${Dao.lvName()}・${online ? '<b style="color:#8ff0b8">在線</b>' : '離線'}</em></h4>
           <div class="bar xp" style="margin-top:6px"><i style="width:${next ? (100 * g.intimacy) / next : 100}%"></i><span>親密度 ${g.intimacy}${next ? ` / ${next}` : '（已滿）'}</span></div></div><span></span></div>
          <div class="dao-gifts"><small>贈送靈物（今日 ${t.gift}/${DAO.giftDaily}）</small>${Object.keys(DAO.gifts).filter((k) => S.has(k)).map((k) => `<button class="dao-gift" data-gift="${k}">${mIco(k)}${ITEMS[k].name}<b>+${DAO.gifts[k]}</b></button>`).join('') || '<p class="note">身上沒有可贈送的靈物</p>'}</div>
-         <div class="row" style="gap:8px;justify-content:flex-end"><button class="seal sm ghost" id="dSim">${g.simOnline ? '模擬在線・開' : '模擬在線・關'}</button><button class="seal sm ghost" id="dUnbond">解除道侶</button></div>
-         <p class="note">「模擬在線」為測試用：目前尚未接上連線服務，開啟後視為道侶在線，可測試雙修流程。</p>`
+         <div class="row" style="gap:8px;justify-content:flex-end">${DEV ? `<button class="seal sm ghost" id="dSim">${g.simOnline ? '模擬在線・開' : '模擬在線・關'}</button>` : ''}<button class="seal sm ghost" id="dUnbond">解除道侶</button></div>
+         ${DEV ? '<p class="note">開發模式：「模擬在線」開啟後視為道侶在線，不需另一支手機即可測試雙修流程。</p>' : ''}`
       : !Dao.canBond() ? '<p class="note">需先通過青冥宗三場試劍，才能在宗門廣場締結道侶。</p>'
       : cloud ? `<p class="note">輸入對方的道侶編號（對方需已登入），對方同意後即結為道侶。</p>
          <div class="dao-form"><input id="dPid" maxlength="12" placeholder="對方的道侶編號"><button class="seal sm" id="dBond">送出邀請</button></div>`
