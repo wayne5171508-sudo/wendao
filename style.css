@@ -359,6 +359,9 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .sealBtn { width: 44px; height: 44px; }
 #controls.busy #ctrlContent, #controls.busy #nav { opacity: .4; transition: opacity .3s; }
 /* 卷軸的按鈕列固定在底部，清單再長也看得到 */
+/* 戰鬥結算：獎勵清單自己捲動，「下一關／洞府」固定在清單下方，不蓋住獎勵 */
+#mBody .loot-list { max-height: min(46vh, 380px); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-height: 700px) { #mBody .loot-list { max-height: 32vh; } }   /* 矮螢幕（例如 320×568）：留出按鈕的位置 */
 #mBody > .row:last-child { position: sticky; bottom: -10px; z-index: 2; margin: 10px -6px -10px; padding: 12px 6px 14px; background: linear-gradient(rgba(16,24,35,0), #111a26 30%); }
 /* 新得兵器放入副手：高亮並可一鍵換主手 */
 .wslot.fresh { padding: 6px 6px 6px 8px; gap: 6px; border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); animation: freshGlow 1.6s ease-in-out infinite; }
