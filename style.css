@@ -898,6 +898,7 @@ img { object-fit: contain; }
 .ds-top { z-index: 1; position: absolute; top: 7%; left: 0; right: 0; text-align: center; font-family: var(--brush); color: #ffe0ee; text-shadow: 0 0 12px #ff6aa8, 0 2px 4px #000; }
 .ds-top b { display: block; font-size: clamp(26px, 7vw, 38px); letter-spacing: .3em; font-weight: 400; }
 .ds-top span { font-size: 13px; letter-spacing: 3px; color: var(--dim); }
+@media (max-width: 359px) { .ds-top { top: calc(max(10px, env(safe-area-inset-top)) + 52px); } }   /* 窄螢幕：標題移到右上按鈕下方，避免重疊 */
 .ds-text { z-index: 1; position: absolute; left: 8%; right: 8%; bottom: 13%; text-align: center; font-family: var(--brush); font-size: 18px; line-height: 1.7; color: #fff4f8; text-shadow: 0 1px 4px #000; opacity: 0; }
 .ds-text.in { animation: fadeIn .8s forwards; }
 .ds-ctrl { position: absolute; right: 10px; top: calc(max(10px, env(safe-area-inset-top))); display: flex; gap: 6px; z-index: 2; }
