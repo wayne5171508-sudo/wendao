@@ -662,6 +662,12 @@ const UI = {
       '#expBack': () => this.settings(),
     });
   },
+  // 重繪目前所在的頁面（更名後畫面上的名字立刻換新）；戰鬥中不動
+  redraw() {
+    if (Battle.on) return;
+    if (this.tab === 'dao') { if ($('#dBack')) this.dao(); return; }
+    if (['home', 'map', 'alch', 'arts', 'gear', 'draw'].includes(this.tab)) this.go(this.tab);
+  },
   // 更名：檢查（長度、字元、禁字、冷卻、靈石）→ 先改本機 → 有登入就寫雲端，失敗就還原成舊名字並退回靈石
   renameUI() {
     const cost = S.renameCost(), wait = S.renameWait();
@@ -682,7 +688,7 @@ const UI = {
           Object.assign(d, old); d.inv.stone += c; Char.apply(); S.save(); this.hud();
           el.disabled = false; $('#nmErr').textContent = `${r}，名字已還原`; this.toast(`更名失敗：${r}`, '#ff9a9a'); return;
         }
-        S.save(); this.hud(); Audio2.play('pickup'); this.toast(`已更名為 ${escHtml(n)}`, '#ff9ec4'); this.settings();
+        S.save(); this.hud(); this.redraw(); Audio2.play('pickup'); this.toast(`已更名為 ${escHtml(n)}`, '#ff9ec4'); this.settings();
       },
     });
     const i = $('#nmIn'); if (i) { i.focus(); i.onkeydown = (e) => { if (e.key === 'Enter') $('#nmOk').click(); }; }
