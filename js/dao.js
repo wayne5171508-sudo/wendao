@@ -60,7 +60,8 @@ const DAO = {
   qiPerDual: 10, qiStreak: 5,          // 每次雙修得雙修靈力；連日雙修額外加成
   markCost: (lv) => 100 * (lv + 1), markMax: 10, markStat: 0.02,   // 道侶印記：每級攻擊、氣血 +2%
   // 共同技能（系統先預留解鎖旗標，戰鬥效果之後接）
-  skills: [{ id: 'tongxin', name: '同心訣', cost: 200, desc: '道侶同場時，雙方靈力回復提升（效果待接入）' }],
+  // hidden：效果還沒接上的技能先不顯示、也不能領悟（同心訣做好後拿掉 hidden）
+  skills: [{ id: 'tongxin', name: '同心訣', cost: 200, desc: '道侶同場時，雙方靈力回復提升（效果待接入）', hidden: true }],
 };
 
 // 合修室：解鎖材料、靈石維持費（靈氣消耗）、風格（scene 為外部場景資源 ID）
@@ -186,7 +187,7 @@ const Dao = {
   },
   // 道侶印記與共同技能（消耗雙修靈力）
   upMark() { const c = DAO.markCost(this.g.mark); if (this.g.mark >= DAO.markMax || this.g.dualQi < c) return false; this.g.dualQi -= c; this.g.mark++; S.save(); return true; },
-  learnSkill(id) { const k = DAO.skills.find((x) => x.id === id); if (!k || this.g.skills[id] || this.g.dualQi < k.cost) return false; this.g.dualQi -= k.cost; this.g.skills[id] = true; S.save(); return true; },
+  learnSkill(id) { const k = DAO.skills.find((x) => x.id === id); if (!k || k.hidden || this.g.skills[id] || this.g.dualQi < k.cost) return false; this.g.dualQi -= k.cost; this.g.skills[id] = true; S.save(); return true; },
 };
 
 // ════════ 雙修演出狀態機 ════════
@@ -327,7 +328,7 @@ Object.assign(UI, {
     const mc = DAO.markCost(g.mark);
     const growth = `<div class="li"><div><h4>雙修靈力 ${g.dualQi}<em>連續雙修 ${g.streak} 日</em></h4><p>道侶印記 第 ${g.mark} 層：攻擊、氣血 +${Math.round(g.mark * DAO.markStat * 100)}%　悟性 +${Math.round(g.wux * 100)}%　心魔抗性 +${Math.round(g.xin * 100)}%</p></div>
         <button class="seal sm" id="dMark" ${g.mark < DAO.markMax && g.dualQi >= mc ? '' : 'disabled'}>印記<small>${g.mark < DAO.markMax ? mc : '圓滿'}</small></button></div>
-      ${DAO.skills.map((k) => `<div class="li"><div><h4>${k.name}<em>${g.skills[k.id] ? '已領悟' : `雙修靈力 ${k.cost}`}</em></h4><p>${k.desc}</p></div><button class="seal sm ${g.skills[k.id] ? 'ghost' : ''}" data-dskill="${k.id}" ${!g.skills[k.id] && g.dualQi >= k.cost ? '' : 'disabled'}>${g.skills[k.id] ? '已悟' : '領悟'}</button></div>`).join('')}`;
+      ${DAO.skills.filter((k) => !k.hidden).map((k) => `<div class="li"><div><h4>${k.name}<em>${g.skills[k.id] ? '已領悟' : `雙修靈力 ${k.cost}`}</em></h4><p>${k.desc}</p></div><button class="seal sm ${g.skills[k.id] ? 'ghost' : ''}" data-dskill="${k.id}" ${!g.skills[k.id] && g.dualQi >= k.cost ? '' : 'disabled'}>${g.skills[k.id] ? '已悟' : '領悟'}</button></div>`).join('')}`;
     this.controls(`<div class="row spread"><div class="sec-title" style="flex:1">道侶</div><button class="seal sm ghost" id="dBack">返回</button></div>
       <p class="note">角色：${escHtml(HERO_NAME)}　我的道侶編號：<b class="dao-pid">${g.pid}</b></p>${acct}${partner}
       <div class="sec-title">合修室</div><div class="list">${rooms}</div>${act}
