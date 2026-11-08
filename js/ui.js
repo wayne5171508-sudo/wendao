@@ -263,7 +263,7 @@ const UI = {
     Audio2.setMood('wild');
     this.setBg('title', 'dim');
     this.scene('');
-    const rows = [...REGIONS.filter((R) => R.test), ...REGIONS.filter((R) => !R.test)].map((R) => {   // 測試區放最上面
+    const rows = [...REGIONS.filter((R) => R.test && DEV), ...REGIONS.filter((R) => !R.test)].map((R) => {   // 測試區只在開發模式顯示，放最上面
       const open = R.test || S.d.unlocked[R.id], n = R.stages.filter((_, i) => S.d.cleared[`${R.id}-${i}`]).length;
       const extra = R.daily ? `　今日剩 ${S.dailyLeft()} 次` : '';
       return `<button class="region ${open ? '' : 'locked'}" data-r="${R.id}" style="background-image:url(${IMG_SRC['bg_' + R.bg]});background-position:${BG_POS[R.bg]}"><h4>${R.name}</h4><p>${R.sub}</p><span class="prog">${R.test ? '測試・不限次數' : `${n} / ${R.stages.length} 關`}${extra}</span></button>`;

@@ -3,6 +3,12 @@
 //  遊戲資料表 —— 加內容（關卡、怪物、丹藥、功法、法寶、劇情）主要改這裡
 // ════════════════════════════════════════════
 
+// 開發模式：網址帶 ?dev 才開啟，存在 sessionStorage（同一分頁重新整理仍有效，關掉分頁就失效）；測試用的關卡與按鈕只在開發模式顯示
+const DEV = (() => {
+  const on = /[?&]dev(=|&|$)/.test(location.search);
+  try { if (on) sessionStorage.setItem('wendao_dev', '1'); return on || sessionStorage.getItem('wendao_dev') === '1'; } catch (e) { return on; }
+})();
+
 const U = {
   clamp: (v, a, b) => (v < a ? a : v > b ? b : v),
   lerp: (a, b, t) => a + (b - a) * t,
