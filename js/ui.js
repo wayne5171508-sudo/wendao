@@ -310,7 +310,7 @@ const UI = {
     const herbs = ['herb_q', 'herb_c', 'herb_b', 'herb_l'].map((h) => `<span class="mat">${mIco(h)}${ITEMS[h].name} ${S.d.inv[h] || 0}</span>`).join('');
     const rows = RECIPES.map((r, i) => {
       const it = ITEMS[r.out], mats = Object.entries(r.need).map(([k, n]) => `<span class="mat ${S.has(k, n) ? '' : 'lack'}">${mIco(k)}${ITEMS[k].name} ${S.d.inv[k] || 0}/${n}</span>`).join('') + `<span class="mat ${S.has('stone', r.stone) ? '' : 'lack'}">${stoneAmt(r.stone)}</span>`;
-      return `<div class="li">${ico(r.out)}<div><h4>${it.name}<em>成丹 ${Math.round(S.alchRate(r) * 100)}%・持有 ${S.d.inv[r.out] || 0}</em></h4><p>${it.desc}</p><div>${mats}</div></div>${(() => { const src = iconSrc('ui', 'alch_seal'); return src ? `<button class="seal-img" data-r="${i}" aria-label="煉丹" ${S.canCraft(r) ? '' : 'disabled'}><img src="${src}" alt="煉"></button>` : `<button class="seal sm" data-r="${i}" ${S.canCraft(r) ? '' : 'disabled'}>煉</button>`; })()}</div>`;   // 煉丹印章按鈕；沒有素材退回朱印文字
+      return `<div class="li">${ico(r.out)}<div><h4>${it.name}<em>成丹 ${Math.round(S.alchRate(r) * 100)}%・持有 ${S.d.inv[r.out] || 0}</em></h4><p>${it.desc}</p><div>${mats}</div></div>${(() => { const src = iconSrc('ui', 'alch_seal'); return src ? `<button class="seal-img" data-r="${i}" aria-label="煉製${it.name}" title="煉製${it.name}" ${S.canCraft(r) ? '' : 'disabled'}><img src="${src}" alt=""></button>` : `<button class="seal sm" data-r="${i}" ${S.canCraft(r) ? '' : 'disabled'}>煉</button>`; })()}</div>`;   // 煉丹印章按鈕；沒有素材退回朱印文字
     }).join('');
     this.controls(`<div class="sec-title">丹房</div><p class="note">靈草：${herbs}</p><div class="list">${rows}</div>`);
     document.querySelectorAll('[data-r]').forEach((b) => (b.onclick = async () => {
