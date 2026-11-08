@@ -14,7 +14,7 @@ const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_b
 // 短音效：assets/audio/sfx_<key>.mp3
 const SFX_SRC = { slash: 'slash', crit: 'crit', hurt: 'hurt', cast: 'cast', thunder: 'thunder', gather: 'gather', divine: 'divine', meditate: 'meditate',
   reveal_fan: 'reveal_fan', reveal_ling: 'reveal_ling', reveal_xuan: 'reveal_xuan', reveal_xian: 'reveal_xian', reveal_shen: 'reveal_shen' };
-// 揭曉音效依品階：凡、靈、玄（法寶）、仙、神
+// 揭曉音效依品階：凡、靈、玄、仙、神
 const REVEAL_SFX = ['reveal_fan', 'reveal_ling', 'reveal_xuan', 'reveal_xian', 'reveal_shen'];
 // 舊的場景名稱對應到 BGM
 const MOOD_BGM = { title: 'home', village: 'home', sect: 'home', wild: 'home', dungeon: 'battle', battle: 'battle', boss: 'boss', gacha: 'gacha', trib: 'trib' };

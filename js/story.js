@@ -113,7 +113,7 @@ const Story = {
     S.d.story.joined = true; S.save();
     this.hideDlg(); UI.mode('game'); UI.go('home');
     UI.banner('拜入青冥宗', `${S.d.grade}品${R.name}・${rootDesc(S.d.root, S.d.grade)}`);
-    setTimeout(() => UI.toast('修為滿了就能「突破」，底部印章切換洞府、歷練、丹房、功法、法寶'), 3700);
+    setTimeout(() => UI.toast('修為滿了就能「突破」，底部印章切換洞府、歷練、丹房、功法、法寶、機緣'), 3700);
   },
 
   // 測靈根：走到測靈石前 → 手按石碑 → 符文由下而上亮起 → 靈氣升起 → 對應屬性光柱與品階
@@ -160,16 +160,16 @@ const Story = {
   },
   // 結果卷軸：確認（主要）／重新測試；重溫劇情時只有確認
   rootCard({ root, grade }, replay) {
-    const R = ROOTS[root], G = GRADES[grade];
+    const R = ROOTS[root], G = GRADES[grade], left = Math.max(0, ROOT_REROLLS - (S.d.rootRerolls || 0));
     const el = document.createElement('div'); el.className = 'root-card';
     el.innerHTML = `<div class="rc-head"><b style="color:${R.color}">${R.name}</b><span class="rc-grade" style="--g:${G.color}">${grade}品</span></div>
       <p class="rc-desc">${rootDesc(root, grade)}${R.rare ? '<br><em>異靈根，百年難遇</em>' : ''}</p>
-      <p class="rc-note">品階：天 ×2、地 ×1.5、玄 ×1.2、黃 ×1（靈根加成倍率）</p>
-      <div class="row center">${replay ? '' : '<button class="seal sm ghost" id="rcAgain">重新測試</button>'}<button class="seal" id="rcOk">確認靈根</button></div>`;
+      <p class="rc-note">品階：天&nbsp;×2、地&nbsp;×1.5、玄&nbsp;×1.2、黃&nbsp;×1（靈根加成倍率）</p>
+      <div class="row center">${replay ? '' : left > 0 ? `<button class="seal sm ghost" id="rcAgain">重新測試<small>剩 ${left} 次</small></button>` : '<button class="seal sm ghost" id="rcAgain" disabled>已無重測機會</button>'}<button class="seal" id="rcOk">確認靈根</button></div>`;
     $('#sceneContent').appendChild(el); $('#skipBtn').classList.add('hidden');
     return new Promise((res) => {
       el.querySelector('#rcOk').onclick = () => { Audio2.play('gong'); el.remove(); $('#skipBtn').classList.remove('hidden'); res(true); };
-      const again = el.querySelector('#rcAgain'); if (again) again.onclick = () => { Audio2.play('page'); el.remove(); $('#skipBtn').classList.remove('hidden'); res(false); };
+      const again = el.querySelector('#rcAgain'); if (again && left > 0) again.onclick = () => { S.d.rootRerolls = (S.d.rootRerolls || 0) + 1; S.save(); Audio2.play('page'); el.remove(); $('#skipBtn').classList.remove('hidden'); res(false); };
     });
   },
 

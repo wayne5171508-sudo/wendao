@@ -36,6 +36,9 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 #hudRealm { display: flex; gap: 8px; align-items: center; }
 #hudRealm b { display: block; font-family: var(--brush); font-size: 19px; color: var(--gold2); letter-spacing: 2px; text-shadow: 0 1px 3px #000; }
 #hudRealm small { display: block; font-size: 11px; color: var(--dim); }
+#hudRealm b { white-space: nowrap; }   /* 境界名不拆行 */
+#hudRealm small { text-wrap: balance; word-break: keep-all; }   /* 只在「・」或空白處換行，不拆開「（玄品）」 */
+@media (max-width: 359px) { #hudRealm b { font-size: 17px; letter-spacing: 1px; } #hudRes { gap: 6px; } }   /* 320 寬：頂列擠，境界名縮一點 */
 #hudRes { display: flex; align-items: center; gap: 10px; }
 #hudRes span { display: flex; align-items: center; gap: 5px; font-family: var(--brush); font-size: 16px; color: var(--paper); text-shadow: 0 1px 3px #000; }
 .seal-sm { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--brush); font-size: 18px; font-weight: 700; color: #fff4ea; background: var(--cinnabar); border-radius: 3px; box-shadow: inset 0 0 0 2px var(--cinnabar), inset 0 0 0 3px rgba(255,230,210,.5); transform: rotate(-3deg); }
@@ -355,9 +358,13 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 /* 全程試玩修正 */
 #toasts { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }            /* 提示放在頂列下方，不壓主角臉 */
 #app.story-mode #toasts, #app.title-mode #toasts { top: 14%; }
+#app:has(.dao-hero) #toasts { top: 33%; }   /* 道侶頁：提示放到「道侶・合修」橫幅下方，不和標題重疊 */
 .sealBtn { width: 44px; height: 44px; }
 #controls.busy #ctrlContent, #controls.busy #nav { opacity: .4; transition: opacity .3s; }
 /* 卷軸的按鈕列固定在底部，清單再長也看得到 */
+/* 戰鬥結算：獎勵清單自己捲動，「下一關／洞府」固定在清單下方，不蓋住獎勵 */
+#mBody .loot-list { max-height: min(46vh, 380px); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-height: 700px) { #mBody .loot-list { max-height: 32vh; } }   /* 矮螢幕（例如 320×568）：留出按鈕的位置 */
 #mBody > .row:last-child { position: sticky; bottom: -10px; z-index: 2; margin: 10px -6px -10px; padding: 12px 6px 14px; background: linear-gradient(rgba(16,24,35,0), #111a26 30%); }
 /* 新得兵器放入副手：高亮並可一鍵換主手 */
 .wslot.fresh { padding: 6px 6px 6px 8px; gap: 6px; border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 14px color-mix(in srgb, var(--c) 45%, transparent); animation: freshGlow 1.6s ease-in-out infinite; }
@@ -420,6 +427,9 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .rc-desc { margin: 10px 0 4px; font-size: 15px; line-height: 1.7; color: var(--paper); }
 .rc-desc em { font-style: normal; color: var(--gold2); }
 .rc-note { margin: 0 0 4px; font-size: 12px; color: var(--dim); }
+/* 窄螢幕換行時兩行等長，避免最後一個字單獨掉到下一行（例如「斬妖得修為與靈／石」「靈根加成倍／率」） */
+.seal small, .rc-note, .rc-desc { text-wrap: balance; }
+.rc-note { word-break: keep-all; }   /* 只在「、」處換行，不把「玄 ×1.2」拆開 */
 /* ───── 突破三段 ───── */
 .bt-faxiang { position: absolute; left: 50%; bottom: 0; height: 100%; transform: translateX(-50%) scale(.6); opacity: 0; mix-blend-mode: screen; transition: opacity 1.2s ease-out, transform 1.8s cubic-bezier(.2,.8,.2,1); }
 .bt-faxiang.on { opacity: .95; transform: translateX(-50%) scale(1.04); }

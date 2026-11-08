@@ -60,7 +60,8 @@ const DAO = {
   qiPerDual: 10, qiStreak: 5,          // 每次雙修得雙修靈力；連日雙修額外加成
   markCost: (lv) => 100 * (lv + 1), markMax: 10, markStat: 0.02,   // 道侶印記：每級攻擊、氣血 +2%
   // 共同技能（系統先預留解鎖旗標，戰鬥效果之後接）
-  skills: [{ id: 'tongxin', name: '同心訣', cost: 200, desc: '道侶同場時，雙方靈力回復提升（效果待接入）' }],
+  // hidden：效果還沒接上的技能先不顯示、也不能領悟（同心訣做好後拿掉 hidden）
+  skills: [{ id: 'tongxin', name: '同心訣', cost: 200, desc: '道侶同場時，雙方靈力回復提升（效果待接入）', hidden: true }],
 };
 
 // 合修室：解鎖材料、靈石維持費（靈氣消耗）、風格（scene 為外部場景資源 ID）
@@ -71,12 +72,14 @@ const DUAL_ROOMS = [
     styles: [{ id: 'cloud', name: '流雲錦帳' }, { id: 'dawn', name: '朝霞仙榻' }, { id: 'starry', name: '星河天幕' }] },
 ];
 const roomScene = (room, style) => `room_${room}_${style}`;   // 外部場景資源 ID
+// 場景 ID → 顯示名稱（例如 room_lingquan_moon → 月照靈泉）；畫面只顯示名稱，內部 ID 不外露
+const SCENE_NAME = Object.fromEntries(DUAL_ROOMS.flatMap((R) => R.styles.map((st) => [roomScene(R.id, st.id), st.name])));
 
 // ════════ 連線接口（目前單機） ════════
 // 之後接 Firebase／Supabase 時，只要實作同名方法：online()、invite()、send()；收到事件呼叫 Dao.onNet(evt)
 // 單機版：道侶一律離線；送出的事件（贈禮、邀請、狀態）先放進 outbox，接上連線後再補送
 const DaoNet = {
-  online() { return !!(S.d.dao && S.d.dao.simOnline); },   // 測試用「模擬道侶在線」
+  online() { return DEV && !!(S.d.dao && S.d.dao.simOnline); },   // 測試用「模擬道侶在線」（只在開發模式有效）
   async invite(roomId) {
     if (!this.online()) return { ok: false, reason: 'offline' };
     return { ok: true };   // 模擬：在線就直接接受
@@ -186,7 +189,7 @@ const Dao = {
   },
   // 道侶印記與共同技能（消耗雙修靈力）
   upMark() { const c = DAO.markCost(this.g.mark); if (this.g.mark >= DAO.markMax || this.g.dualQi < c) return false; this.g.dualQi -= c; this.g.mark++; S.save(); return true; },
-  learnSkill(id) { const k = DAO.skills.find((x) => x.id === id); if (!k || this.g.skills[id] || this.g.dualQi < k.cost) return false; this.g.dualQi -= k.cost; this.g.skills[id] = true; S.save(); return true; },
+  learnSkill(id) { const k = DAO.skills.find((x) => x.id === id); if (!k || k.hidden || this.g.skills[id] || this.g.dualQi < k.cost) return false; this.g.dualQi -= k.cost; this.g.skills[id] = true; S.save(); return true; },
 };
 
 // ════════ 雙修演出狀態機 ════════
@@ -218,8 +221,8 @@ const DualShow = {
 // 外部文字（選用）：assets/dual/text.json，格式 { "<stage>_<intensity>": "文字", "<stage>": "文字" }
 let DUAL_TEXT = null;
 const DUAL_TEXT_DEFAULT = {
-  approach: '靈泉氤氳，兩人並肩而坐，掌心相抵。', unveil: '外袍輕解，周身靈氣再無阻隔。', merge: '神識相依，兩股真元緩緩交融。',
-  climax: '靈力奔湧如潮，修為一舉衝開關竅！', afterglow: '雲收霧散，彼此相視一笑，道心更堅。',
+  approach: '靈霧繚繞，兩人相擁而立，額頭輕抵。', unveil: '靈氣如絲纏繞周身，衣袂翻飛，再無阻隔。', merge: '緊緊相擁，神識相依，兩股真元緩緩交融。',
+  climax: '靈力奔湧如潮，修為一舉衝開關竅！', afterglow: '雲收霧散，兩人仍相擁不放，相視一笑，道心更堅。',
 };
 const dualText = (stage, intensity) => (DUAL_TEXT && (DUAL_TEXT[`${stage}_${intensity}`] || DUAL_TEXT[stage])) || DUAL_TEXT_DEFAULT[stage] || '';
 fetch('assets/dual/text.json').then((r) => (r.ok ? r.json() : null)).then((j) => (DUAL_TEXT = j)).catch(() => {});
@@ -294,13 +297,13 @@ Object.assign(UI, {
     const g = Dao.g, C = Char.cur(), P = g.partner, lv = Dao.lv(), next = Dao.nextAt(), t = Dao.today(), online = DaoNet.online(), cloud = typeof Cloud !== 'undefined' && Cloud.on;
     this.tab = 'dao'; this.navLock();
     Audio2.setMood('sect'); this.setBg('dongfu', 'dim'); Audio2.loop && Audio2.loop('meditate', false);
-    this.scene(`<div class="dao-hero"><div class="banner static" style="animation:none;top:20%"><b style="font-size:clamp(30px,9vw,48px)">道侶・合修</b><span>${P ? `${C.name} ✦ ${P.name}・${Dao.lvName()}` : '尚未結為道侶'}</span></div></div>`);
+    this.scene(`<div class="dao-hero"><div class="banner static" style="animation:none;top:20%"><b style="font-size:clamp(30px,9vw,48px)">道侶・合修</b><span>${P ? `${escHtml(HERO_NAME)} ✦ ${P.name}・${Dao.lvName()}` : '尚未結為道侶'}</span></div></div>`);
     const partner = P
       ? `<div class="li">${gIco('ui', 'partner', '', '#ff9ec4')}<div><h4>${P.name}<em>${Dao.lvName()}・${online ? '<b style="color:#8ff0b8">在線</b>' : '離線'}</em></h4>
           <div class="bar xp" style="margin-top:6px"><i style="width:${next ? (100 * g.intimacy) / next : 100}%"></i><span>親密度 ${g.intimacy}${next ? ` / ${next}` : '（已滿）'}</span></div></div><span></span></div>
          <div class="dao-gifts"><small>贈送靈物（今日 ${t.gift}/${DAO.giftDaily}）</small>${Object.keys(DAO.gifts).filter((k) => S.has(k)).map((k) => `<button class="dao-gift" data-gift="${k}">${mIco(k)}${ITEMS[k].name}<b>+${DAO.gifts[k]}</b></button>`).join('') || '<p class="note">身上沒有可贈送的靈物</p>'}</div>
-         <div class="row" style="gap:8px;justify-content:flex-end"><button class="seal sm ghost" id="dSim">${g.simOnline ? '模擬在線・開' : '模擬在線・關'}</button><button class="seal sm ghost" id="dUnbond">解除道侶</button></div>
-         <p class="note">「模擬在線」為測試用：目前尚未接上連線服務，開啟後視為道侶在線，可測試雙修流程。</p>`
+         <div class="row" style="gap:8px;justify-content:flex-end">${DEV ? `<button class="seal sm ghost" id="dSim">${g.simOnline ? '模擬在線・開' : '模擬在線・關'}</button>` : ''}<button class="seal sm ghost" id="dUnbond">解除道侶</button></div>
+         ${DEV ? '<p class="note">開發模式：「模擬在線」開啟後視為道侶在線，不需另一支手機即可測試雙修流程。</p>' : ''}`
       : !Dao.canBond() ? '<p class="note">需先通過青冥宗三場試劍，才能在宗門廣場締結道侶。</p>'
       : cloud ? `<p class="note">輸入對方的道侶編號（對方需已登入），對方同意後即結為道侶。</p>
          <div class="dao-form"><input id="dPid" maxlength="12" placeholder="對方的道侶編號"><button class="seal sm" id="dBond">送出邀請</button></div>`
@@ -317,7 +320,7 @@ Object.assign(UI, {
       }
       const styles = R.styles.map((s) => `<button class="${r.style === s.id ? 'on' : ''}" data-style="${R.id}:${s.id}">${s.name}</button>`).join('');
       return `<div class="li dao-room ${this.daoRoom === R.id ? 'sel' : ''}" data-room="${R.id}"><div><h4>${R.name}<em>修煉加成 ×${R.bonus}・已用 ${r.uses} 次</em></h4><div class="tabs dao-styles">${styles}</div>
-        <p class="note">場景：${roomScene(R.id, r.style)}</p></div><span></span></div>`;
+        <p class="note">場景：${SCENE_NAME[roomScene(R.id, r.style)] || R.name}</p></div><span></span></div>`;
     }).join('');
     const anyRoom = DUAL_ROOMS.some((R) => Dao.owned(R.id)), dual = Dao.mode() === 'dual';
     const ints = Dao.intensities().map((x) => `<button class="${this.daoInt === x.id ? 'on' : ''}" data-int="${x.id}" ${x.open ? '' : 'disabled'}>${x.name}${x.open ? '' : `<small>需${DAO.levels[x.need].name}</small>`}</button>`).join('');
@@ -327,7 +330,7 @@ Object.assign(UI, {
     const mc = DAO.markCost(g.mark);
     const growth = `<div class="li"><div><h4>雙修靈力 ${g.dualQi}<em>連續雙修 ${g.streak} 日</em></h4><p>道侶印記 第 ${g.mark} 層：攻擊、氣血 +${Math.round(g.mark * DAO.markStat * 100)}%　悟性 +${Math.round(g.wux * 100)}%　心魔抗性 +${Math.round(g.xin * 100)}%</p></div>
         <button class="seal sm" id="dMark" ${g.mark < DAO.markMax && g.dualQi >= mc ? '' : 'disabled'}>印記<small>${g.mark < DAO.markMax ? mc : '圓滿'}</small></button></div>
-      ${DAO.skills.map((k) => `<div class="li"><div><h4>${k.name}<em>${g.skills[k.id] ? '已領悟' : `雙修靈力 ${k.cost}`}</em></h4><p>${k.desc}</p></div><button class="seal sm ${g.skills[k.id] ? 'ghost' : ''}" data-dskill="${k.id}" ${!g.skills[k.id] && g.dualQi >= k.cost ? '' : 'disabled'}>${g.skills[k.id] ? '已悟' : '領悟'}</button></div>`).join('')}`;
+      ${DAO.skills.filter((k) => !k.hidden).map((k) => `<div class="li"><div><h4>${k.name}<em>${g.skills[k.id] ? '已領悟' : `雙修靈力 ${k.cost}`}</em></h4><p>${k.desc}</p></div><button class="seal sm ${g.skills[k.id] ? 'ghost' : ''}" data-dskill="${k.id}" ${!g.skills[k.id] && g.dualQi >= k.cost ? '' : 'disabled'}>${g.skills[k.id] ? '已悟' : '領悟'}</button></div>`).join('')}`;
     this.controls(`<div class="row spread"><div class="sec-title" style="flex:1">道侶</div><button class="seal sm ghost" id="dBack">返回</button></div>
       <p class="note">角色：${escHtml(HERO_NAME)}　我的道侶編號：<b class="dao-pid">${g.pid}</b></p>${acct}${partner}
       <div class="sec-title">合修室</div><div class="list">${rooms}</div>${act}
