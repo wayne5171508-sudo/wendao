@@ -406,14 +406,17 @@ const dualVideo = (box) => {
   wrap.className = 'ds-video';
   wrap.innerHTML = `<video muted playsinline preload="none" poster="assets/dual/video_${n}.jpg"></video><button class="seal sm ghost ds-vskip">跳過影片</button>`;
   const v = wrap.querySelector('video');
-  let timer = 0;
-  const end = () => { clearTimeout(timer); if (!wrap.isConnected) return; v.pause(); v.removeAttribute('src'); v.load(); wrap.remove(); };
+  // 看門狗：每秒檢查播放進度；還沒開始播超過 5 秒、或播到一半停格（斷網、緩衝不足）超過 3 秒，就關掉影片
+  let last = -1, still = 0, dog = 0;
+  const end = () => { clearInterval(dog); if (!wrap.isConnected) return; v.pause(); v.removeAttribute('src'); v.load(); wrap.remove(); };
   box._vEnd = end;
   v.muted = true;   // iOS 要用屬性設定才算靜音，才允許自動播放
   v.onended = v.onerror = end;
-  v.onplaying = () => clearTimeout(timer);
   wrap.querySelector('.ds-vskip').onclick = end;
-  timer = setTimeout(end, 5000);   // 網路太慢、5 秒內還沒開始播就放棄
+  dog = setInterval(() => {
+    if (!wrap.isConnected) return end();
+    if (v.currentTime !== last) { last = v.currentTime; still = 0; } else if (++still >= (last > 0 ? 3 : 5)) end();
+  }, 1000);
   box.querySelector('.ds-art').after(wrap);
   v.src = `assets/dual/video_${n}.mp4`;
   const p = v.play(); if (p) p.catch(end);
