@@ -118,15 +118,18 @@ const ARTS = [
 const ART_MAX = 10;
 const artCost = (lv) => Math.round(40 * Math.pow(1.75, lv));
 
-// ───────── 兵器（法寶）─────────
+// ───────── 兵器 ─────────
 // 圖檔：assets/weapon/<id>.webp；rot 為把劍尖轉成朝下所需角度（原圖角度各異）；階級顏色與邊框見 WTIERS
+// 品階：凡、靈、玄、仙、神。name 用於兵器與法寶（○器），pin 用於功法與殘卷（○品）
 const WTIERS = [
-  { name: '凡器', color: '#e8e8e8', edge: '#bfc4ca' },
-  { name: '靈器', color: '#5fe6e0', edge: '#38c2c8' },   // 青
-  { name: '法寶', color: '#ffd36a', edge: '#e0a83a' },   // 金
-  { name: '仙器', color: '#c08cff', edge: '#8f5ff0' },   // 紫
-  { name: '神器', color: '#ff6a4a', edge: '#ffd76a' },   // 赤金
+  { name: '凡器', pin: '凡品', color: '#e8e8e8', edge: '#bfc4ca' },
+  { name: '靈器', pin: '靈品', color: '#5fe6e0', edge: '#38c2c8' },   // 青
+  { name: '玄器', pin: '玄品', color: '#ffd36a', edge: '#e0a83a' },   // 金
+  { name: '仙器', pin: '仙品', color: '#c08cff', edge: '#8f5ff0' },   // 紫
+  { name: '神器', pin: '神品', color: '#ff6a4a', edge: '#ffd76a' },   // 赤金
 ];
+// 抽到的東西顯示用的品階名：兵器、法寶用「○器」，功法、殘卷用「○品」
+const tierName = (r) => (r.type === 'w' || r.type === 'f' ? WTIERS[r.tier].name : WTIERS[r.tier].pin);
 const WEAPONS = [
   { id: 'qinggang',  rot: 0,   name: '青鋼劍', tier: 0, atk: 8,   crit: 0,  regen: 0,   desc: '宗門制式長劍，樸實耐用。' },
   { id: 'liuyun',    rot: 150, name: '流雲劍', tier: 1, atk: 22,  crit: 3,  regen: 0.6, desc: '劍身如雲，靈氣流轉不滯。' },
@@ -172,7 +175,7 @@ const FORGE = [
   { w: 'shuanghan', need: { ore: 12, herb_b: 6 }, stone: 3000, rate: 0.7 },
   { w: 'qingming',  need: { ore: 30, herb_l: 8, star: 4 }, stone: 30000, rate: 0.45 },
 ];
-// 機緣抽取：只消耗遊戲內靈石。rates 依序為凡、靈、法寶、仙、神五階；pity 抽內必出仙階以上
+// 機緣抽取：只消耗遊戲內靈石。rates 依序為凡、靈、玄、仙、神五階；pity 抽內必出仙階以上
 const GACHA = { cost: 200, cost10: 1800, pity: 90, rates: [0.5, 0.3, 0.14, 0.05, 0.01], sign: (lv) => 120 + 60 * lv };
 // 功法池各階獎勵：scroll 為功法殘卷數；art 為隨機一部功法 +1 層（wanjian 指定萬劍歸宗）
 const ART_GACHA = [{ scroll: 1 }, { scroll: 2 }, { scroll: 4 }, { art: 'any' }, { art: 'wanjian' }];
@@ -183,7 +186,7 @@ const QUESTS = [
   { id: 'q_zhuji',  name: '築基有成', desc: '晉入築基期', check: (S) => S.d.lv >= 3, reward: { ore: 10, p_break: 2 } },
   { id: 'q_wild',   name: '落霞平亂', desc: '擊敗落霞嶺魔修頭目', check: (S) => !!S.d.cleared['wild-4'], reward: { herb_b: 6, ore: 12 } },
   { id: 'q_boss',   name: '斬妖將',   desc: '擊敗血甲妖將・厲蒼', check: (S) => !!S.d.cleared['realm-2'], reward: { star: 3, scroll: 2 } },
-  { id: 'q_four',   name: '劍心通明', desc: '收集凡、靈、法寶、仙器四階兵器', check: (S) => [0, 1, 2, 3].every((t) => WEAPONS.some((w) => w.tier === t && S.d.weapons[w.id])), reward: { star: 6 } },
+  { id: 'q_four',   name: '劍心通明', desc: '收集凡器、靈器、玄器、仙器四階兵器', check: (S) => [0, 1, 2, 3].every((t) => WEAPONS.some((w) => w.tier === t && S.d.weapons[w.id])), reward: { star: 6 } },
   { id: 'q_nitian', name: '逆天問道', desc: '金丹期，擊敗妖將五次，且青冥劍突破一次', check: (S) => S.d.lv >= 6 && (S.d.cleared['realm-2'] || 0) >= 5 && (S.d.weapons.qingming?.brk || 0) >= 1, reward: { w: 'nitian' } },
 ];
 

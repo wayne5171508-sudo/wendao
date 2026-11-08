@@ -345,7 +345,7 @@ const Showcase = {
         c.fillStyle = hexA(p.gold ? edge : color, Math.max(0, a)); c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
         if (tier >= 2) blob(c, p.x, p.y, p.r * 4, hexA(p.gold ? edge : color, Math.max(0, a) * 0.25));
       }
-      // 閃電：素材隨機閃現（法寶以上）。每 1.5～3 秒一次、每次 0.2 秒；神器頻率加倍並讓框邊微閃
+      // 閃電：素材隨機閃現（玄器以上）。每 1.5～3 秒一次、每次 0.2 秒；神器頻率加倍並讓框邊微閃
       // 只出現在框內四周與邊緣：中心橢圓（法寶主體）不放
       if (bolt && tier >= 2) {
         nextBolt -= dt;

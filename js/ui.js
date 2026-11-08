@@ -99,7 +99,7 @@ const stageIco = (R, i, state, boss) => {
   const cls = `stage-ico ${state} ${boss ? 'boss' : ''}`;
   return ok ? `<i class="ico img item ${cls}" data-ball="${i + 1}" style="--c:${c}"><img class="item-ico" src="${p}" alt=""></i>` : `<i class="ico ${cls}" style="--c:${c}">${i + 1}</i>`;
 };
-// 功法品階（決定圖示外框光色）：引氣 凡、青冥劍訣與金剛 靈、雷法與護體 法寶、萬劍歸宗 神
+// 功法品階（決定圖示外框光色）：引氣 凡、青冥劍訣與金剛 靈、雷法與護體 玄、萬劍歸宗 神
 const ART_TIER = { yinqi: 0, qingming: 1, jingang: 1, leifa: 2, huti: 2, wanjian: 4 };
 const artIco = (A) => { const lv = S.artLv(A.id), t = ART_TIER[A.id] ?? 0; return gIco('art', A.id, `art t${t} ${lv >= ART_MAX ? 'max' : ''} ${lv ? '' : 'dim'}`, WTIERS[t].color); };
 // 兵器展示框：玉框蓮台底座圖當外框，仙劍放在框中央緩慢旋轉、上下浮動；普通品階只有柔光，神器加電光粒子與外圈光暈
@@ -522,8 +522,8 @@ const UI = {
     const P = this.gpool, d = S.d, t = S.today(), G = GACHA, left = G.pity - S.pity(P);   // 讀當前這一池的保底計數
     this.scene(`<div class="gacha-ring" id="gRing"><img src="assets/fx/ring.webp" alt=""></div><i class="gacha-sky" id="gSky"></i>
       <div class="banner static" style="animation:none;top:12%"><b style="font-size:clamp(28px,8vw,46px)">${P === 'wpn' ? '法寶池' : '功法池'}</b><span>祈願光陣</span></div>`);
-    const rates = WTIERS.map((T, i) => `<span class="mat" style="color:${T.color};border-color:${T.edge}">${T.name} ${Math.round(G.rates[i] * 1000) / 10}%</span>`).join('');
-    const gives = P === 'art' ? '<p class="note">凡：殘卷×1　靈：殘卷×2　法寶：殘卷×4　仙：隨機功法 +1 層　神：萬劍歸宗 +1 層</p>' : '<p class="note">重複的兵器化為玄鐵（強化材料）。</p>';
+    const rates = WTIERS.map((T, i) => `<span class="mat" style="color:${T.color};border-color:${T.edge}">${P === 'art' ? T.pin : T.name} ${Math.round(G.rates[i] * 1000) / 10}%</span>`).join('');
+    const gives = P === 'art' ? '<p class="note">凡品：殘卷×1　靈品：殘卷×2　玄品：殘卷×4　仙品：隨機功法 +1 層　神品：萬劍歸宗 +1 層</p>' : '<p class="note">重複的兵器化為玄鐵（強化材料）。</p>';
     this.controls(`<div class="sec-title">機緣</div>
       <div class="tabs"><button class="${P === 'wpn' ? 'on' : ''}" data-gp="wpn">法寶池</button><button class="${P === 'art' ? 'on' : ''}" data-gp="art">功法池</button></div>
       <div class="pity"><span>保底</span><b>${left}</b><span>抽內必出仙階以上</span></div>
@@ -558,7 +558,7 @@ const UI = {
     this.gachaResults(res);
   },
   // 抽取演出：暗場淡入法寶室／功法閣 → 背景緩慢推近 → 靈氣光團從四面八方飛向中心匯聚 → 光團爆開 → 顯示結果
-  // 匯聚時間：凡、靈約 1.5 秒；法寶、仙器約 2.5 秒；神器約 4 秒加全螢幕閃光。十連快速逐件認主，最後一次展示
+  // 匯聚時間：凡、靈約 1.5 秒；玄、仙約 2.5 秒；神器約 4 秒加全螢幕閃光。十連快速逐件認主，最後一次展示
   GS_DUR: [1500, 1500, 2500, 2500, 4000],
   async gachaShow(pool, res) {
     const wpn = pool === 'wpn', ten = res.length > 1;
@@ -603,7 +603,7 @@ const UI = {
       if (r.tier >= 4) { FX.flash = 1; sc.classList.remove('bt-white'); void sc.offsetWidth; sc.classList.add('bt-white'); }
       else if (r.tier >= 3) FX.flash = 0.45;
       // 光團爆開後，對應類型與品階的素材圖淡入；下方是名稱、數量、品階
-      $('#gsRev').innerHTML = `<div class="gs-card t${r.tier}" style="--c:${T.color};--e:${T.edge}"><div class="gs-loot">${lootImg(r)}</div><b>${r.base || r.name}</b><span class="gs-qty">${r.qty || ''}</span><i>${T.name}${r.isNew ? '・新' : ''}</i></div>`;
+      $('#gsRev').innerHTML = `<div class="gs-card t${r.tier}" style="--c:${T.color};--e:${T.edge}"><div class="gs-loot">${lootImg(r)}</div><b>${r.base || r.name}</b><span class="gs-qty">${r.qty || ''}</span><i>${tierName(r)}${r.isNew ? '・新' : ''}</i></div>`;
       await Story.wait(ten ? 360 + r.tier * 100 : 1100);
     }
   },
@@ -613,7 +613,7 @@ const UI = {
     const back = () => { this.close(); this.draw(); };
     const tap = (x) => x.type === 'w' || x.type === 'f';
     if (res.length === 1 && tap(res[0])) { this.wShow(res[0].id, '認主', back); return; }
-    const rows = res.map((x, i) => { const sub = x.type === 'w' && S.subNotice(x.id); return `<div class="li gres t${x.tier} ${tap(x) ? 'tap' : ''}" ${tap(x) ? `data-gi="${i}"` : ''} style="--c:${WTIERS[x.tier].color}">${this.resIcon(x)}<div><h4 style="color:${WTIERS[x.tier].color}">${x.name}${x.isNew ? '<i class="new">新</i>' : ''}<i class="tier">${WTIERS[x.tier].name}</i></h4>${x.note || sub ? `<p>${stoneText(x.note || sub)}</p>` : ''}</div><span>${tap(x) ? '›' : ''}</span></div>`; }).join('');
+    const rows = res.map((x, i) => { const sub = x.type === 'w' && S.subNotice(x.id); return `<div class="li gres t${x.tier} ${tap(x) ? 'tap' : ''}" ${tap(x) ? `data-gi="${i}"` : ''} style="--c:${WTIERS[x.tier].color}">${this.resIcon(x)}<div><h4 style="color:${WTIERS[x.tier].color}">${x.name}${x.isNew ? '<i class="new">新</i>' : ''}<i class="tier">${tierName(x)}</i></h4>${x.note || sub ? `<p>${stoneText(x.note || sub)}</p>` : ''}</div><span>${tap(x) ? '›' : ''}</span></div>`; }).join('');
     this.modal(res.length === 10 ? '十連機緣' : '機緣', `<div class="list">${rows}</div><div class="row center"><button class="seal" id="gOk">收下</button></div>`, {
       '#gOk': back,
       '[data-gi]': (el) => this.wShow(res[+el.dataset.gi].id, '認主', () => this.gachaResults(res), '返回'),
