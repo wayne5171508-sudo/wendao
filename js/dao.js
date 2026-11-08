@@ -228,7 +228,8 @@ fetch('assets/dual/text.json').then((r) => (r.ok ? r.json() : null)).then((j) =>
 (() => {
   const rate0 = S.rate.bind(S), br0 = S.breakRate.bind(S), st0 = S.stats.bind(S), load0 = S.load.bind(S), imp0 = S.importText.bind(S), fresh0 = S.fresh.bind(S);
   S.fresh = () => { const d = fresh0(); d.dao = Dao.fresh(); return d; };
-  S.load = () => { const r = load0(); Dao.fix(S.d); return r; };
+  // 道侶資料壞掉時只重設道侶資料（保留角色），不讓整個遊戲開不起來
+  S.load = () => { const r = load0(); try { Dao.fix(S.d); } catch (e) { console.warn('[存檔] 道侶資料損毀，已重設', e); S.backupRaw(); const ch = S.d.dao && S.d.dao.char; S.d.dao = Dao.fresh(); if (CHARACTERS[ch]) S.d.dao.char = ch; S.loadError = S.recovered = true; } return r; };
   S.importText = (t) => { const r = imp0(t); if (r === true) { Dao.fix(S.d); S.save(); } return r; };
   S.rate = () => rate0() * (1 + (S.d.dao ? S.d.dao.wux : 0));                    // 悟性
   S.breakRate = (u) => Math.min(0.98, br0(u) + (S.d.dao ? S.d.dao.xin : 0));      // 心魔抗性

@@ -20,9 +20,24 @@ const S = {
     };
   },
   load() {
-    try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { this.d = Object.assign(this.fresh(), JSON.parse(raw)); this.migrate(); this.fixSlots(); this.fixPity(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; return true; } } catch (e) {}
-    this.d = this.fresh(); return false;
+    let raw = null;
+    try { raw = localStorage.getItem(SAVE_KEY); } catch (e) {}
+    if (!raw) { this.d = this.fresh(); return false; }
+    const fix = (p) => { this.d = Object.assign(this.fresh(), p); this.migrate(); this.fixSlots(); this.fixPity(); if (this.d.root && !this.d.grade) this.d.grade = '黃'; };
+    try { fix(JSON.parse(raw)); return true; }
+    catch (e) {
+      // 讀檔失敗：先備份原始資料，再把型別不對的欄位換回預設值重試；仍失敗才當成沒存檔
+      console.warn('[存檔] 讀取失敗，原檔已備份到 ' + SAVE_KEY + '_backup', e);
+      this.backupRaw(raw); this.loadError = true;
+      try {
+        const p = JSON.parse(raw), f = this.fresh();
+        for (const k of Object.keys(f)) if (f[k] !== null && p[k] !== undefined && (p[k] === null || typeof p[k] !== typeof f[k] || Array.isArray(p[k]) !== Array.isArray(f[k]))) p[k] = f[k];
+        fix(p); this.recovered = true; return true;
+      } catch (e2) {}
+      this.d = this.fresh(); return false;
+    }
   },
+  backupRaw(raw) { try { localStorage.setItem(SAVE_KEY + '_backup', raw || localStorage.getItem(SAVE_KEY)); } catch (e) {} },
   // v1 的隨機法寶改為兵器系統：舊法寶折成靈石
   migrate() {
     const d = this.d;
