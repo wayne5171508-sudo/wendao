@@ -113,7 +113,7 @@ const Story = {
     S.d.story.joined = true; S.save();
     this.hideDlg(); UI.mode('game'); UI.go('home');
     UI.banner('拜入青冥宗', `${S.d.grade}品${R.name}・${rootDesc(S.d.root, S.d.grade)}`);
-    setTimeout(() => UI.toast('修為滿了就能「突破」，底部印章切換洞府、歷練、丹房、功法、法寶'), 3700);
+    setTimeout(() => UI.toast('修為滿了就能「突破」，底部印章切換洞府、歷練、丹房、功法、法寶、機緣'), 3700);
   },
 
   // 測靈根：走到測靈石前 → 手按石碑 → 符文由下而上亮起 → 靈氣升起 → 對應屬性光柱與品階
