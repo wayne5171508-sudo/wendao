@@ -17,7 +17,8 @@ const S = {
       cleared: {}, unlocked: { sect: false, village: false, wild: false, realm: false },
       daily: { date: U.today(), realm: 0, free: false, sign: false }, pityArtifact: 0, pityTechnique: 0,
       story: {}, auto: false, settings: { music: true, sfx: true },
-      name: '', renameCount: 0, lastRenameAt: 0,   // 自訂名字（空字串＝用角色預設名）、更名次數、上次更名時間
+      name: '', renameCount: 0, lastRenameAt: 0,
+      rootRerolls: 0,   // 靈根已重測次數（上限 ROOT_REROLLS）   // 自訂名字（空字串＝用角色預設名）、更名次數、上次更名時間
     };
   },
   load() {

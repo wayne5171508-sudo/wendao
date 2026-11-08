@@ -59,6 +59,7 @@ const ROOTS = {
 };
 const ROOT_WEIGHTS = { metal: 16, wood: 16, water: 16, fire: 16, earth: 16, thunder: 10, ice: 10 };
 // 靈根品階：天地玄黃，mult 為靈根加成倍率（黃品即原本數值）
+const ROOT_REROLLS = 3;   // 靈根測試最多可重測幾次（用掉的次數存在 S.d.rootRerolls）
 const GRADES = { 天: { w: 5, mult: 2, color: '#ffd76a' }, 地: { w: 15, mult: 1.5, color: '#c9a2ff' }, 玄: { w: 35, mult: 1.2, color: '#8fd0ff' }, 黃: { w: 45, mult: 1, color: '#d4b483' } };
 const ROOT_FX = { atk: '攻擊', hp: '氣血', mp: '靈力', crit: '暴擊率', def: '防禦', thunder: '雷法傷害', rate: '修煉速度' };
 const rootDesc = (root, grade) => Object.entries(ROOT_FX).filter(([k]) => ROOTS[root][k]).map(([k, n]) => `${n} +${Math.round(ROOTS[root][k] * GRADES[grade].mult * 100)}%`).join('，');
