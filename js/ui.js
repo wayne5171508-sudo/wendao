@@ -195,7 +195,8 @@ const UI = {
     if (Battle.on) return;
     this.tab = tab; this.navLock();
     if (tab !== 'home') Audio2.loop('meditate', false);
-    $('#app').classList.toggle('tall', tab !== 'home'); $('#app').classList.toggle('fit', tab === 'draw');   // 機緣頁面板依內容高度，其餘給光陣 $('#app').classList.remove('fighting'); FX.clear(); FX.stormT = 0; FX.ambient = 'qi';
+    $('#app').classList.toggle('tall', tab !== 'home'); $('#app').classList.toggle('fit', tab === 'draw');   // 機緣頁面板依內容高度，其餘給光陣
+    $('#app').classList.remove('fighting'); FX.clear(); FX.stormT = 0; FX.ambient = 'qi';   // 離開戰鬥：還原 HUD、清特效與環境效果
     ({ home: () => this.home(), map: () => this.map(), alch: () => this.alch(), arts: () => this.arts(), gear: () => this.gear(), draw: () => this.draw() }[tab] || (() => this.home()))();
     this.hud();
   },
