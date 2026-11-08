@@ -67,18 +67,21 @@ const Cloud = {
   async onUser(u) {
     this.offs.forEach((f) => f()); this.offs = []; this.user = u; this.partnerOnline = false; this.registered = null;   // 換帳號或重新登入：重新註冊、重新監聽收件匣
     if (!u) { this.refresh(); return; }
-    // 雲端存檔：本機沒進度就直接用雲端；兩邊都有且雲端較新時讓玩家選
+    // 雲端存檔：本機沒進度就直接用雲端；兩邊都有、且雲端不是本機上次同步的那份（別台裝置或新手機）時一律讓玩家選
     const cs = await this.A.get(`saves/${u.uid}`);
-    if (cs && cs.data && (!S.d || !S.d.root)) return this.adopt(cs.data);   // 本機還沒入道（新手機）：直接用雲端
-    if (cs && cs.data && cs.at > ((S.d && S.d.last) || 0) + 5000) {
-      const pick = await new Promise((res) => UI.modal('雲端存檔', `<p class="big">雲端有較新的存檔</p><p class="note" style="text-align:center">雲端：${new Date(cs.at).toLocaleString()}<br>本機：${new Date(S.d.last).toLocaleString()}</p>
+    let cd = null; if (cs && cs.data) try { cd = JSON.parse(cs.data); } catch (e) { console.warn('[雲端] 雲端存檔損毀，略過'); }
+    if (cd && cd.root && (!S.d || !S.d.root)) { if (this.adopt(cs.data)) return; }   // 本機還沒入道（新手機）：直接用雲端
+    else if (cd && cd.root && S.d.cloudAt !== `${u.uid}:${cs.at}`) {
+      const info = (d, t) => `${escHtml(lvName(d.lv))}・${ROOTS[d.root] ? ROOTS[d.root].name : '?'}<br>${new Date(t).toLocaleString()}`;
+      const pick = await new Promise((res) => UI.modal('雲端存檔', `<p class="big">雲端與本機各有一份存檔</p><p class="note" style="text-align:center">雲端：${info(cd, cs.at)}<br><br>本機：${info(S.d, S.d.last)}</p>
         <div class="row center"><button class="seal" id="cC">用雲端</button><button class="seal ghost sm" id="cL">用本機</button></div>`, { '#cC': () => { UI.close(); res('c'); }, '#cL': () => { UI.close(); res('l'); } }));
-      if (pick === 'c') return this.adopt(cs.data);
+      if (pick === 'c' && this.adopt(cs.data)) return;
     }
     if (!S.d || !S.d.root) { this.refresh(); return; }   // 還沒入道：先不註冊，入道後再上傳
     await this.register();
   },
-  adopt(data) { try { localStorage.setItem(SAVE_KEY, data); } catch (e) {} location.reload(); },
+  // 套用雲端存檔：走匯入的格式檢查並換掉 S.d，重新整理前的自動存檔就會寫入雲端這份，不會蓋回本機舊檔
+  adopt(data) { const r = S.importText(data); if (r !== true) { UI.toast(`雲端存檔無法使用（${r}），保留本機進度`, '#ff9a9a'); return false; } location.reload(); return true; },
   // 公開資料、道侶編號、上下線、收件匣、道侶狀態
   async register() {
     const u = this.user, g = S.d.dao;
@@ -100,7 +103,7 @@ const Cloud = {
   },
   refresh() { if (UI.tab === 'dao' && !Battle.on && $('#dBack')) UI.dao(); UI.cloudBadge && UI.cloudBadge(); },
   // 存檔上傳（S.save 後 10 秒合併一次；切到背景時立即）
-  async upload() { if (!this.user || !S.d || !S.d.root) return; clearTimeout(this.saveT); this.saveT = 0; try { await this.A.set(`saves/${this.user.uid}`, { at: S.d.last || Date.now(), data: JSON.stringify(S.d) }); } catch (e) { console.warn('[雲端] 存檔上傳失敗', e); } },
+  async upload() { if (!this.user || !S.d || !S.d.root) return; clearTimeout(this.saveT); this.saveT = 0; const at = S.d.last || Date.now(); S.d.cloudAt = `${this.user.uid}:${at}`; try { await this.A.set(`saves/${this.user.uid}`, { at, data: JSON.stringify(S.d) }); } catch (e) { console.warn('[雲端] 存檔上傳失敗', e); } },
   queueUpload() { if (this.user && !this.saveT) this.saveT = setTimeout(() => this.upload(), 10000); },
 
   // ───────── 傳訊 ─────────
