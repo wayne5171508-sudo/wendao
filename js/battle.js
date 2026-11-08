@@ -15,9 +15,8 @@ const Battle = {
     $('#app').classList.remove('tall'); $('#app').classList.add('fighting');
     this.R = R; this.idx = idx; this.st = st; this.on = true; this.wave = 0; this.pause = 0.6; this.result = null;
     this.hero = { hp: s.hp, max: s.hp, mp: s.mp, maxmp: s.mp, regen: s.mpRegen, atk: s.atk, def: s.def, crit: s.crit, interval: s.interval, t: 0.3, shield: 0, shieldT: 0, pill: false, yiT: 0 };
-    this.wpn = S.wTop();
-    // 進場當下讀主手兵器決定立繪（換裝後下一場立即生效）
-    this.main = S.wMain(); this.pose = battlePose(this.main);
+    // 進場當下讀主手兵器決定立繪與光效（換裝後下一場立即生效）；兩者看同一把，不再一個看最高階、一個看主手
+    this.main = this.wpn = S.wMain(); this.pose = battlePose(this.main);
     this.cd = Object.fromEntries(SKILLS.map((k) => [k.id, 0]));
     this.loot = { exp: 0, stone: 0 };
     // 一關只決定一次曲子：有首領的關卡播頭目戰，其餘播一般戰鬥（精英不換曲，避免一關內來回切）

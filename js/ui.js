@@ -29,13 +29,15 @@ const HERO_SWORD = {
   bnitian: { img: 'assets/hero/hold_nitian.webp', ar: 747 / 1045, blade: [0.38, 0.45, 0.013, 0.895] },   // 持逆天劍正面（備用）
   blean: { img: 'assets/hero/battle_lean.webp', ar: 700 / 840, blade: [0.27, 0.32, 0.02, 0.8] },         // 戰鬥前傾持逆天劍（神器）
 };
-// 戰鬥立繪依主手兵器品階切換：[凡, 靈, 法寶, 仙, 神]；沒裝備時用凡階那組
-const BATTLE_POSE = [
-  { hold: 'bhold', stance: 'bstance' }, { hold: 'bhold', stance: 'bstance' }, { hold: 'bhold', stance: 'bstance' },
-  { hold: 'bhold', stance: 'bstance' }, { hold: 'blean', stance: 'blean' },
-];
-// 凡～仙器目前沿用背影圖以程式前傾模擬；補上拿普通長劍的前傾圖後，把前四階換成新的 key 即可
-const battlePose = (w) => BATTLE_POSE[w ? w.tier : 0];
+// 戰鬥立繪：battle_lean 畫的是逆天劍，只有主手是逆天劍才用；其他劍用起手式，再把主手兵器圖疊在劍身上
+const BATTLE_POSE = { normal: { hold: 'bhold', stance: 'bstance' }, nitian: { hold: 'blean', stance: 'blean' } };
+const battlePose = (w) => BATTLE_POSE[w && w.id === 'nitian' ? 'nitian' : 'normal'];
+// 疊在劍身上的兵器圖：原圖轉 rot 度後劍尖朝下，劍長約為轉正後的高度；依劍長換算圖寬，讓整把劍剛好蓋住立繪裡的劍
+// shortcut: 立繪本身畫著青鋼劍，疊圖只能蓋住大部分；補上無劍立繪後，把 battle_stance/battle_hold 換成無劍版即可
+function wovFit(img) {
+  const r = (parseFloat(img.dataset.rot) || 0) * Math.PI / 180, w = img.naturalWidth, h = img.naturalHeight;
+  img.style.width = (100 * w) / (h * Math.abs(Math.cos(r)) + w * Math.abs(Math.sin(r))) + '%'; img.classList.add('on');
+}
 // 兵器光效：階級越高越華麗（發光 → 粒子環繞 → 紫金雙光 → 赤金天象）
 const wAura = (w) => {
   if (!w) return '';
@@ -47,7 +49,10 @@ const heroArmed = (w, kind, cls = '') => {
   let fx = '';
   if (w && H.blade) {
     const [x1, y1, x2, y2] = H.blade, dx = x2 - x1, dy = (y2 - y1) / H.ar;
-    fx = `<i class="blade" style="left:${x1 * 100}%;top:${y1 * 100}%;width:${Math.hypot(dx, dy) * 100}%;transform:rotate(${(Math.atan2(dy, dx) * 180) / Math.PI}deg)"></i>`;
+    const pos = `left:${x1 * 100}%;top:${y1 * 100}%;width:${Math.hypot(dx, dy) * 100}%;transform:rotate(${(Math.atan2(dy, dx) * 180) / Math.PI}deg)`;
+    // 戰鬥立繪畫的是青鋼劍：主手換成別的劍時把那把劍的圖疊上去
+    const wov = /^b(stance|hold)$/.test(kind) && w.id !== 'qinggang' ? `<i class="wov" style="${pos}"><img src="${W_IMG(w.id)}" data-rot="${w.rot || 0}" onload="wovFit(this)" alt=""></i>` : '';
+    fx = `${wov}<i class="blade" style="${pos}"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
   return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${HERO_NAME}">${fx}</div>`;
