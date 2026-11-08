@@ -355,6 +355,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 /* 全程試玩修正 */
 #toasts { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }            /* 提示放在頂列下方，不壓主角臉 */
 #app.story-mode #toasts, #app.title-mode #toasts { top: 14%; }
+#app:has(.dao-hero) #toasts { top: 33%; }   /* 道侶頁：提示放到「道侶・合修」橫幅下方，不和標題重疊 */
 .sealBtn { width: 44px; height: 44px; }
 #controls.busy #ctrlContent, #controls.busy #nav { opacity: .4; transition: opacity .3s; }
 /* 卷軸的按鈕列固定在底部，清單再長也看得到 */
