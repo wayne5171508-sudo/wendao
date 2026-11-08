@@ -235,20 +235,20 @@ const S = {
   skillOpen(sk) { if (sk.wt !== undefined) { const t = this.wTop(); return !!t && t.tier >= sk.wt; } return this.artLv(sk.from) > 0; },
 
   // ───────── 兵器 ─────────
-  // 取得兵器；已擁有則折成玄鐵與少量靈石（靈石一定低於單抽價，抽卡不會倒賺），回傳說明文字
+  // 取得兵器；已擁有則折成玄鐵（不退靈石），回傳說明文字
   gainWeapon(id) {
     const w = WEAPONS.find((x) => x.id === id);
-    if (this.d.weapons[id]) { const ore = 5 * (w.tier + 1), st = 20 * (w.tier + 1); this.add('ore', ore); this.add('stone', st); return `${w.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
+    if (this.d.weapons[id]) { const ore = 5 * (w.tier + 1); this.add('ore', ore); return `${w.name}重複，化為玄鐵 ×${ore}`; }
     this.d.weapons[id] = { lv: 0, brk: 0, fail: 0 };
     // 主手空著就放主手；主手已有劍就放副手，並標記讓法寶頁高亮
     if (!this.d.wslot[0]) this.d.wslot[0] = id;
     else if (!this.d.wslot[1]) { this.d.wslot[1] = id; this.d.freshW = id; }
     return null;
   },
-  // 取得法寶；法寶欄空著就直接佩上；重複則折成玄鐵與少量靈石
+  // 取得法寶；法寶欄空著就直接佩上；重複則折成玄鐵（不退靈石）
   gainFabao(id) {
     const f = FABAO.find((x) => x.id === id);
-    if (this.d.fabao[id]) { const ore = 5 * (f.tier + 1), st = 20 * (f.tier + 1); this.add('ore', ore); this.add('stone', st); return `${f.name}重複，化為玄鐵 ×${ore}、靈石 ${st}`; }
+    if (this.d.fabao[id]) { const ore = 5 * (f.tier + 1); this.add('ore', ore); return `${f.name}重複，化為玄鐵 ×${ore}`; }
     this.d.fabao[id] = { lv: 0, brk: 0, fail: 0 };
     if (!this.d.fslot) this.d.fslot = id;
     return null;

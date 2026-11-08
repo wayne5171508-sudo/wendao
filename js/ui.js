@@ -522,7 +522,7 @@ const UI = {
     this.scene(`<div class="gacha-ring" id="gRing"><img src="assets/fx/ring.webp" alt=""></div><i class="gacha-sky" id="gSky"></i>
       <div class="banner static" style="animation:none;top:12%"><b style="font-size:clamp(28px,8vw,46px)">${P === 'wpn' ? '法寶池' : '功法池'}</b><span>祈願光陣</span></div>`);
     const rates = WTIERS.map((T, i) => `<span class="mat" style="color:${T.color};border-color:${T.edge}">${T.name} ${Math.round(G.rates[i] * 1000) / 10}%</span>`).join('');
-    const gives = P === 'art' ? '<p class="note">凡：殘卷×1　靈：殘卷×2　法寶：殘卷×4　仙：隨機功法 +1 層　神：萬劍歸宗 +1 層</p>' : '<p class="note">重複的兵器化為玄鐵與靈石（強化材料）。</p>';
+    const gives = P === 'art' ? '<p class="note">凡：殘卷×1　靈：殘卷×2　法寶：殘卷×4　仙：隨機功法 +1 層　神：萬劍歸宗 +1 層</p>' : '<p class="note">重複的兵器化為玄鐵（強化材料）。</p>';
     this.controls(`<div class="sec-title">機緣</div>
       <div class="tabs"><button class="${P === 'wpn' ? 'on' : ''}" data-gp="wpn">法寶池</button><button class="${P === 'art' ? 'on' : ''}" data-gp="art">功法池</button></div>
       <div class="pity"><span>保底</span><b>${left}</b><span>抽內必出仙階以上</span></div>
