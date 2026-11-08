@@ -19,6 +19,8 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(caches.open(CACHE).then((c) => c.match(req).then((hit) => { const net = fetch(req).then((r) => { if (r.ok || r.type === 'opaque') c.put(req, r.clone()); return r; }).catch(() => hit); return hit || net; })));
     return;
   }
+  // 影片交給瀏覽器自己處理：影片用分段（Range）下載，service worker 回整檔會讓 iOS Safari 播不出來
+  if (url.pathname.endsWith('.mp4')) return;
   // 素材：先讀快取，沒有才下載並存起來（下載失敗不影響其他素材）
   if (url.pathname.includes('/assets/')) {
     e.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req).then((r) => { if (r.ok) { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return r; })));
