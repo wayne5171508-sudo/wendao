@@ -16,7 +16,19 @@ const U = {
   today() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; },
 };
 
-let HERO_NAME = '林清遠';   // 依所選角色變更（js/dao.js 的 CHARACTERS）
+let HERO_NAME = '林清遠';   // 依所選角色變更（js/dao.js 的 CHARACTERS）；玩家自訂名字（S.d.name）優先
+
+// ───────── 更名 ─────────
+// 名字規則要和 database.rules.json 的 users/$uid/name 一致：2～8 個字，只能是中文、英文、數字
+const NAME_RE = /^[一-鿿A-Za-z0-9]{2,8}$/;
+const RENAME_COST = 500;               // 第二次起每次更名消耗的靈石（第一次免費）
+const RENAME_CD = 24 * 3600 * 1000;    // 兩次更名至少間隔 24 小時（雲端規則也會擋）
+// 禁用詞：名字包含其中任一個就不能用（英文不分大小寫）。之後要增減直接改這個陣列
+const NAME_BANNED = [
+  '系統', '客服', '官方', '管理員', '管理员', '版主', '公告', 'GM', 'admin', 'system',
+  '幹你', '幹妳', '操你', '他媽', '他妈', '媽的', '妈的', '靠北', '靠杯', '機掰', '雞掰', '幹林', '白痴', '白癡', '智障', '去死', '賤人', '婊子', '王八',
+  'fuck', 'shit', 'bitch', 'cunt', 'dick',
+];
 const STAGES = ['初期', '中期', '後期'];
 const REALMS = ['練氣', '築基', '金丹', '元嬰'];
 const MAX_LV = REALMS.length * 3 - 1;

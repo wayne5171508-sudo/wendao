@@ -55,7 +55,7 @@ const heroArmed = (w, kind, cls = '') => {
     fx = `${wov}<i class="blade" style="${pos}"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
-  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${HERO_NAME}">${fx}</div>`;
+  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${escHtml(HERO_NAME)}">${fx}</div>`;
 };
 // 靈石：全遊戲共用同一個圖示元件（HUD、抽卡、商店、戰鬥獎勵、背包、提示）
 const STONE_IMG = 'assets/ui/stone.webp';
@@ -204,7 +204,7 @@ const UI = {
   home() {
     Audio2.setMood('sect');
     this.setBg('dongfu', '');
-    this.scene(`${heaven(S.wTop())}<div class="hero-stage sit">${S.wTop() ? heroArmed(S.wTop(), 'sit') : `<img src="${IMG_SRC.hero_meditate}" alt="${HERO_NAME}打坐">`}</div>`);
+    this.scene(`${heaven(S.wTop())}<div class="hero-stage sit">${S.wTop() ? heroArmed(S.wTop(), 'sit') : `<img src="${IMG_SRC.hero_meditate}" alt="${escHtml(HERO_NAME)}打坐">`}</div>`);
     Halo.mount('sit', '.hero-stage.sit > *');   // 腳下法陣＋靈氣絲帶，顏色隨境界
     Audio2.play('meditate');   // 進洞府打坐：靈氣聲播一次
     this.controls(`<div class="cult">
@@ -359,7 +359,7 @@ const UI = {
     Audio2.setMood('sect');
     this.setBg('sect', 'dim');
     const best = ['wanjian', 'leifa', 'huti', 'jianqi', 'yujian', 'jianyi'].find((id) => CAST_IMG[id] && S.skillOpen(SKILLS.find((k) => k.id === id))) || Object.keys(CAST_IMG)[0];
-    this.scene(`<div class="hero-stage cast"><img src="${CAST_IMG[best]}" alt="${HERO_NAME}施展${SKILLS.find((k) => k.id === best).name}"></div>`);
+    this.scene(`<div class="hero-stage cast"><img src="${CAST_IMG[best]}" alt="${escHtml(HERO_NAME)}施展${SKILLS.find((k) => k.id === best).name}"></div>`);
     const rows = ARTS.map((A) => {
       const st = S.artState(A), reqOk = S.d.lv >= A.req * 3;
       const cost = st.learn ? `${mIco('scroll')}功法殘卷 ×${A.scroll}${A.req ? `・需 ${REALMS[A.req]}` : ''}` : st.lv >= ART_MAX ? '已臻圓滿' : `${stoneAmt(artCost(st.lv))}`;
@@ -380,8 +380,8 @@ const UI = {
     Audio2.setMood('sect');
     this.setBg('sect', 'dim');
     const top = S.wTop(), nitian = S.d.wslot[0] === 'nitian', key = nitian ? 'nitian' : top ? 'hold' : 'front';
-    const fig = nitian ? `<div class="hfig nitian" style="aspect-ratio:${Char.ar('hold_nitian', 747 / 1045)}">${wAura(WEAPONS.find((w) => w.id === 'nitian'))}<img src="assets/hero/hold_nitian.webp" alt="${HERO_NAME}持逆天劍"><i class="nt-bolt"></i></div>`
-      : top ? heroArmed(top, 'hold') : `<img src="${IMG_SRC.hero_front}" alt="${HERO_NAME}">`;
+    const fig = nitian ? `<div class="hfig nitian" style="aspect-ratio:${Char.ar('hold_nitian', 747 / 1045)}">${wAura(WEAPONS.find((w) => w.id === 'nitian'))}<img src="assets/hero/hold_nitian.webp" alt="${escHtml(HERO_NAME)}持逆天劍"><i class="nt-bolt"></i></div>`
+      : top ? heroArmed(top, 'hold') : `<img src="${IMG_SRC.hero_front}" alt="${escHtml(HERO_NAME)}">`;
     this.scene(`${heaven(top)}<div class="hero-stage gear ${this._heroKey && this._heroKey !== key ? 'swap' : ''}">${fig}</div>`);
     if (key === 'nitian' && this._heroKey && this._heroKey !== key) { FX.flash = 0.6; Audio2.play('thunder'); }   // 神器出鞘
     this._heroKey = key;
@@ -627,6 +627,7 @@ const UI = {
         <div class="li"><i class="ico" style="--c:#c8b48a">音</i><div><h4>音效音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.sfx * 100)}" id="sSfxV" aria-label="音效音量"></div><b class="vol-n" id="sSfxN">${Math.round(Audio2.set.sfx * 100)}</b></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">靜</i><div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">震</i><div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
+        <div class="li"><i class="ico" style="--c:#ff9ec4">名</i><div><h4>更名<em>${escHtml(HERO_NAME)}</em></h4><p>${S.renameCost() ? `每次 ${RENAME_COST} 靈石・間隔 24 小時` : '第一次免費'}</p></div><button class="seal sm ghost" id="sName">更名</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">卷</i><div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">雲</i><div><h4>雲端帳號</h4><p>${Cloud.on ? `已登入 ${Cloud.user.email || Cloud.user.name}，存檔自動同步` : '以 Google 登入，存檔上雲、可與道侶連線'}</p></div><button class="seal sm ${Cloud.on ? 'ghost' : ''}" id="sCloud">${Cloud.on ? '登出' : '登入'}</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">存</i><div><h4>匯出存檔</h4><p>下載存檔檔案，也可複製文字備份</p></div><button class="seal sm ghost" id="sExp">匯出</button></div>
@@ -638,6 +639,7 @@ const UI = {
       '#sCloud': async () => { if (Cloud.on) { await Cloud.signOut(); this.settings(); } else { this.close(); Cloud.signIn(); } },
       '#sShake': () => { FX.noShake = !FX.noShake; d.settings.shake = !FX.noShake; S.save(); this.settings(); },
       '#sStory': () => { this.close(); Story.replay(); },
+      '#sName': () => this.renameUI(),
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),
       '#sExp': () => this.exportSave(),
       '#sImp': () => this.importSave(),
@@ -658,6 +660,31 @@ const UI = {
       '#expCopy': () => { const t = $('#expTxt'); t.select(); (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).catch(() => document.execCommand('copy')).finally(() => this.toast('存檔文字已複製', '#9fe8d8')); },
       '#expBack': () => this.settings(),
     });
+  },
+  // 更名：檢查（長度、字元、禁字、冷卻、靈石）→ 先改本機 → 有登入就寫雲端，失敗就還原成舊名字並退回靈石
+  renameUI() {
+    const cost = S.renameCost(), wait = S.renameWait();
+    this.modal('更名', `<p class="note" style="text-align:center">目前名字：<b>${escHtml(HERO_NAME)}</b><br>2～8 個字，只能用中文、英文、數字</p>
+      <div class="dao-form"><input id="nmIn" maxlength="8" autocomplete="off" placeholder="輸入新名字" aria-label="新名字"></div>
+      <p class="note" id="nmErr" style="text-align:center;color:#ff9a9a;min-height:1.5em"></p>
+      <p class="note" style="text-align:center">${cost ? `費用 ${stoneAmt(cost)}` : '第一次更名免費'}${wait ? `・冷卻中，還要 ${Math.ceil(wait / 3600000)} 小時` : ''}</p>
+      <div class="row center"><button class="seal" id="nmOk">確定更名</button><button class="seal ghost sm" id="nmNo">取消</button></div>`, {
+      '#nmNo': () => this.settings(),
+      '#nmOk': async (el) => {
+        const n = $('#nmIn').value.trim(), err = S.renameCheck(n);
+        if (err) { $('#nmErr').textContent = err; return; }
+        if (el.disabled) return; el.disabled = true; $('#nmErr').textContent = '';
+        const d = S.d, old = { name: d.name, renameCount: d.renameCount, lastRenameAt: d.lastRenameAt }, c = S.renameCost();
+        d.inv.stone -= c; d.name = n; d.renameCount++; d.lastRenameAt = Date.now(); Char.apply();
+        const r = await Cloud.rename(n, d.lastRenameAt);
+        if (r !== true) {
+          Object.assign(d, old); d.inv.stone += c; Char.apply(); S.save(); this.hud();
+          el.disabled = false; $('#nmErr').textContent = `${r}，名字已還原`; this.toast(`更名失敗：${r}`, '#ff9a9a'); return;
+        }
+        S.save(); this.hud(); Audio2.play('pickup'); this.toast(`已更名為 ${escHtml(n)}`, '#ff9ec4'); this.settings();
+      },
+    });
+    const i = $('#nmIn'); if (i) { i.focus(); i.onkeydown = (e) => { if (e.key === 'Enter') $('#nmOk').click(); }; }
   },
   importSave(fromTitle) {
     this.modal('匯入存檔', `<p class="note">選擇匯出的存檔檔案，或把存檔文字貼在下面。<b style="color:#ff9a9a">目前的進度會被覆蓋。</b></p>
