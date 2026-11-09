@@ -57,10 +57,13 @@ const FX = {
   SPR_SRC: { slash: 'assets/fx/hit/slash.webp', combo: 'assets/fx/hit/combo.webp', critSlash: 'assets/fx/hit/crit_slash.webp', hit: 'assets/fx/hit/hit.webp', critBurst: 'assets/fx/hit/crit_burst.webp', shield: 'assets/fx/hit/demon_shield.webp',
     thunder1: 'assets/fx/skill/thunder1.webp', thunder2: 'assets/fx/skill/thunder2.webp', thunder3: 'assets/fx/skill/thunder3.webp',
     rainSword: 'assets/fx/skill/rain_sword.webp', yujianRing: 'assets/fx/skill/yujian_ring.webp', jianyi: 'assets/fx/skill/jianyi.webp', heroShield: 'assets/fx/skill/shield_sphere.webp', shieldRing: 'assets/fx/skill/shield_ring.webp' },
-  sprImg: {}, low: false,
+  sprImg: {},
+  // 特效強度：high | low | off（設定頁可切換）；沒設定過時低階機自動用 low
+  level() { const s = S.d && S.d.settings && S.d.settings.fx; return s || (typeof Halo !== 'undefined' && Halo.isLow() ? 'low' : 'high'); },
+  get low() { return this.level() !== 'high'; },
+  applyLevel() { document.documentElement.dataset.fx = this.level(); },
   loadSprites() {
     if (this._sprLoading || typeof Knock === 'undefined') return; this._sprLoading = true;
-    this.low = typeof Halo !== 'undefined' && Halo.isLow();
     for (const [k, src] of Object.entries(this.SPR_SRC)) Knock.load(src, { round: false, lo: 14 }).then((u) => { const im = new Image(); im.onload = () => (this.sprImg[k] = im); im.src = u; }).catch(() => console.warn('[特效] 素材載入失敗：' + src));
   },
   // 貼圖特效：w 為顯示寬度；ang 旋轉；s0→s1 縮放；dx,dy 掃過的位移；ghosts 殘影數（低階機自動關閉）

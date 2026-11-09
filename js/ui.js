@@ -628,6 +628,7 @@ const UI = {
         <div class="li"><i class="ico" style="--c:#c8b48a">音</i><div><h4>音效音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.sfx * 100)}" id="sSfxV" aria-label="音效音量"></div><b class="vol-n" id="sSfxN">${Math.round(Audio2.set.sfx * 100)}</b></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">靜</i><div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">震</i><div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
+        <div class="li"><i class="ico" style="--c:#9fe8d8">光</i><div><h4>特效強度</h4><p>${d.settings.fx ? '' : '自動・'}劍氣、靈氣粒子、待機呼吸</p></div><button class="seal sm ${FX.level() === 'off' ? 'ghost' : ''}" id="sFx">${{ high: '高', low: '低', off: '關' }[FX.level()]}</button></div>
         <div class="li"><i class="ico" style="--c:#ff9ec4">名</i><div><h4>更名<em>${escHtml(HERO_NAME)}</em></h4><p>${S.renameCost() ? `每次 ${RENAME_COST} 靈石・間隔 24 小時` : '第一次免費'}</p></div><button class="seal sm ghost" id="sName">更名</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">卷</i><div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">雲</i><div><h4>雲端帳號</h4><p>${Cloud.on ? `已登入 ${Cloud.user.email || Cloud.user.name}，存檔自動同步` : '以 Google 登入，存檔上雲、可與道侶連線'}</p></div><button class="seal sm ${Cloud.on ? 'ghost' : ''}" id="sCloud">${Cloud.on ? '登出' : '登入'}</button></div>
@@ -639,6 +640,7 @@ const UI = {
       '#sMute': () => { Audio2.toggleMute(); this.settings(); },
       '#sCloud': async () => { if (Cloud.on) { await Cloud.signOut(); this.settings(); } else { this.close(); Cloud.signIn(); } },
       '#sShake': () => { FX.noShake = !FX.noShake; d.settings.shake = !FX.noShake; S.save(); this.settings(); },
+      '#sFx': () => { const o = ['high', 'low', 'off']; d.settings.fx = o[(o.indexOf(FX.level()) + 1) % 3]; FX.applyLevel(); S.save(); this.settings(); },
       '#sStory': () => { this.close(); Story.replay(); },
       '#sName': () => this.renameUI(),
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),
