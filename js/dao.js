@@ -390,7 +390,7 @@ Object.assign(UI, {
     this.scene(`<div class="dual-show" id="dualShow"><div class="ds-bg"></div><div class="ds-art"></div>
       <div class="ds-top"><b id="dsStage"></b><span id="dsStep"></span></div><p class="ds-text" id="dsText"></p>
       <div class="ds-ctrl"><button class="seal sm ghost" id="dsFast">加速 ×1</button><button class="seal sm ghost" id="dsSkip">跳過</button></div></div>`);
-    this.fade(false); dualVideo($('#dualShow'));
+    this.fade(false); dualVideo($('#dualShow'), o.room);
     $('#dsFast').onclick = () => { this.daoSpeed = this.daoSpeed === 1 ? 2 : 1; DualShow.setSpeed(this.daoSpeed); $('#dsFast').textContent = `加速 ×${this.daoSpeed}`; sync({ speed: this.daoSpeed }); };
     $('#dsSkip').onclick = () => { DualShow.skip(); sync({ skip: true }); };
     $('#dsFast').textContent = `加速 ×${this.daoSpeed}`;
@@ -418,10 +418,15 @@ const dualArt = (room, stage, intensity) => {
 };
 // 雙修影片：演出開始時疊在演出圖上播一支（隨機），播完、跳過、載入失敗、斷網或被擋自動播放就移除，底下的靜態演出照常進行
 // 進入演出才建立 <video>，開遊戲不預載；sw.js 不快取影片（見 sw.js）
-const DUAL_VIDEOS = 9;
-const dualVideo = (box) => {
-  if (!box) return;
-  const n = String(1 + Math.floor(Math.random() * DUAL_VIDEOS)).padStart(2, '0'), wrap = document.createElement('div');
+// 影片編號 → 合修室：只從目前合修室的影片裡隨機挑；加影片時放 assets/dual/video_NN.mp4（＋同名 .jpg 封面）再在這裡加一行
+const DUAL_VIDEO_ROOM = {
+  1: 'lingquan', 2: 'lingquan', 3: 'lingquan', 4: 'lingquan', 5: 'lingquan', 6: 'lingquan', 7: 'lingquan', 8: 'lingquan', 9: 'lingquan',
+  10: 'yunchuang', 11: 'yunchuang', 12: 'yunchuang', 13: 'yunchuang', 14: 'yunchuang',
+};
+const dualVideo = (box, room) => {
+  const list = Object.keys(DUAL_VIDEO_ROOM).filter((k) => DUAL_VIDEO_ROOM[k] === room);
+  if (!box || !list.length) return;   // 這間合修室沒有影片：只放靜態演出
+  const n = String(list[Math.floor(Math.random() * list.length)]).padStart(2, '0'), wrap = document.createElement('div');
   wrap.className = 'ds-video';
   wrap.innerHTML = `<video muted playsinline preload="none" poster="assets/dual/video_${n}.jpg"></video><button class="seal sm ghost ds-vskip">跳過影片</button>`;
   const v = wrap.querySelector('video');
