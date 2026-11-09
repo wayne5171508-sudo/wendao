@@ -29,6 +29,21 @@ const HERO_SWORD = {
   bnitian: { img: 'assets/hero/hold_nitian.webp', ar: 747 / 1045, blade: [0.38, 0.45, 0.013, 0.895] },   // 持逆天劍正面（備用）
   blean: { img: 'assets/hero/battle_lean.webp', ar: 700 / 840, blade: [0.27, 0.32, 0.02, 0.8] },         // 戰鬥前傾持逆天劍（神器）
 };
+// 戰鬥立繪的衣袖／衣擺擺動（不新增圖）：把原圖用 clip-path 裁出一塊複製層疊在上面輕輕擺動
+//  p＝多邊形頂點（原圖百分比 x y）、o＝擺動支點（放在貼身那一側，接縫處幾乎不位移）、a＝幅度倍率（1 ≈ ±0.8° 旋轉、±1° 斜切）
+//  依角色 id → 立繪 kind；想調整區域直接改這裡
+const SWAY = {
+  qingyuan: {
+    bstance: [{ p: '57% 36%, 100% 44%, 100% 74%, 82% 72%, 62% 58%', o: '58% 42%' }, { p: '55% 60%, 98% 70%, 96% 88%, 70% 86%, 52% 74%', o: '55% 64%', a: 0.7 }],
+    bhold: [{ p: '33% 28%, 40% 30%, 40% 58%, 4% 58%, 8% 42%, 20% 32%', o: '38% 30%' }, { p: '0% 64%, 36% 60%, 36% 74%, 20% 80%, 0% 80%', o: '36% 62%', a: 0.7 }],
+  },
+  yunxi: {
+    bstance: [{ p: '0% 46%, 36% 50%, 36% 100%, 0% 100%', o: '36% 56%' }, { p: '50% 46%, 64% 52%, 66% 80%, 50% 82%', o: '57% 48%', a: 0.6 }],
+    bhold: [{ p: '62% 44%, 100% 50%, 100% 92%, 82% 95%, 62% 70%', o: '62% 50%' }],
+  },
+};
+const swayLayers = (kind, src) => ((typeof Char !== 'undefined' && SWAY[Char.cur().id]) || {})[kind]?.map((r, i) =>
+  `<img class="sway" src="${src}" style="clip-path:polygon(${r.p});--o:${r.o};--sa:${r.a || 1};animation-delay:${-i * 1.1}s" alt="">`).join('') || '';
 // 戰鬥立繪：battle_lean 畫的是逆天劍，只有主手是逆天劍才用；其他劍用起手式，再把主手兵器圖疊在劍身上
 const BATTLE_POSE = { normal: { hold: 'bhold', stance: 'bstance' }, nitian: { hold: 'blean', stance: 'blean' } };
 const battlePose = (w) => BATTLE_POSE[w && w.id === 'nitian' ? 'nitian' : 'normal'];
@@ -54,7 +69,7 @@ const heroArmed = (w, kind, cls = '') => {
     fx = `${wov}<i class="blade" style="${pos}"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
-  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${escHtml(HERO_NAME)}">${fx}</div>`;
+  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${escHtml(HERO_NAME)}">${/^b(stance|hold)$/.test(kind) ? swayLayers(kind, H.img) : ''}${fx}</div>`;
 };
 // 靈石：全遊戲共用同一個圖示元件（HUD、抽卡、商店、戰鬥獎勵、背包、提示）
 const STONE_IMG = 'assets/ui/stone.webp';

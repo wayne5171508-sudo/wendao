@@ -936,3 +936,7 @@ img { object-fit: contain; }
 @media (max-width: 359px) { .skills:has(> .skill:nth-child(6)) { grid-template-columns: repeat(3, 1fr); row-gap: 24px; } .skills:has(> .skill:nth-child(6)) .skill { min-width: 44px; max-width: 60px; } }
 .st-replay { position: absolute; left: 0; right: 0; top: 4%; z-index: 5; margin: 0; text-align: center; font-family: var(--serif); font-size: 13px; color: #e8dcc0; text-shadow: 0 1px 4px #000; pointer-events: none; }   /* 劇情回顧時的靈根測試 */
 body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
+/* 戰鬥立繪衣袖／衣擺擺動：裁出的複製層（座標見 ui.js SWAY）；攻擊、受擊時先藏起來，避免和本體動畫錯位；特效「關」停用 */
+.hfig > img.sway { position: absolute; left: 0; top: 0; width: 100%; height: 100%; filter: none !important; pointer-events: none; transform-origin: var(--o); animation: clothSway 3s ease-in-out infinite; }
+@keyframes clothSway { 0%, 100% { transform: rotate(calc(-0.8deg * var(--sa))) skewX(calc(-1deg * var(--sa))); } 50% { transform: rotate(calc(0.8deg * var(--sa))) skewX(calc(1deg * var(--sa))); } }
+.hero-b.atk img.sway, .hero-b.hurt img.sway, [data-fx="off"] .hfig > img.sway { display: none; }
