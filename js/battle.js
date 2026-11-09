@@ -400,7 +400,7 @@ const Battle = {
     $('#pBarB').style.width = (100 * h.mp / h.maxmp) + '%'; $('#pTxtB').textContent = `${Math.floor(h.mp)} / ${h.maxmp}`;
     if (m) {
       $('#mBar').style.width = (100 * Math.max(0, m.hp) / m.max) + '%'; $('#mTxt').textContent = `${U.fmt(Math.max(0, m.hp))} / ${U.fmt(m.max)}`;
-      $('#mCharge').innerHTML = m.charge > 0 ? `<div class="charge"><i style="width:${100 * (1 - m.charge / m.chargeMax)}%"></i></div><div class="charge-tip">${m.boss ? '妖將蓄力「血刃斬」——快開護體或以雷法打斷' : '蓄力重擊——護體或雷法可化解'}</div>` : '';
+      $('#mCharge').innerHTML = m.charge > 0 ? `<div class="charge"><i style="width:${100 * (1 - m.charge / m.chargeMax)}%"></i></div><div class="charge-tip">${m.boss ? `${m.M.name.split('・')[0]}蓄力「血刃斬」——快開護體或以雷法打斷` : '蓄力重擊——護體或雷法可化解'}</div>` : '';
     }
     $('#heroB').classList.toggle('yi', h.yiT > 0);
     for (const k of SKILLS) {
