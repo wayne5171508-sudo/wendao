@@ -42,8 +42,13 @@ const SWAY = {
     bhold: [{ p: '62% 44%, 100% 50%, 100% 92%, 82% 95%, 62% 70%', o: '62% 50%' }],
   },
 };
-const swayLayers = (kind, src) => ((typeof Char !== 'undefined' && SWAY[Char.cur().id]) || {})[kind]?.map((r, i) =>
-  `<img class="sway" src="${src}" style="clip-path:polygon(${r.p});--o:${r.o};--sa:${r.a || 1};animation-delay:${-i * 1.1}s" alt="">`).join('') || '';
+// 複製層邊緣用橢圓遮罩淡出（橢圓＝多邊形外框），裁切線處完全透明，擺動時不會出現硬接縫
+const swayLayers = (kind, src) => ((typeof Char !== 'undefined' && SWAY[Char.cur().id]) || {})[kind]?.map((r, i) => {
+  const pts = r.p.split(',').map((q) => q.trim().split(/\s+/).map(parseFloat)), xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const mask = `radial-gradient(${(x1 - x0) / 2}% ${(y1 - y0) / 2}% at ${(x0 + x1) / 2}% ${(y0 + y1) / 2}%, #000 45%, transparent 100%)`;
+  return `<img class="sway" src="${src}" style="clip-path:polygon(${r.p});-webkit-mask-image:${mask};mask-image:${mask};--o:${r.o};--sa:${r.a || 1};animation-delay:${-i * 1.1}s" alt="">`;
+}).join('') || '';
 // 戰鬥立繪：battle_lean 畫的是逆天劍，只有主手是逆天劍才用；其他劍用起手式，再把主手兵器圖疊在劍身上
 const BATTLE_POSE = { normal: { hold: 'bhold', stance: 'bstance' }, nitian: { hold: 'blean', stance: 'blean' } };
 const battlePose = (w) => BATTLE_POSE[w && w.id === 'nitian' ? 'nitian' : 'normal'];
