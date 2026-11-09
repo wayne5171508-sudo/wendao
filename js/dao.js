@@ -18,7 +18,7 @@ const CHARACTERS = {
     sword: { hold: { ar: 683 / 1100, blade: [0.25, 0.57, 0.03, 0.95] }, sit: { ar: 816 / 665, blade: [0.06, 0.69, 0.94, 0.69] }, back: { ar: 847 / 726, hilt: null },
       bhold: { ar: 1118 / 748, blade: [0.21, 0.49, 0.0, 0.75] }, bstance: { ar: 1020 / 775, blade: [0.73, 0.7, 0.99, 0.97] }, blean: { ar: 1652 / 1100, blade: [0.57, 0.42, 0.99, 0.67] } },
     ar: { hold_nitian: 1260 / 1100 },
-    textSub: [['林清遠', '蘇雲汐'], ['清遠', '雲汐'], ['少年', '少女'], ['他在石階', '她在石階'], ['他出生那夜', '她出生那夜'], ['小師弟', '小師妹']] },
+    textSub: [['林清遠', '蘇雲汐'], ['清遠', '雲汐'], ['少年', '少女'], ['他在石階', '她在石階'], ['他出生那夜', '她出生那夜'], ['小師弟', '小師妹'], ['林母', '蘇母']] },
 };
 
 // ───────── 道侶設定（數值集中在這裡調整） ─────────
@@ -275,7 +275,12 @@ const Char = {
       const p = C.castDir ? C.castDir + k + '.webp' : this.cast0[k];
       if (!C.castDir || typeof ASSET_LIST === 'undefined' || ASSET_LIST.includes(p)) CAST_IMG[k] = p; else delete CAST_IMG[k];
     }
-    if (typeof PEOPLE !== 'undefined' && PEOPLE.hero) PEOPLE.hero.name = HERO_NAME;
+    // 劇情人物名稱（對話框上的名字）也套用角色替換，例如女主的母親為「蘇母」；先記下原名，切換角色時可還原
+    if (typeof PEOPLE !== 'undefined') {
+      if (!this.people0) this.people0 = Object.fromEntries(Object.entries(PEOPLE).map(([k, p]) => [k, p.name]));
+      for (const [k, n] of Object.entries(this.people0)) PEOPLE[k].name = C.textSub.reduce((s, [a, b]) => s.split(a).join(b), n);
+      if (PEOPLE.hero) PEOPLE.hero.name = HERO_NAME;
+    }
     // 畫面上所有 <img>（含之後動態插入）自動換成該角色的立繪
     const fix = (i) => { const s = i.getAttribute('src'); if (s && s.startsWith('assets/hero/')) { const n = this.path(s); if (n !== s) i.setAttribute('src', n); } };
     if (!this.mo) {
