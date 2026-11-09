@@ -33,7 +33,6 @@ const HERO_SWORD = {
 const BATTLE_POSE = { normal: { hold: 'bhold', stance: 'bstance' }, nitian: { hold: 'blean', stance: 'blean' } };
 const battlePose = (w) => BATTLE_POSE[w && w.id === 'nitian' ? 'nitian' : 'normal'];
 // 疊在劍身上的兵器圖：原圖轉 rot 度後劍尖朝下，劍長約為轉正後的高度；依劍長換算圖寬，讓整把劍剛好蓋住立繪裡的劍
-// shortcut: 立繪本身畫著青鋼劍，疊圖只能蓋住大部分；補上無劍立繪後，把 battle_stance/battle_hold 換成無劍版即可
 function wovFit(img) {
   const r = (parseFloat(img.dataset.rot) || 0) * Math.PI / 180, w = img.naturalWidth, h = img.naturalHeight;
   img.style.width = (100 * w) / (h * Math.abs(Math.cos(r)) + w * Math.abs(Math.sin(r))) + '%'; img.classList.add('on');
@@ -50,8 +49,8 @@ const heroArmed = (w, kind, cls = '') => {
   if (w && H.blade) {
     const [x1, y1, x2, y2] = H.blade, dx = x2 - x1, dy = (y2 - y1) / H.ar;
     const pos = `left:${x1 * 100}%;top:${y1 * 100}%;width:${Math.hypot(dx, dy) * 100}%;transform:rotate(${(Math.atan2(dy, dx) * 180) / Math.PI}deg)`;
-    // 戰鬥立繪畫的是青鋼劍：主手換成別的劍時把那把劍的圖疊上去
-    const wov = /^b(stance|hold)$/.test(kind) && w.id !== 'qinggang' ? `<i class="wov" style="${pos}"><img src="${W_IMG(w.id)}" data-rot="${w.rot || 0}" onload="wovFit(this)" alt=""></i>` : '';
+    // 戰鬥立繪不畫劍：一律把主手兵器圖疊在劍身位置
+    const wov = /^b(stance|hold)$/.test(kind) ?`<i class="wov" style="${pos}"><img src="${W_IMG(w.id)}" data-rot="${w.rot || 0}" onload="wovFit(this)" alt=""></i>` : '';
     fx = `${wov}<i class="blade" style="${pos}"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
