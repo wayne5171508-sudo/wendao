@@ -337,7 +337,7 @@ Object.assign(UI, {
     const ints = Dao.intensities().map((x) => `<button class="${this.daoInt === x.id ? 'on' : ''}" data-int="${x.id}" ${x.open ? '' : 'disabled'}>${x.name}${x.open ? '' : `<small>需${DAO.levels[x.need].name}</small>`}</button>`).join('');
     const act = anyRoom ? `<div class="tabs dao-int">${ints}</div>
       <div class="row center gacha-btns"><button class="seal ghost" id="dSolo">閉關<small>單人・無雙修加成</small></button>
-      <button class="seal" id="dDual" ${dual ? '' : 'disabled'}>邀請雙修<small>${!P ? '尚無道侶' : !online ? '道侶離線' : `今日已雙修 ${t.dual} 次`}</small></button></div>` : '<p class="note">先以探索所得材料開闢一間合修室。</p>';
+      <button class="seal" id="dDual" ${dual ? '' : 'disabled'}>邀請雙修<small>${!P ? '尚無道侶' : `${online ? '' : '道侶離線・'}今日已雙修 ${t.dual} 次`}</small></button></div>` : '<p class="note">先以探索所得材料開闢一間合修室。</p>';
     const mc = DAO.markCost(g.mark);
     const growth = `<div class="li"><div><h4>雙修靈力 ${g.dualQi}<em>連續雙修 ${g.streak} 日</em></h4><p>道侶印記 第 ${g.mark} 層：攻擊、氣血 +${Math.round(g.mark * DAO.markStat * 100)}%　悟性 +${Math.round(g.wux * 100)}%　心魔抗性 +${Math.round(g.xin * 100)}%</p></div>
         <button class="seal sm" id="dMark" ${g.mark < DAO.markMax && g.dualQi >= mc ? '' : 'disabled'}>印記<small>${g.mark < DAO.markMax ? mc : '圓滿'}</small></button></div>
