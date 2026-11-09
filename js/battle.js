@@ -386,7 +386,7 @@ const Battle = {
     if (m.stun > 0) { m.stun -= dt; this.render(); return; }
     if (m.charge > 0) {
       m.charge -= dt;
-      if (m.charge <= 0) { const p = this.monPos(), hp = this.heroPos(), dark = m.M.tint === 'tianmo';   // 九幽天魔：紫黑血刃斬
+      if (m.charge <= 0) { const p = this.monPos(), hp = this.heroPos(), dark = m.type === 'tianmo';   // 九幽天魔：紫黑血刃斬
         if (dark) FX.voidSlash(hp.x, hp.y - 80, 140, -0.3); else FX.slash(hp.x, hp.y - 80, 140, -0.3, '#ff4a4a', 0.35); FX.ring(p.x, p.y, dark ? '#9b4dff' : '#ff4a4a', 30, 220, 0.4, 5); this.hurtHero(m.atk * (m.ph ? m.ph.chargeMult : 2.4), m.boss ? '血刃斬' : '重擊', m); m.chargeCd = m.ph ? m.ph.chargeCd : 9; }
     } else if (m.elite || m.boss) {
       m.chargeCd -= dt;
