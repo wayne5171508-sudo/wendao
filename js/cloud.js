@@ -56,7 +56,7 @@ const Cloud = {
   A: null, user: null, booted: false, partnerOnline: false, offs: [], pending: {}, saveT: 0,
   async init() {
     this.A = window.__CLOUD_ADAPTER || FirebaseAdapter;
-    if (location.protocol === 'file:' && !window.__CLOUD_ADAPTER) return;
+    if ((location.protocol === 'file:' || !FIREBASE_CFG) && !window.__CLOUD_ADAPTER) return;   // 沒有設定（測試站尚未建專案）＝單機
     try { await this.A.boot(); this.booted = true; } catch (e) { console.warn('[雲端] 無法連線（離線或被擋），以單機模式遊玩'); return; }
     this.A.onAuth((u) => this.onUser(u).catch((e) => console.warn('[雲端] 登入後同步失敗', e)));
   },
