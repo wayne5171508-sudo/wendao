@@ -130,6 +130,7 @@ const ASSET_LIST = [
   'assets/hero_yunxi/front.webp',
   'assets/hero_yunxi/hold_nitian.webp',
   'assets/hero_yunxi/hold_sword.webp',
+  'assets/hero_yunxi/lunge_nitian.webp',
   'assets/hero_yunxi/meditate.webp',
   'assets/hero_yunxi/meditate_sword.webp',
   'assets/hero_yunxi/press_stele.webp',
