@@ -130,7 +130,7 @@ const Story = {
     UI.scene(`<div class="stele" id="stele"><img class="st-base" src="assets/bg/stele.webp" alt="測靈石"><i class="st-dusk"></i><div class="st-glow"><img src="assets/bg/stele.webp" alt=""></div>
       <img class="st-light" src="assets/fx/wuxing.webp" alt=""><img class="st-pillar" alt="">
       <div class="st-hero"><img class="sh-top" src="assets/hero/walk_back.webp" alt=""><img class="sh-bot" src="assets/hero/walk_back.webp" alt="${escHtml(HERO_NAME)}"></div>
-      <img class="st-press" src="assets/hero/press_stele.webp" alt="${escHtml(HERO_NAME)}手按測靈石"><i class="st-hand"></i>${replay ? '<p class="st-replay">僅回顧，不會改變靈根</p>' : ''}</div>`);
+      <img class="st-press" src="assets/hero/press_stele.webp" alt="${escHtml(HERO_NAME)}手按測靈石"><i class="st-hand"></i></div>${replay ? '<p class="st-replay">僅回顧，不會改變靈根</p>' : ''}`);
     const st = $('#stele'), hero = st.querySelector('.st-hero');
     const at = (fx, fy) => { const r = st.getBoundingClientRect(), sc = $('#scene').getBoundingClientRect(); return { x: r.left - sc.left + fx * r.width, y: r.top - sc.top + fy * r.height }; };
     await this.wait(400);

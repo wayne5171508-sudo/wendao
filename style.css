@@ -938,7 +938,7 @@ img { object-fit: contain; }
   .skills:has(> .skill:nth-child(6)) .skill { min-width: 44px; max-width: 48px; }
   .skills:has(> .skill:nth-child(6)) + .row { margin-top: 22px !important; }   /* 第二排技能名在按鈕下方 18px */
 }
-.st-replay { position: absolute; left: 0; right: 0; top: 4%; z-index: 5; margin: 0; text-align: center; font-family: var(--serif); font-size: 13px; color: #e8dcc0; text-shadow: 0 1px 4px #000; pointer-events: none; }   /* 劇情回顧時的靈根測試 */
+.st-replay { position: absolute; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 56px); transform: translateX(-50%); z-index: 6; margin: 0; padding: 5px 14px; border-radius: 999px; background: rgba(8,12,20,.72); white-space: nowrap; font-family: var(--serif); font-size: 13px; color: #f0e4c4; letter-spacing: 1px; pointer-events: none; }   /* 劇情回顧時的靈根測試 */
 body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 /* 戰鬥立繪衣袖／衣擺擺動：裁出的複製層（座標見 ui.js SWAY）；攻擊、受擊時先藏起來，避免和本體動畫錯位；特效「關」停用 */
 .hfig > img.sway { position: absolute; left: 0; top: 0; width: 100%; height: 100%; filter: none !important; pointer-events: none; transform-origin: var(--o); animation: clothSway 3s ease-in-out infinite; }
