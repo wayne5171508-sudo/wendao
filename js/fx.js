@@ -90,6 +90,8 @@ const FX = {
   },
   // 波紋環：用環形素材由小擴大淡出（ry 壓扁成地面圓環）
   ripple(x, y, w, flat = 0.32, life = 0.6, alpha = 1) { if (!this.spr('shieldRing', x, y, { w, life, s0: 0.25, s1: 1.15, ghosts: 0, hold: 0.25, alpha })) this.ring(x, y, '#bff4ff', 10, w / 2, life, 3); const p = this.list[this.list.length - 1]; if (p && p.k === 'spr') p.sy = flat; },
+  // 技能色全畫面閃光（閃完自動回到預設的淡紫白）
+  flashColor(hex, a = 0.35) { const n = parseInt(hex.slice(1), 16); this.flashRGB = `${n >> 16},${(n >> 8) & 255},${n & 255}`; this.flash = Math.max(this.flash, a); },
   dim(a = 0.6, life = 0.6) { this.add({ k: 'dim', a, life }); },
   // 命中爆點：普通用 hit，暴擊用 crit_burst
   impact(x, y, crit, color) {
@@ -241,7 +243,7 @@ const FX = {
       c.restore();
     }
     this.list = this.list.filter((p) => p.t < p.life);
-    if (this.flash > 0) { c.fillStyle = `rgba(230,220,255,${this.flash * 0.45})`; c.fillRect(0, 0, W, H); this.flash = Math.max(0, this.flash - dt * 2.5); }
+    if (this.flash > 0) { c.fillStyle = `rgba(${this.flashRGB || '230,220,255'},${this.flash * 0.45})`; c.fillRect(0, 0, W, H); this.flash = Math.max(0, this.flash - dt * 2.5); if (!this.flash) this.flashRGB = null; }
   },
 };
 

@@ -265,6 +265,12 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .cutin::before { content: ""; position: absolute; left: -10%; right: -40%; top: 28%; bottom: 18%; background: linear-gradient(90deg, rgba(5,8,14,0), rgba(5,8,14,.55) 30%, rgba(5,8,14,0)); border-top: 1px solid var(--c); border-bottom: 1px solid var(--c); transform: skewY(-6deg); }
 .cutin img { position: relative; height: 100%; filter: drop-shadow(0 0 18px var(--c)); }
 @keyframes cutin { 0% { opacity: 0; transform: translateX(-40%); } 18% { opacity: 1; transform: translateX(0); } 70% { opacity: 1; transform: translateX(4%); } 100% { opacity: 0; transform: translateX(10%); } }
+/* 劍氣橫掃：新月形光弧（只用漸層與遮罩，不用圖），由 Battle.qiSweep 以 transform/opacity 推向妖物 */
+.qi-sweep { position: absolute; width: 120px; height: 120px; z-index: 4; pointer-events: none; border-radius: 50%; opacity: 0; mix-blend-mode: screen; will-change: transform, opacity;
+  background: radial-gradient(closest-side, transparent 55%, color-mix(in srgb, var(--c) 70%, transparent) 64%, #fff 70%, var(--c) 75%, transparent 86%);
+  /* 弧口朝 +x（行進方向）：conic 由上方順時針量角，90deg 為右 */
+  -webkit-mask-image: conic-gradient(transparent 0 25deg, #000 55deg 125deg, transparent 155deg); mask-image: conic-gradient(transparent 0 25deg, #000 55deg 125deg, transparent 155deg); }
+[data-fx="high"] .qi-sweep:not(.ghost) { filter: drop-shadow(0 0 8px var(--c)); }
 .hero-b.yi img { filter: drop-shadow(0 0 16px #ffcf7a) drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
 
 /* ───── 兵器：五階顏色與邊框（白、綠、藍、紫金、赤金） ───── */
