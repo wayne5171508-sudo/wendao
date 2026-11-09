@@ -138,7 +138,7 @@ const Battle = {
     if (this.cd[id] > 0 || h.mp < k.mp) return;
     h.mp -= k.mp; this.cd[id] = k.cd;
     const lv = S.artLv(k.from), m = this.monPos(), hp = this.heroPos(), tint = this.tint(id);
-    FX.array(hp.x, hp.y - 4, 110, tint, 0.7);
+    FX.array(hp.x, hp.y - 4, 110, tint, 0.7); Halo.boost(tint);
     this.cutin(id); Audio2.play('cast');   // 開招式
     const low = FX.low, alive = () => this.on && this.mon && this.mon.hp > 0;
     if (id === 'yujian') {

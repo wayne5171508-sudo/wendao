@@ -87,12 +87,22 @@ const Motes = {
     };
     im.src = MOTE_SRC;
   },
-  // 依模式設定：打坐多而慢；站立中等；戰鬥少、向外飄散帶拖尾。low＝低階機
+  // 依模式設定：打坐多而慢；站立中等；戰鬥為青綠氣場、緩慢上飄（依特效強度：高 30、低 12、關或減少動態 0）。low＝低階機
   cfg(mode, low) {
     const cap = low ? 12 : 30;
-    return mode === 'sit' ? { cap, vy: [-10, -20], out: 0, trail: 0 }
-      : mode === 'battle' ? { cap: Math.round(cap * 0.5), vy: [-12, -22], out: 34, trail: low ? 0 : 3 }
-      : { cap: Math.round(cap * 0.7), vy: [-16, -28], out: 8, trail: 0 };
+    if (mode === 'battle') {
+      const lv = FX.level(), off = lv === 'off' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+      return { cap: off ? 0 : lv === 'low' || low ? 12 : 30, vy: [-8, -18], out: 6, trail: lv === 'high' && !low ? 2 : 0, teal: true };
+    }
+    return mode === 'sit' ? { cap, vy: [-10, -20], out: 0, trail: 0 } : { cap: Math.round(cap * 0.7), vy: [-16, -28], out: 8, trail: 0 };
+  },
+  // 出招時的技能色粒子：把青色光點染成指定色，依色快取
+  tinted(i, color) {
+    const k = i + color, T = this._t || (this._t = {});
+    if (T[k]) return T[k];
+    const s = this.imgs[i], cv = document.createElement('canvas'); cv.width = s.width; cv.height = s.height;
+    const c = cv.getContext('2d'); c.drawImage(s, 0, 0); c.globalCompositeOperation = 'source-atop'; c.globalAlpha = 0.65; c.fillStyle = color; c.fillRect(0, 0, cv.width, cv.height);
+    return (T[k] = cv);
   },
 };
 Motes.load();
@@ -124,6 +134,8 @@ const Halo = {
     if (!this.raf) { this.last = performance.now(); this.raf = requestAnimationFrame((n) => this.loop(n)); }
     return inst;
   },
+  // 出招時氣場加強，粒子染成技能色
+  boost(color, sec = 0.9) { for (const I of this.list) if (I.mode === 'battle') { I.boostT = sec; I.boostC = color; } },
   fit(I) {
     const r = $('#sceneContent').getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
     for (const cv of [I.back, I.front]) if (cv) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
@@ -222,11 +234,15 @@ const Halo = {
     const C = Motes.cfg(I.mode, low), dt = I.dt || 0.016, pool = I.pool;
     while (pool.length < C.cap) pool.push({ on: false, hx: new Float32Array(4), hy: new Float32Array(4) });
     let alive = 0; for (let i = 0; i < pool.length; i++) if (pool[i].on) alive++;
-    // 生成：平均生命 4 秒，維持在上限附近
-    I.spawnT -= dt;
-    if (I.spawnT <= 0 && alive < C.cap) {
+    // 生成：平均生命 4 秒，維持在上限附近；出招加強（Halo.boost）時生成快五倍、向外噴並染技能色
+    if (I.boostT > 0) I.boostT -= dt;
+    const boost = I.boostT > 0;
+    I.spawnT -= dt * (boost ? 5 : 1);
+    if (I.spawnT <= 0 && C.cap && (alive < C.cap || boost)) {
       I.spawnT = 4 / C.cap * U.rand(0.6, 1.4);
-      const p = pool.find((q) => !q.on);
+      // 滿額時出招：回收最老的未染色粒子，總數不超過上限
+      const free = alive < C.cap && pool.find((q) => !q.on);
+      const p = free || pool.reduce((a, q) => (q.on && !q.tint && (!a || q.age / q.life > a.age / a.life) ? q : a), null);
       if (p) {
         const cx = b.x + b.w / 2, foot = I.mode === 'sit' && Math.random() < 0.5;
         // 打坐有一半從腳下法陣冒出；其餘從身體中段
@@ -234,7 +250,8 @@ const Halo = {
         p.y = foot ? b.y + b.h * U.rand(0.88, 0.98) : b.y + b.h * U.rand(0.25, 0.85);
         const ang = Math.atan2(p.y - (b.y + b.h * 0.5), p.x - cx);
         p.vx = Math.cos(ang) * C.out * U.rand(0.5, 1); p.vy = U.rand(C.vy[0], C.vy[1]) + Math.sin(ang) * C.out * 0.4;
-        p.gold = Math.random() < 0.6; p.img = p.gold ? U.randi(0, MOTE_GOLD - 1) : U.randi(MOTE_GOLD, MOTE_N - 1);
+        p.gold = !C.teal && Math.random() < 0.6; p.img = p.gold ? U.randi(0, MOTE_GOLD - 1) : U.randi(MOTE_GOLD, MOTE_N - 1);
+        p.tint = boost ? I.boostC : null; if (boost) { p.vx *= 3; p.vy -= 24; }
         p.size = U.rand(6, 22); p.life = U.rand(3, 5); p.age = 0; p.ph = Math.random() * 7; p.sw = U.rand(5, 14); p.fl = U.rand(3, 7);
         p.front = Math.random() < 0.4; p.on = true; p.hx.fill(p.x); p.hy.fill(p.y); p.rot = Math.random() * 6.28; p.spin = U.rand(-0.6, 0.6);
       }
@@ -246,7 +263,7 @@ const Halo = {
       const k = p.age / p.life;
       if (C.trail) { p.hx.copyWithin(1, 0); p.hy.copyWithin(1, 0); p.hx[0] = p.x; p.hy[0] = p.y; }
       p.x += (p.vx + Math.cos(p.age * 1.3 + p.ph) * p.sw) * dt; p.y += p.vy * dt; p.rot += p.spin * dt;
-      const fade = Math.min(1, k / 0.15, (1 - k) / 0.3), a = fade * (0.7 + 0.3 * Math.sin(p.age * p.fl + p.ph)), sz = p.size * (1 - 0.45 * k), cv = p.front ? fc : bc, im = imgs[p.img];
+      const fade = Math.min(1, k / 0.15, (1 - k) / 0.3), a = fade * (0.7 + 0.3 * Math.sin(p.age * p.fl + p.ph)), sz = p.size * (1 - 0.45 * k), cv = p.front ? fc : bc, im = p.tint ? Motes.tinted(p.img, p.tint) : imgs[p.img];
       if (C.trail) for (let j = C.trail; j >= 1; j--) { cv.globalAlpha = a * 0.22 * (1 - j / (C.trail + 1)); const s2 = sz * (1 - j * 0.15); cv.drawImage(im, p.hx[j] - s2 / 2, p.hy[j] - s2 / 2, s2, s2); }
       cv.globalAlpha = a; cv.translate(p.x, p.y); cv.rotate(p.rot); cv.drawImage(im, -sz / 2, -sz / 2, sz, sz); cv.setTransform(I.dpr, 0, 0, I.dpr, 0, 0);
     }
