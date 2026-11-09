@@ -107,7 +107,7 @@ const Story = {
       ['hero', '……弟子，定不負此劍。'],
       ['shizun', '修行之道，先固根基。回你的洞府打坐，靈氣自會運轉，離山之時亦不停歇。'],
       ['shixiong', '小師弟，我是陸沉舟。修為穩了，就到演武場來試劍——「歷練」裡的青冥宗。'],
-      ['shijie', '我是蘇晚吟，守著丹房。靈草送你幾株，聚氣丹能助你修行。'],
+      ['shijie', '我是柳晚吟，守著丹房。靈草送你幾株，聚氣丹能助你修行。'],
     ]);
     if (!replay) { S.d.arts.qingming = 1; S.d.unlocked.sect = true; S.add('herb_q', 4); S.add('herb_c', 2); S.add('stone', 100); }
     S.d.story.joined = true; S.save();

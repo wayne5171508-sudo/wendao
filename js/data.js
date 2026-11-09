@@ -275,6 +275,6 @@ const PEOPLE = {
   xuanheng: { name: '玄衡長老', img: 'xuanheng' },
   shizun:   { name: '凌霄真人', img: 'shizun' },
   shixiong: { name: '師兄・陸沉舟', img: 'shixiong' },
-  shijie:   { name: '師姐・蘇晚吟', img: 'shijie' },
+  shijie:   { name: '師姐・柳晚吟', img: 'shijie' },
   yaojiang: { name: '厲蒼' },
 };
