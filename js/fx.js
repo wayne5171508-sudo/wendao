@@ -62,9 +62,12 @@ const FX = {
   level() { const s = S.d && S.d.settings && S.d.settings.fx; return s || (typeof Halo !== 'undefined' && Halo.isLow() ? 'low' : 'high'); },
   get low() { return this.level() !== 'high'; },
   applyLevel() { document.documentElement.dataset.fx = this.level(); },
+  // 回傳 Promise：全部去黑並 decode 完成（失敗的跳過），戰鬥進場前會等它
   loadSprites() {
-    if (this._sprLoading || typeof Knock === 'undefined') return; this._sprLoading = true;
-    for (const [k, src] of Object.entries(this.SPR_SRC)) Knock.load(src, { round: false, lo: 14 }).then((u) => { const im = new Image(); im.onload = () => (this.sprImg[k] = im); im.src = u; }).catch(() => console.warn('[特效] 素材載入失敗：' + src));
+    if (typeof Knock === 'undefined') return Promise.resolve();
+    return (this._spr ||= Promise.all(Object.entries(this.SPR_SRC).map(([k, src]) => Knock.load(src, { round: false, lo: 14 })
+      .then((u) => { const im = new Image(); im.src = u; return im.decode().then(() => (this.sprImg[k] = im)); })
+      .catch(() => console.warn('[特效] 素材載入失敗：' + src)))));
   },
   // 貼圖特效：w 為顯示寬度；ang 旋轉；s0→s1 縮放；dx,dy 掃過的位移；ghosts 殘影數（低階機自動關閉）
   spr(key, x, y, o = {}) {

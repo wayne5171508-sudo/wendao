@@ -6,7 +6,8 @@
 const Battle = {
   on: false,
   // cont：從上一關「下一關」接續，秘境不再扣每日次數
-  start(rid, idx, cont) {
+  start(rid, idx, cont, ready) {
+    if (!ready) { if (!this._prep) this._prep = Promise.resolve().then(() => this.prep(rid, idx)).catch(() => {}).then(() => { this._prep = null; this.start(rid, idx, cont, true); }); return; }
     const R = REGIONS.find((r) => r.id === rid), st0 = R.stages[idx];
     // 依境界調整難度：以目前境界加一點為準
     const st = R.scale ? { ...st0, p: S.d.lv + st0.p } : st0;
@@ -49,6 +50,14 @@ const Battle = {
     Halo.mount('battle', '#heroB .hfig', this.main ? { c: WTIERS[this.main.tier].color, e: WTIERS[this.main.tier].edge } : null);
     // 神器：天象異變
     if (this.wpn && this.wpn.tier >= 4) setTimeout(() => this.on && this.heaven(), 500);
+  },
+  // 進場前的載入階段：特效圖去黑＋decode、本關立繪／兵器／妖物圖 decode，避免開場第一幀卡頓（第一次約 5×50ms）；最多等 3 秒
+  prep(rid, idx) {
+    const R = REGIONS.find((r) => r.id === rid), w = S.wMain(), pose = battlePose(w);
+    const srcs = [Char.path(HERO_SWORD[pose.stance].img), w && W_IMG(w.id), ...R.stages[idx].waves.map((m) => `assets/mon/${MONSTERS[m.replace('*', '')].img}.webp`)];
+    const dec = (src) => { const im = new Image(); im.src = src; return im.decode().catch(() => {}); };
+    document.body.classList.add('busy');
+    return Promise.race([Promise.all([FX.loadSprites(), ...srcs.filter(Boolean).map(dec)]), U.wait(3000)]).finally(() => document.body.classList.remove('busy'));
   },
   // 兵器技能只在達到階級後出現在技能列
   skillList() { return SKILLS.filter((k) => k.wt === undefined || S.skillOpen(k)); },
