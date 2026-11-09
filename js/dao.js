@@ -256,8 +256,9 @@ const Char = {
   },
   text(s) {
     const C = this.cur(); for (const [a, b] of C.textSub) s = s.split(a).join(b);
-    // 自訂名字：劇本裡的全名與名（例如「林清遠」「清遠」）都換成新名字；全名先換，才不會只換到一半
-    if (S.d && S.d.name) { const n = escHtml(S.d.name); s = s.split(C.name).join(n).split(C.given).join(n); }
+    // 自訂名字：劇本裡的全名與名（例如「蘇雲汐」「雲汐」）一次換成新名字。
+    // 必須單次替換：分兩次換時，新名字若含原本的名（如「雲汐二號」）會被第二次再換一遍，變成「雲汐二號二號」
+    if (S.d && S.d.name) { const n = escHtml(S.d.name), q = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); s = s.replace(new RegExp(`${q(C.name)}|${q(C.given)}`, 'g'), () => n); }
     return s;
   },
   // 立繪寬高比（gear 頁持逆天劍等直接寫死比例的地方用）
