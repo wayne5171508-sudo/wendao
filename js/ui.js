@@ -611,7 +611,7 @@ const UI = {
   gachaResults(res) {
     const back = () => { this.close(); this.draw(); };
     const tap = (x) => x.type === 'w' || x.type === 'f';
-    if (res.length === 1 && tap(res[0])) { this.wShow(res[0].id, '認主', back); return; }
+    if (res.length === 1 && tap(res[0]) && res[0].isNew) { this.wShow(res[0].id, '認主', back); return; }   // 重複的走清單，顯示「重複，化為玄鐵」
     const rows = res.map((x, i) => { const sub = x.type === 'w' && S.subNotice(x.id); return `<div class="li gres t${x.tier} ${tap(x) ? 'tap' : ''}" ${tap(x) ? `data-gi="${i}"` : ''} style="--c:${WTIERS[x.tier].color}">${this.resIcon(x)}<div><h4 style="color:${WTIERS[x.tier].color}">${x.name}${x.isNew ? '<i class="new">新</i>' : ''}<i class="tier">${tierName(x)}</i></h4>${x.note || sub ? `<p>${stoneText(x.note || sub)}</p>` : ''}</div><span>${tap(x) ? '›' : ''}</span></div>`; }).join('');
     this.modal(res.length === 10 ? '十連機緣' : '機緣', `<div class="list">${rows}</div><div class="row center"><button class="seal" id="gOk">收下</button></div>`, {
       '#gOk': back,
