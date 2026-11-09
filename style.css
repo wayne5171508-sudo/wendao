@@ -350,12 +350,20 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 #heroB { height: 46%; bottom: -1%; aspect-ratio: .74; --lean: 11deg; }
 #heroB.blean { --lean: 0deg; height: 44%; aspect-ratio: 700 / 840; }
 #heroB.blean.ready { animation-name: combatIdleFlat; }
-@keyframes combatIdleFlat { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) translateY(-1%) scale(1.01); } }
-#heroB.ready { transform-origin: 50% 100%; animation: combatIdle 1.8s ease-in-out infinite; }
+@keyframes combatIdleFlat { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) translateY(-1.2%); } }
+/* 待機呼吸：整體上下浮動（3.6 秒），立繪再以腳底為軸錯相輕擺，模擬衣袖隨氣流飄動；只用位移與旋轉，不縮放、不改透視 */
+#heroB.ready { transform-origin: 50% 100%; animation: combatIdle 3.6s ease-in-out infinite; }
 @keyframes combatIdle {
   0%, 100% { transform: translateX(-50%) perspective(900px) rotateX(9deg) rotate(var(--lean)); }
-  50% { transform: translateX(-50%) translateY(-1.2%) perspective(900px) rotateX(11deg) rotate(calc(var(--lean) + 1.6deg)); }
+  50% { transform: translateX(-50%) translateY(-1.4%) perspective(900px) rotateX(9deg) rotate(var(--lean)); }
 }
+#heroB.ready .hfig.pose { animation: sleeveSway 3.6s ease-in-out -0.9s infinite; }
+@keyframes sleeveSway { 0%, 100% { transform: translateX(-50%) rotate(-0.6deg); } 50% { transform: translateX(-50%) rotate(0.6deg); } }
+/* 特效強度「低」：只留浮動；「關」：靜止在前傾待機姿勢 */
+[data-fx="low"] #heroB.ready .hfig.pose { animation: none; }
+[data-fx="off"] #heroB.ready, [data-fx="off"] #heroB.ready .hfig.pose { animation: none; }
+[data-fx="off"] #heroB.ready { transform: translateX(-50%) perspective(900px) rotateX(9deg) rotate(var(--lean)); }
+[data-fx="off"] #heroB.blean.ready { transform: translateX(-50%); }
 #heroB .hfig.pose { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); transform-origin: 50% 100%; }
 #heroB .hfig.pose > img { filter: drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
 #heroB .waura { --orb: 80px; }
