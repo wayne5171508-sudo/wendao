@@ -932,3 +932,5 @@ img { object-fit: contain; }
 .dao-pid { color: #ff9ec4; letter-spacing: 2px; cursor: copy; }
 
 .char-yunxi #heroB { --lean: 3deg; }   /* 女角戰鬥立繪本身已是動態姿勢，前傾少一點 */
+/* 320 寬且 6 個技能：改成 3×2 兩排，每顆至少 44px（375/414 不受影響） */
+@media (max-width: 359px) { .skills:has(> .skill:nth-child(6)) { grid-template-columns: repeat(3, 1fr); row-gap: 24px; } .skills:has(> .skill:nth-child(6)) .skill { min-width: 44px; max-width: 60px; } }
