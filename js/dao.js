@@ -16,7 +16,7 @@ const CHARACTERS = {
   // sword：該角色立繪的寬高比與劍身座標 [劍柄x,y, 劍尖x,y]（圖內比例），覆蓋 HERO_SWORD；castDir：施法立繪資料夾（缺圖就不顯示施法切入）
   yunxi: { id: 'yunxi', name: '蘇雲汐', given: '雲汐', gender: 'f', assetDir: 'assets/hero_yunxi/', castDir: 'assets/cast_yunxi/',
     sword: { hold: { ar: 683 / 1100, blade: [0.25, 0.57, 0.03, 0.95] }, sit: { ar: 816 / 665, blade: [0.06, 0.69, 0.94, 0.69] }, back: { ar: 847 / 726, hilt: null },
-      bhold: { ar: 1118 / 748, blade: [0.21, 0.49, 0.0, 0.75] }, bstance: { ar: 1020 / 775, blade: [0.665, 0.632, 0.925, 0.9] }, blean: { ar: 1652 / 1100, blade: [0.57, 0.42, 0.99, 0.67] } },
+      bhold: { ar: 1118 / 748, blade: [0.21, 0.49, 0.0, 0.75] }, bstance: { ar: 1020 / 775, blade: [0.665, 0.632, 0.925, 0.9] }, blean: { ar: 1652 / 1100, blade: [0.524, 0.449, 0.98, 0.825] } },
     ar: { hold_nitian: 1260 / 1100 },
     textSub: [['林清遠', '蘇雲汐'], ['清遠', '雲汐'], ['少年', '少女'], ['他在石階', '她在石階'], ['他出生那夜', '她出生那夜'], ['小師弟', '小師妹'], ['林母', '蘇母']] },
 };
