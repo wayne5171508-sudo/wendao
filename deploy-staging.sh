@@ -41,7 +41,8 @@ grep -q "$PROD_PROJECT" js/cloud.js && { echo "js/cloud.js 仍含正式 Firebase
 grep -q "^const FIREBASE_CFG = " js/cloud.js || { echo "js/cloud.js 找不到 FIREBASE_CFG，停止部署"; exit 1; }
 
 # 外觀：標題、角標、noindex、manifest、圖示
-TAG='<div id="stagingTag" style="position:fixed;top:max(6px,env(safe-area-inset-top));left:6px;z-index:2147483647;pointer-events:none;background:#d81e28;color:#fff;font:700 12px/1 sans-serif;padding:4px 7px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.5)">測試版</div>'
+# 角標貼在左緣中段（直書），不蓋住左上角的境界印章與頂列
+TAG='<div id="stagingTag" style="position:fixed;top:42%;left:0;z-index:2147483647;pointer-events:none;writing-mode:vertical-rl;background:#d81e28;color:#fff;font:700 11px/1 sans-serif;letter-spacing:2px;padding:6px 3px;border-radius:0 4px 4px 0;box-shadow:0 1px 4px rgba(0,0,0,.5);opacity:.92">測試版</div>'
 sed -i '' "s|<title>問道青冥</title>|<title>【測試】問道青冥</title><meta name=\"robots\" content=\"noindex\">|" index.html
 sed -i '' "s|<body\([^>]*\)>|<body\1>$TAG|" index.html
 grep -q 'stagingTag' index.html && grep -q '【測試】' index.html || { echo "index.html 沒改到標題或角標"; exit 1; }
