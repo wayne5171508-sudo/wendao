@@ -121,16 +121,16 @@ const Story = {
     this.hideDlg();
     for (;;) {
       const res = replay ? { root: S.d.root, grade: S.d.grade } : rollRoot();
-      await this.steleShow(res);
+      await this.steleShow(res, replay);
       if (await this.rootCard(res, replay)) { S.d.root = res.root; S.d.grade = res.grade; S.save(); return; }
     }
   },
-  async steleShow({ root, grade }) {
+  async steleShow({ root, grade }, replay) {
     UI.setBg('title', 'dim');
     UI.scene(`<div class="stele" id="stele"><img class="st-base" src="assets/bg/stele.webp" alt="測靈石"><i class="st-dusk"></i><div class="st-glow"><img src="assets/bg/stele.webp" alt=""></div>
       <img class="st-light" src="assets/fx/wuxing.webp" alt=""><img class="st-pillar" alt="">
       <div class="st-hero"><img class="sh-top" src="assets/hero/walk_back.webp" alt=""><img class="sh-bot" src="assets/hero/walk_back.webp" alt="${escHtml(HERO_NAME)}"></div>
-      <img class="st-press" src="assets/hero/press_stele.webp" alt="${escHtml(HERO_NAME)}手按測靈石"><i class="st-hand"></i></div>`);
+      <img class="st-press" src="assets/hero/press_stele.webp" alt="${escHtml(HERO_NAME)}手按測靈石"><i class="st-hand"></i>${replay ? '<p class="st-replay">僅回顧，不會改變靈根</p>' : ''}</div>`);
     const st = $('#stele'), hero = st.querySelector('.st-hero');
     const at = (fx, fy) => { const r = st.getBoundingClientRect(), sc = $('#scene').getBoundingClientRect(); return { x: r.left - sc.left + fx * r.width, y: r.top - sc.top + fy * r.height }; };
     await this.wait(400);
@@ -164,7 +164,7 @@ const Story = {
     const el = document.createElement('div'); el.className = 'root-card';
     el.innerHTML = `<div class="rc-head"><b style="color:${R.color}">${R.name}</b><span class="rc-grade" style="--g:${G.color}">${grade}品</span></div>
       <p class="rc-desc">${rootDesc(root, grade)}${R.rare ? '<br><em>異靈根，百年難遇</em>' : ''}</p>
-      <p class="rc-note">品階：天&nbsp;×2、地&nbsp;×1.5、玄&nbsp;×1.2、黃&nbsp;×1（靈根加成倍率）</p>
+      ${replay ? '<p class="rc-note">僅回顧，不會改變靈根</p>' : ''}<p class="rc-note">品階：天&nbsp;×2、地&nbsp;×1.5、玄&nbsp;×1.2、黃&nbsp;×1（靈根加成倍率）</p>
       <div class="row center">${replay ? '' : left > 0 ? `<button class="seal sm ghost" id="rcAgain">重新測試<small>剩 ${left} 次</small></button>` : '<button class="seal sm ghost" id="rcAgain" disabled>已無重測機會</button>'}<button class="seal" id="rcOk">確認靈根</button></div>`;
     $('#sceneContent').appendChild(el); $('#skipBtn').classList.add('hidden');
     return new Promise((res) => {
