@@ -197,6 +197,7 @@ const MONSTERS = {
   youhun:   { name: '遊魂',     img: 'youhun',   hp: 0.8, atk: 1.2, spd: 1.0 },
   shikui:   { name: '屍傀',     img: 'shikui',   hp: 1.7, atk: 1.1, spd: 0.75 },
   moxiu:    { name: '魔修',     img: 'moxiu',    hp: 1.2, atk: 1.35, spd: 1.0 },
+  moxiu_boss: { name: '魔修頭目', img: 'moxiu_boss', hp: 1.2, atk: 1.35, spd: 1.0 },   // 落霞嶺尾關精英，數值同魔修（不設 boss，免得野外掉秘境兵器）
   yaojiang: { name: '血甲妖將・厲蒼', img: 'yaojiang', hp: 44, atk: 1.0, spd: 0.9, boss: true,   // 金丹中期標準配置約 45～50 息
     // 首領三相：at 血量比例門檻；atk、spd 為進入該相時的倍率；dr 受傷減免；leech 傷害吸血；
     // chargeCd 血刃斬間隔、chargeT 蓄力時間（雷法可打斷）、chargeMult 血刃斬倍率
@@ -205,8 +206,8 @@ const MONSTERS = {
       { at: 0.66, name: '第二相', banner: ['妖將祭陣', '血陣護身，蓄力更快'], dr: 0.25, chargeCd: 6.5, chargeT: 2.2, chargeMult: 3.2 },
       { at: 0.33, name: '第三相', banner: ['血甲暴怒', '渾身浴血，以血養血'], atk: 1.3, spd: 1.35, chargeCd: 6, chargeT: 1.8, chargeMult: 3.6, leech: 0.25 },
     ] },
-  // 測試用大 Boss：沿用妖將圖、改紫黑色調；四相，血量約妖將 2.3 倍
-  tianmo: { name: '九幽天魔・墮淵', img: 'yaojiang', tint: 'tianmo', hp: 100, atk: 1.2, spd: 0.95, boss: true, intro: ['九幽天魔', '心魔所化，自深淵睜眼'],
+  // 測試用大 Boss：四相，血量約妖將 2.3 倍
+  tianmo: { name: '九幽天魔・墮淵', img: 'tianmo', hp: 100, atk: 1.2, spd: 0.95, boss: true, intro: ['九幽天魔', '心魔所化，自深淵睜眼'],
     phases: [
       { name: '第一相', chargeCd: 7.5, chargeT: 2.4, chargeMult: 3.0 },
       { at: 0.75, name: '魔焰相', banner: ['魔焰護體', '黑焰繞身，受傷減三成'], dr: 0.3, chargeCd: 6.5, chargeT: 2.2, chargeMult: 3.2 },
@@ -237,7 +238,7 @@ const REGIONS = [
     { name: '枯林屍陣', p: 3.5, waves: ['shikui', 'shikui', 'youhun*'] },
     { name: '魔修營地', p: 4.0, waves: ['moxiu', 'yaoshou', 'moxiu'] },
     { name: '斷崖遊魂', p: 4.6, waves: ['youhun', 'moxiu', 'youhun*'] },
-    { name: '魔修頭目', bossIcon: true, p: 5.2, waves: ['shikui', 'moxiu', 'moxiu*'] },
+    { name: '魔修頭目', bossIcon: true, p: 5.2, waves: ['shikui', 'moxiu', 'moxiu_boss*'] },
   ] },
   { id: 'realm', icon: 'cave', name: '幽冥古洞', sub: '秘境・每日三次', bg: 'realm', mood: 'dungeon', grade: 'realm', daily: 3, stages: [
     { name: '古洞外圍', p: 5.6, waves: ['moxiu', 'shikui', 'youhun*'] },
