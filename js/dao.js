@@ -51,7 +51,9 @@ const DAO = {
   // 贈送靈物：物品 id → 親密度
   gifts: { herb_q: 1, herb_c: 1, herb_b: 3, herb_l: 5, star: 8, p_qi: 4, p_heal: 3, p_break: 8, p_zhuji: 15, p_zao: 30 },
   giftDaily: 10,          // 每日最多贈送次數
-  // 雙修邀請不限每日次數（原本一日最多 3 次，已取消）。存檔 today.dual 仍累計，只作紀錄，不阻擋邀請。單人閉關本來就不限。
+  // 雙修邀請不限每日次數，但獎勵每日遞減：當天第 1 次 100%、第 2 次 50%、第 3 次起 25%（today.dual 每日零點重置）。單人閉關不受影響。
+  dualDecay: [1, 0.5, 0.25],
+  dualRatio: (n) => DAO.dualDecay[Math.min(n, DAO.dualDecay.length - 1)],   // n＝今天已雙修幾次（0 起算）
   soloSec: 90,            // 單人閉關：相當於幾息的自然修煉 × 合修室加成
   dualSec: 180,           // 雙修：相當於幾息的自然修煉 × 雙修倍率
   dualMult: (lv) => 2.5 + lv * 0.25,   // 親密度越高倍率越高
@@ -99,6 +101,8 @@ const Dao = {
     const g = d.dao; if (!CHARACTERS[g.char]) g.char = 'qingyuan';
     for (const k of ['intimacy', 'dualQi', 'mark', 'wux', 'xin', 'sessions', 'streak']) { g[k] = Number(g[k]); if (!Number.isFinite(g[k]) || g[k] < 0) g[k] = 0; }
     g.mark = Math.min(DAO.markMax, Math.floor(g.mark)); g.wux = Math.min(DAO.wuxCap, g.wux); g.xin = Math.min(DAO.xinCap, g.xin);
+    g.today = Object.assign({ date: '', dual: 0, gift: 0 }, g.today && typeof g.today === 'object' ? g.today : {});
+    for (const k of ['dual', 'gift']) { g.today[k] = Number(g.today[k]); if (!Number.isFinite(g.today[k]) || g.today[k] < 0) g.today[k] = 0; }   // 舊存檔沒有今日次數：預設 0
     if (!Array.isArray(g.outbox)) g.outbox = []; if (!Array.isArray(g.log)) g.log = [];
     if (g.partner && /[<>"]/.test(g.partner.name)) g.partner.name = escHtml(g.partner.name);   // 舊存檔裡未跳脫的道侶名字
     for (const R of DUAL_ROOMS) { const r = g.rooms[R.id]; if (r && !R.styles.some((s) => s.id === r.style)) r.style = R.styles[0].id; }
@@ -167,12 +171,13 @@ const Dao = {
   dualResult(id, intensity, guest) {
     const R = this.room(id), g = this.g, t = this.today(), lv = this.lv(), cost = guest ? 0 : R.upkeep * (1 + Math.floor(S.d.lv / 3)) * 2;
     if (!S.take('stone', cost)) return { err: `靈石不足（需 ${cost}）` };
+    const ratio = DAO.dualRatio(t.dual);
     t.dual++; g.sessions++; if (g.rooms[id]) g.rooms[id].uses++;
-    const before = S.d.exp; S.addExp(S.rate() * DAO.dualSec * R.bonus * DAO.dualMult(lv));
+    const before = S.d.exp; S.addExp(S.rate() * DAO.dualSec * R.bonus * DAO.dualMult(lv) * ratio);
     const yest = new Date(Date.now() - 864e5), ys = `${yest.getFullYear()}-${yest.getMonth() + 1}-${yest.getDate()}`;
     g.streak = g.lastDual === U.today() ? g.streak : g.lastDual === ys ? g.streak + 1 : 1; g.lastDual = U.today();
-    const qi = DAO.qiPerDual + (g.streak > 1 ? DAO.qiStreak * Math.min(5, g.streak - 1) : 0); g.dualQi += qi;
-    let inti = this.addIntimacy(DAO.gain.dual[intensity] || DAO.gain.dual.mild, '雙修');
+    const qi = Math.round((DAO.qiPerDual + (g.streak > 1 ? DAO.qiStreak * Math.min(5, g.streak - 1) : 0)) * ratio); g.dualQi += qi;
+    let inti = this.addIntimacy(Math.max(1, Math.round((DAO.gain.dual[intensity] || DAO.gain.dual.mild) * ratio)), '雙修');
     let res = null;
     if (Math.random() < DAO.resonance(lv)) {   // 道侶共鳴：悟性或心魔抗性（各有上限，滿了給另一種）
       const wFull = g.wux >= DAO.wuxCap, xFull = g.xin >= DAO.xinCap;
@@ -185,7 +190,7 @@ const Dao = {
     }
     DaoNet.send({ type: 'dual', room: id, intensity });
     S.save();
-    return { exp: S.d.exp - before, cost, qi, intimacy: inti, resonance: res, streak: g.streak };
+    return { exp: S.d.exp - before, cost, qi, intimacy: inti, resonance: res, streak: g.streak, ratio, nth: t.dual };
   },
   // 道侶印記與共同技能（消耗雙修靈力）
   upMark() { const c = DAO.markCost(this.g.mark); if (this.g.mark >= DAO.markMax || this.g.dualQi < c) return false; this.g.dualQi -= c; this.g.mark++; S.save(); return true; },
@@ -332,7 +337,7 @@ Object.assign(UI, {
     const ints = Dao.intensities().map((x) => `<button class="${this.daoInt === x.id ? 'on' : ''}" data-int="${x.id}" ${x.open ? '' : 'disabled'}>${x.name}${x.open ? '' : `<small>需${DAO.levels[x.need].name}</small>`}</button>`).join('');
     const act = anyRoom ? `<div class="tabs dao-int">${ints}</div>
       <div class="row center gacha-btns"><button class="seal ghost" id="dSolo">閉關<small>單人・無雙修加成</small></button>
-      <button class="seal" id="dDual" ${dual ? '' : 'disabled'}>邀請雙修<small>${!P ? '尚無道侶' : !online ? '道侶離線' : '不限次數'}</small></button></div>` : '<p class="note">先以探索所得材料開闢一間合修室。</p>';
+      <button class="seal" id="dDual" ${dual ? '' : 'disabled'}>邀請雙修<small>${!P ? '尚無道侶' : !online ? '道侶離線' : `今日已雙修 ${t.dual} 次`}</small></button></div>` : '<p class="note">先以探索所得材料開闢一間合修室。</p>';
     const mc = DAO.markCost(g.mark);
     const growth = `<div class="li"><div><h4>雙修靈力 ${g.dualQi}<em>連續雙修 ${g.streak} 日</em></h4><p>道侶印記 第 ${g.mark} 層：攻擊、氣血 +${Math.round(g.mark * DAO.markStat * 100)}%　悟性 +${Math.round(g.wux * 100)}%　心魔抗性 +${Math.round(g.xin * 100)}%</p></div>
         <button class="seal sm" id="dMark" ${g.mark < DAO.markMax && g.dualQi >= mc ? '' : 'disabled'}>印記<small>${g.mark < DAO.markMax ? mc : '圓滿'}</small></button></div>
@@ -395,7 +400,7 @@ Object.assign(UI, {
     if (res.err) { this.toast(res.err, '#ff9a9a'); this.dao(); return; }
     Audio2.play('up'); this.hud();
     this.modal('雙修圓滿', `<div class="list">
-      <div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(res.exp)}</h4><p>${R.name}・雙修倍率 ×${DAO.dualMult(Dao.lv()).toFixed(2)}</p></div><span></span></div>
+      <div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(res.exp)}</h4><p>${R.name}・雙修倍率 ×${DAO.dualMult(Dao.lv()).toFixed(2)}${res.ratio < 1 ? `・今日第 ${res.nth} 次，獎勵 ${Math.round(res.ratio * 100)}%` : ''}</p></div><span></span></div>
       ${res.cost ? `<div class="li">${ico('stone')}<div><h4>靈氣消耗 ${stoneAmt(res.cost, '−')}</h4></div><span></span></div>` : ''}
       <div class="li"><i class="ico" style="--c:#ff9ec4">緣</i><div><h4>親密度 +${res.intimacy}</h4><p>${Dao.lvName()}</p></div><span></span></div>
       <div class="li"><i class="ico" style="--c:#c9a6ff">靈</i><div><h4>雙修靈力 +${res.qi}</h4><p>連續雙修 ${res.streak} 日</p></div><span></span></div>
