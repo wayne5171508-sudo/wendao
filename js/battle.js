@@ -56,9 +56,14 @@ const Battle = {
     const R = REGIONS.find((r) => r.id === rid), w = S.wMain(), pose = battlePose(w);
     const srcs = [Char.path(HERO_SWORD[pose.stance].img), w && W_IMG(w.id), ...R.stages[idx].waves.map((m) => `assets/mon/${MONSTERS[m.replace('*', '')].img}.webp`)];
     const dec = (src) => { const im = new Image(); im.src = src; return im.decode().catch(() => {}); };
+    const arc = this.arcSrc(); this.arcOk = null;
+    const arcDec = arc ? (() => { const im = new Image(); im.src = arc; return im.decode().then(() => (this.arcOk = arc), () => {}); })() : 0;
     document.body.classList.add('busy');
-    return Promise.race([Promise.all([FX.loadSprites(), ...srcs.filter(Boolean).map(dec)]), U.wait(3000)]).finally(() => document.body.classList.remove('busy'));
+    return Promise.race([Promise.all([FX.loadSprites(), arcDec, ...srcs.filter(Boolean).map(dec)]), U.wait(3000)]).finally(() => document.body.classList.remove('busy'));
   },
+  // 劍氣光弧圖（選用）：assets/cast/arc.webp，女主 assets/cast_yunxi/arc.webp；弧口朝右（行進方向）
+  //  要在素材清單裡、且進場前 decode 成功才用（this.arcOk），否則沿用 CSS 光弧
+  arcSrc() { const p = ((typeof Char !== 'undefined' && Char.cur().castDir) || 'assets/cast/') + 'arc.webp'; return typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p) ? p : null; },
   // 兵器技能只在達到階級後出現在技能列
   skillList() { return SKILLS.filter((k) => k.wt === undefined || S.skillOpen(k)); },
   heaven() {
@@ -247,6 +252,7 @@ const Battle = {
     const n = lv === 'high' ? 3 : 1;   // 本體＋拖影數
     for (let i = 0; i < n; i++) {
       const el = document.createElement('i'); el.className = 'qi-sweep' + (i ? ' ghost' : ''); el.style.setProperty('--c', color);
+      if (this.arcOk) { el.classList.add('img'); el.style.backgroundImage = `url(${this.arcOk})`; }
       el.style.left = from.x + 'px'; el.style.top = from.y + 'px'; host.appendChild(el);
       const a = i ? 0.45 / i : 1, tf = (p, s, r) => `translate(-50%,-50%) translate(${dx * p}px,${dy * p}px) rotate(${ang + r}deg) scale(${s})`;
       el.animate([

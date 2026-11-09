@@ -944,3 +944,5 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 .hfig > img.sway { position: absolute; left: 0; top: 0; width: 100%; height: 100%; filter: none !important; pointer-events: none; transform-origin: var(--o); animation: clothSway 3s ease-in-out infinite; }
 @keyframes clothSway { 0%, 100% { transform: rotate(calc(-0.8deg * var(--sa))) skewX(calc(-1deg * var(--sa))); } 50% { transform: rotate(calc(0.8deg * var(--sa))) skewX(calc(1deg * var(--sa))); } }
 .hero-b.atk img.sway, .hero-b.hurt img.sway, [data-fx="off"] .hfig > img.sway { display: none; }
+/* 劍氣光弧圖（assets/cast/arc.webp、assets/cast_yunxi/arc.webp）到位時取代 CSS 光弧，沿用同一段橫掃動畫 */
+.qi-sweep.img { border-radius: 0; background: center / contain no-repeat; -webkit-mask-image: none; mask-image: none; }
