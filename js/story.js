@@ -321,8 +321,10 @@ const Story = {
       panel = `<h3>${lvName(res.to)}</h3><div class="bt-stats">${row('氣血', before.hp, after.hp)}${row('攻擊', before.atk, after.atk)}${row('防禦', before.def, after.def)}${row('靈力', before.mp, after.mp)}${row('修煉', rate0.toFixed(1) + '／息', S.rate().toFixed(1) + '／息')}</div><div class="row center"><button class="seal" id="btOk">穩固境界</button></div>`;
     } else {
       ring.classList.add('broken'); Audio2.play('fail');
-      UI.banner(res.major ? '渡劫失敗' : '突破失敗', '道基受震，境界跌落');
-      panel = `<h3 class="fail">${lvName(res.from)} → ${lvName(res.to)}</h3><p>境界跌落一層，修為散去，只剩此境一半。<br>多備破障丹再來。</p><div class="row center"><button class="seal" id="btOk">重新修煉</button></div>`;
+      // 已在最低境界（練氣初期）時不會再跌，只散去一半修為
+      const drop = res.to < res.from;
+      UI.banner(res.major ? '渡劫失敗' : '突破失敗', drop ? '道基受震，境界跌落' : '道基受震，修為散去');
+      panel = `<h3 class="fail">${drop ? `${lvName(res.from)} → ${lvName(res.to)}` : lvName(res.to)}</h3><p>${drop ? '境界跌落一層，修為散去，只剩此境一半。' : '修為散去，只剩一半。'}<br>多備破障丹再來。</p><div class="row center"><button class="seal" id="btOk">重新修煉</button></div>`;
     }
     await this.wait(1400);
     $('#scene').classList.remove('bt-white'); document.querySelectorAll('#scene .banner').forEach((b) => b.remove());
