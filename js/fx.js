@@ -66,19 +66,30 @@ const FX = {
   loadSprites() {
     if (typeof Knock === 'undefined') return Promise.resolve();
     return (this._spr ||= Promise.all(Object.entries(this.SPR_SRC).map(([k, src]) => Knock.load(src, { round: false, lo: 14 })
-      .then((u) => { const im = new Image(); im.src = u; return im.decode().then(() => (this.sprImg[k] = im)); })
+      .then((u) => { const im = new Image(); im.src = u; return im.decode().then(() => { this.sprImg[k] = im; if (k === 'slash') this.voidTint(); }); })
       .catch(() => console.warn('[特效] 素材載入失敗：' + src)))));
   },
   // 貼圖特效：w 為顯示寬度；ang 旋轉；s0→s1 縮放；dx,dy 掃過的位移；ghosts 殘影數（低階機自動關閉）
   spr(key, x, y, o = {}) {
     const im = this.sprImg[key]; if (!im) return false;
-    const w = o.w || 200, h = (w * im.naturalHeight) / im.naturalWidth;   // 依原圖比例
-    this.add({ k: 'spr', key, x, y, w, h, ang: o.ang || 0, s0: o.s0 ?? 0.85, s1: o.s1 ?? 1.15, dx: o.dx || 0, dy: o.dy || 0, flip: !!o.flip, ghosts: this.low ? 0 : o.ghosts ?? 2, life: o.life || 0.25, spin: o.spin || 0, fall: !!o.fall, ay: o.ay ?? 0.5, hold: o.hold || 0, delay: o.delay || 0, alpha: o.alpha ?? 1, onEnd: o.onEnd });
+    const w = o.w || 200, h = (w * (im.naturalHeight || im.height)) / (im.naturalWidth || im.width);   // 染色版是 canvas，沒有 natural 尺寸   // 依原圖比例
+    this.add({ k: 'spr', key, x, y, w, h, ang: o.ang || 0, s0: o.s0 ?? 0.85, s1: o.s1 ?? 1.15, dx: o.dx || 0, dy: o.dy || 0, flip: !!o.flip, ghosts: this.low ? 0 : o.ghosts ?? 2, life: o.life || 0.25, spin: o.spin || 0, fall: !!o.fall, ay: o.ay ?? 0.5, hold: o.hold || 0, delay: o.delay || 0, alpha: o.alpha ?? 1, op: o.op, onEnd: o.onEnd });
     return true;
   },
   // 舊介面相容：技能、怪物攻擊呼叫的 slash／wave 改用刀光素材（素材未載入時退回簡單光點）
   slash(x, y, r, ang, color, life = 0.28) {
     if (!this.spr('slash', x, y, { w: r * 2.6, ang: ang * 0.6, life: Math.max(0.22, Math.min(0.32, life)), dx: r * 0.5, dy: -r * 0.35 })) this.sparks(x, y, color, 6, 220);
+  },
+  // 九幽天魔的血刃斬：同一張刀光染成紫黑兩層（深色剪影墊底＋紫光），不新增素材；染色在載入時做一次
+  voidTint() {
+    const im = this.sprImg.slash, tint = (fill) => { const cv = document.createElement('canvas'); cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+      const c = cv.getContext('2d'); c.drawImage(im, 0, 0); c.globalCompositeOperation = 'source-in'; c.fillStyle = fill; c.fillRect(0, 0, cv.width, cv.height); return cv; };
+    this.sprImg.slashShade = tint('#12001c'); this.sprImg.slashVoid = tint('#b45cff');
+  },
+  voidSlash(x, y, r, ang, life = 0.35) {
+    const o = { w: r * 2.6, ang: ang * 0.6, life, dx: r * 0.5, dy: -r * 0.35 };
+    if (!this.spr('slashShade', x, y, { ...o, w: o.w * 1.1, ghosts: 0, op: 'source-over', alpha: 0.85 })) return this.slash(x, y, r, ang, '#9b4dff', life);
+    this.spr('slashVoid', x, y, o);
   },
   wave(x0, y0, x1, y1, color, life = 0.32) {
     // 劍氣：小刀光沿直線飛向目標（刀光原圖斜角約 -35°，轉到行進方向）
@@ -197,7 +208,7 @@ const FX = {
           const fadeAt = p.hold || 0.45, alpha = p.alpha * Math.min(1, t / 0.04) * (e < fadeAt ? 1 : 1 - (e - fadeAt) / (1 - fadeAt));
           const draw = (q, a) => {
             const qq = Math.max(0, q), sc = p.s0 + (p.s1 - p.s0) * qq, x = p.x + p.dx * (p.fall ? qq - 1 : qq - 0.5), y = p.y + p.dy * (p.fall ? qq - 1 : qq - 0.5);
-            c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc * (p.sy || 1));
+            c.save(); c.globalCompositeOperation = p.op || 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc * (p.sy || 1));
             c.drawImage(im, -p.w / 2, -p.h * p.ay, p.w, p.h); c.restore();
           };
           if (p.onEnd && e >= 1 && !p.ended) { p.ended = true; p.onEnd(); }
