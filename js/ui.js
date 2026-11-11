@@ -694,11 +694,13 @@ const UI = {
   // 更名：檢查（長度、字元、禁字、冷卻、靈石）→ 先改本機 → 有登入就寫雲端，失敗就還原成舊名字並退回靈石
   renameUI() {
     const cost = S.renameCost(), wait = S.renameWait();
+    // 冷卻中或靈石不足：按鈕停用並直接寫出原因
+    const block = wait > 0 ? `更名冷卻中，還要 ${Math.ceil(wait / 3600000)} 小時` : !S.has('stone', cost) ? `靈石不足（需要 ${cost}）` : '';
     this.modal('更名', `<p class="note" style="text-align:center">目前名字：<b>${escHtml(HERO_NAME)}</b><br>2～8 個字，只能用中文、英文、數字</p>
       <div class="dao-form"><input id="nmIn" maxlength="8" autocomplete="off" placeholder="輸入新名字" aria-label="新名字"></div>
-      <p class="note" id="nmErr" style="text-align:center;color:#ff9a9a;min-height:1.5em"></p>
+      <p class="note" id="nmErr" style="text-align:center;color:#ff9a9a;min-height:1.5em">${block}</p>
       <p class="note" style="text-align:center">${cost ? `費用 ${stoneAmt(cost)}` : '第一次更名免費'}${wait ? `・冷卻中，還要 ${Math.ceil(wait / 3600000)} 小時` : ''}</p>
-      <div class="row center"><button class="seal" id="nmOk">確定更名</button><button class="seal ghost sm" id="nmNo">取消</button></div>`, {
+      <div class="row center"><button class="seal" id="nmOk" ${block ? 'disabled' : ''}>確定更名</button><button class="seal ghost sm" id="nmNo">取消</button></div>`, {
       '#nmNo': () => this.settings(),
       '#nmOk': async (el) => {
         const n = $('#nmIn').value.trim(), err = S.renameCheck(n);
@@ -714,7 +716,8 @@ const UI = {
         S.save(); this.hud(); this.redraw(); Audio2.play('pickup'); this.toast(`已更名為 ${escHtml(n)}`, '#ff9ec4'); this.settings();
       },
     });
-    const i = $('#nmIn'); if (i) { i.focus(); i.onkeydown = (e) => { if (e.key === 'Enter') $('#nmOk').click(); }; }
+    const i = $('#nmIn'); if (i) { i.focus(); i.onkeydown = (e) => { if (e.key === 'Enter') $('#nmOk').click(); };
+      i.oninput = () => { const n = i.value.trim(); $('#nmErr').textContent = block || (n ? S.nameError(n) || '' : ''); }; }   // 輸入時即時檢查名字
   },
   importSave(fromTitle) {
     this.modal('匯入存檔', `<p class="note">選擇匯出的存檔檔案，或把存檔文字貼在下面。<b style="color:#ff9a9a">目前的進度會被覆蓋。</b></p>
