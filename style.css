@@ -960,3 +960,11 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 #hudRes .stone-amt, #hudRes span { white-space: nowrap; flex: none; }
 #hudRealm { min-width: 0; } #hudRealm > div { min-width: 0; }
 @media (max-width: 359px) { #hudRealm small { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+/* B8 矮螢幕機緣頁：場景縮小、「單抽／十連」移到保底列下方，第一屏就按得到 */
+@media (max-height: 640px) {
+  #app.tall.fit #controls { max-height: 74vh; }
+  #ctrlContent:has(> .gacha-btns) { display: flex; flex-direction: column; }
+  #ctrlContent > .pity-bar ~ * { order: 2; }
+  #ctrlContent > .pity-bar ~ .gacha-btns { order: 1; margin: 4px 0 8px; }
+  #ctrlContent:has(> .gacha-btns) .gpeek .wframe { width: 32px; height: 32px; }
+}
