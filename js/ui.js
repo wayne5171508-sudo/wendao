@@ -88,7 +88,12 @@ const stoneText = (t) => escHtml(t).replace(/靈石\s*([+＋\-−]?)\s*([\d,.]+[
 // 新增素材只要照檔名放進去，不必改程式。找不到圖才退回「彩色圓球＋單字」並在 console 警告一次；圖片載入失敗時 main.js 也會換回圓球
 const ICON_DIR = { item: 'assets/item/', art: 'assets/art/', ui: 'assets/ui/' };
 // 圓球備援的單字與顏色（物品用 ITEMS 的顏色）
-const ICON_BALL = { exp: ['修', '#f2dc94'], stone: ['石'], scroll: ['卷'], ore: ['鐵'], star: ['砂'], sign: ['簽', '#9fe8d8'], quest: ['任', '#ffe7a0'], alch_seal: ['煉', '#ff8a6a'], partner: ['侶', '#ff9ec4'] };
+const ICON_BALL = { exp: ['修', '#f2dc94'], stone: ['石'], scroll: ['卷'], ore: ['鐵'], star: ['砂'], sign: ['簽', '#9fe8d8'], quest: ['任', '#ffe7a0'], alch_seal: ['煉', '#ff8a6a'], partner: ['侶', '#ff9ec4'],
+  // 設定頁、背包、強化／突破、雙修結算、角色頭像：沒圖時的備援字與顏色
+  set_bgm: ['琴', '#c8b48a'], set_sfx: ['音', '#c8b48a'], set_mute: ['靜', '#c8b48a'], set_shake: ['震', '#c8b48a'], set_fx: ['光', '#9fe8d8'], set_rename: ['名', '#ff9ec4'],
+  set_story: ['卷', '#c8b48a'], set_cloud: ['雲', '#9fe8d8'], set_export: ['存', '#9fe8d8'], set_import: ['讀', '#9fe8d8'], set_title: ['歸', '#c8b48a'], set_reset: ['重', '#ff8a8a'],
+  bag: ['囊'], enhance: ['強'], breakthrough: ['破'], intimacy: ['緣', '#ff9ec4'], dual_qi: ['靈', '#c9a6ff'], resonance: ['鳴', '#ffd76a'],
+  char_qingyuan: ['男', '#9fe8ff'], char_yunxi: ['女', '#ff9ec4'] };
 const iconWarned = {};
 const iconSrc = (kind, id) => {
   const p = `${ICON_DIR[kind]}${id}.webp`;
@@ -205,6 +210,15 @@ const UI = {
     $('#hudRoot').textContent = d.root ? `${ROOTS[d.root].name}（${d.grade}品）・戰力 ${U.fmt(S.stats().power)}` : '';
     $('#hudStone').textContent = U.fmt(d.inv.stone || 0);
     const g = document.querySelector('#nav button[data-tab="gear"]'); if (g) g.classList.toggle('badge', !!d.root && (S.questsReady() > 0 || (!!d.freshW && d.wslot[1] === d.freshW)));
+  },
+  // 行囊：唯讀清單（丹藥、靈草、材料、殘卷），數量 0 不列；只有聚氣丹可以直接服用
+  bag() {
+    const inv = S.d.inv, groups = [['丹藥', (k) => k.startsWith('p_')], ['靈草', (k) => k.startsWith('herb_')], ['材料', (k) => k === 'ore' || k === 'star'], ['殘卷', (k) => k === 'scroll']];
+    const row = (k) => `<div class="li">${ico(k)}<div><h4>${ITEMS[k].name}<em>×${U.fmt(inv[k])}</em></h4><p>${ITEMS[k].desc}</p></div>${k === 'p_qi' ? '<button class="seal sm" id="bagQi">服用</button>' : '<span></span>'}</div>`;
+    const html = groups.map(([name, f]) => { const ks = Object.keys(ITEMS).filter((k) => f(k) && inv[k] > 0); return ks.length ? `<div class="sec-title">${name}</div><div class="list">${ks.map(row).join('')}</div>` : ''; }).join('');
+    this.modal('行囊', html || '<p class="note" style="text-align:center">行囊空空如也。</p>', {
+      '#bagQi': () => { const r = S.usePill('p_qi'); if (r === true) { this.toast('丹藥化開，修為大進', '#9fe8ff'); Audio2.play('qi'); this.hud(); if (this.tab === 'home') this.homeRefresh(true); this.bag(); } else if (r) this.toast(r, '#ff9a9a'); },
+    });
   },
   navLock() {
     const joined = !!S.d.root;
@@ -519,8 +533,8 @@ const UI = {
     this.modal(w.name, `${wCase(w, o)}
       <p class="note" style="text-align:center;margin:2px 0 0">強化 +${o.lv}／${cap}</p>
       <div class="list">
-        ${maxed ? (brk ? `<div class="li"><i class="ico" style="--c:${T.color}">破</i><div><h4>突破<em>強化上限 +10、屬性 +25%</em></h4><div>${brkMats}</div></div><button class="seal sm" id="wBrk" ${S.wCanBreak(id) ? '' : 'disabled'}>突破</button></div>` : '<p class="note" style="text-align:center">已臻圓滿。</p>')
-          : `<div class="li"><i class="ico" style="--c:${T.color}">強</i><div><h4>強化<em>成功率 ${rate}%</em></h4><p>每級屬性 +8%。保底 ${Math.min(o.fail, W_PITY)}／${W_PITY}：連敗三次，下次必成。</p><span class="mat ${S.has('stone', cost) ? '' : 'lack'}">${stoneAmt(cost)}</span></div><button class="seal sm" id="wEnh" ${S.has('stone', cost) ? '' : 'disabled'}>強化</button></div>`}
+        ${maxed ? (brk ? `<div class="li">${gIco('ui', 'breakthrough', '', T.color)}<div><h4>突破<em>強化上限 +10、屬性 +25%</em></h4><div>${brkMats}</div></div><button class="seal sm" id="wBrk" ${S.wCanBreak(id) ? '' : 'disabled'}>突破</button></div>` : '<p class="note" style="text-align:center">已臻圓滿。</p>')
+          : `<div class="li">${gIco('ui', 'enhance', '', T.color)}<div><h4>強化<em>成功率 ${rate}%</em></h4><p>每級屬性 +8%。保底 ${Math.min(o.fail, W_PITY)}／${W_PITY}：連敗三次，下次必成。</p><span class="mat ${S.has('stone', cost) ? '' : 'lack'}">${stoneAmt(cost)}</span></div><button class="seal sm" id="wEnh" ${S.has('stone', cost) ? '' : 'disabled'}>強化</button></div>`}
       </div>
       <div class="row center">${eqBtns}</div>`, {
       '#wEnh': () => { const r = S.wEnhance(id); if (!r) return; if (r.ok) { Audio2.play('up'); this.toast(`${w.name}強化至 +${o.lv}${r.pity ? '（保底）' : ''}`, T.color); } else { Audio2.play('fail'); this.toast(`強化失敗（保底 ${Math.min(o.fail, W_PITY)}／${W_PITY}）`, '#ff9a9a'); } this.wDetail(id); this.gear(); this.hud(); },
@@ -643,18 +657,18 @@ const UI = {
     const d = S.d;
     this.modal('閣', `
       <div class="list">
-        <div class="li"><i class="ico" style="--c:#c8b48a">琴</i><div><h4>配樂音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.bgm * 100)}" id="sBgm" aria-label="配樂音量"></div><b class="vol-n" id="sBgmN">${Math.round(Audio2.set.bgm * 100)}</b></div>
-        <div class="li"><i class="ico" style="--c:#c8b48a">音</i><div><h4>音效音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.sfx * 100)}" id="sSfxV" aria-label="音效音量"></div><b class="vol-n" id="sSfxN">${Math.round(Audio2.set.sfx * 100)}</b></div>
-        <div class="li"><i class="ico" style="--c:#c8b48a">靜</i><div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
-        <div class="li"><i class="ico" style="--c:#c8b48a">震</i><div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
-        <div class="li"><i class="ico" style="--c:#9fe8d8">光</i><div><h4>特效強度</h4><p>${d.settings.fx ? '' : '自動・'}劍氣、靈氣粒子、待機呼吸</p></div><button class="seal sm ${FX.level() === 'off' ? 'ghost' : ''}" id="sFx">${{ high: '高', low: '低', off: '關' }[FX.level()]}</button></div>
-        <div class="li"><i class="ico" style="--c:#ff9ec4">名</i><div><h4>更名<em>${escHtml(HERO_NAME)}</em></h4><p>${S.renameCost() ? `每次 ${RENAME_COST} 靈石・間隔 24 小時` : '第一次免費'}</p></div><button class="seal sm ghost" id="sName">更名</button></div>
-        <div class="li"><i class="ico" style="--c:#c8b48a">卷</i><div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
-        <div class="li"><i class="ico" style="--c:#9fe8d8">雲</i><div><h4>雲端帳號</h4><p>${Cloud.on ? `已登入 ${Cloud.user.email || Cloud.user.name}，存檔自動同步` : '以 Google 登入，存檔上雲、可與道侶連線'}</p></div><button class="seal sm ${Cloud.on ? 'ghost' : ''}" id="sCloud">${Cloud.on ? '登出' : '登入'}</button></div>
-        <div class="li"><i class="ico" style="--c:#9fe8d8">存</i><div><h4>匯出存檔</h4><p>下載存檔檔案，也可複製文字備份</p></div><button class="seal sm ghost" id="sExp">匯出</button></div>
-        <div class="li"><i class="ico" style="--c:#9fe8d8">讀</i><div><h4>匯入存檔</h4><p>換手機或清除快取後還原進度</p></div><button class="seal sm ghost" id="sImp">匯入</button></div>
-        <div class="li"><i class="ico" style="--c:#c8b48a">歸</i><div><h4>回標題畫面</h4><p>存檔後回到標題，可再「續緣」</p></div><button class="seal sm ghost" id="sTitle">回標題</button></div>
-        <div class="li"><i class="ico" style="--c:#ff8a8a">重</i><div><h4>重新修行</h4><p>刪除存檔，從青石村重新開始</p></div><button class="seal sm" id="sReset">重修</button></div>
+        <div class="li">${gIco('ui', 'set_bgm')}<div><h4>配樂音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.bgm * 100)}" id="sBgm" aria-label="配樂音量"></div><b class="vol-n" id="sBgmN">${Math.round(Audio2.set.bgm * 100)}</b></div>
+        <div class="li">${gIco('ui', 'set_sfx')}<div><h4>音效音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.sfx * 100)}" id="sSfxV" aria-label="音效音量"></div><b class="vol-n" id="sSfxN">${Math.round(Audio2.set.sfx * 100)}</b></div>
+        <div class="li">${gIco('ui', 'set_mute')}<div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
+        <div class="li">${gIco('ui', 'set_shake')}<div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
+        <div class="li">${gIco('ui', 'set_fx')}<div><h4>特效強度</h4><p>${d.settings.fx ? '' : '自動・'}劍氣、靈氣粒子、待機呼吸</p></div><button class="seal sm ${FX.level() === 'off' ? 'ghost' : ''}" id="sFx">${{ high: '高', low: '低', off: '關' }[FX.level()]}</button></div>
+        <div class="li">${gIco('ui', 'set_rename')}<div><h4>更名<em>${escHtml(HERO_NAME)}</em></h4><p>${S.renameCost() ? `每次 ${RENAME_COST} 靈石・間隔 24 小時` : '第一次免費'}</p></div><button class="seal sm ghost" id="sName">更名</button></div>
+        <div class="li">${gIco('ui', 'set_story')}<div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
+        <div class="li">${gIco('ui', 'set_cloud')}<div><h4>雲端帳號</h4><p>${Cloud.on ? `已登入 ${Cloud.user.email || Cloud.user.name}，存檔自動同步` : '以 Google 登入，存檔上雲、可與道侶連線'}</p></div><button class="seal sm ${Cloud.on ? 'ghost' : ''}" id="sCloud">${Cloud.on ? '登出' : '登入'}</button></div>
+        <div class="li">${gIco('ui', 'set_export')}<div><h4>匯出存檔</h4><p>下載存檔檔案，也可複製文字備份</p></div><button class="seal sm ghost" id="sExp">匯出</button></div>
+        <div class="li">${gIco('ui', 'set_import')}<div><h4>匯入存檔</h4><p>換手機或清除快取後還原進度</p></div><button class="seal sm ghost" id="sImp">匯入</button></div>
+        <div class="li">${gIco('ui', 'set_title')}<div><h4>回標題畫面</h4><p>存檔後回到標題，可再「續緣」</p></div><button class="seal sm ghost" id="sTitle">回標題</button></div>
+        <div class="li">${gIco('ui', 'set_reset')}<div><h4>重新修行</h4><p>刪除存檔，從青石村重新開始</p></div><button class="seal sm" id="sReset">重修</button></div>
       </div>`, {
       '#sMute': () => { Audio2.toggleMute(); this.settings(); },
       '#sCloud': async () => { if (Cloud.on) { await Cloud.signOut(); this.settings(); } else { this.close(); Cloud.signIn(); } },

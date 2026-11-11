@@ -160,7 +160,7 @@ const Cloud = {
     const r = await this.wait('bond', 120000);
     if (!r) return '對方沒有回應（可能不在線），稍後再試';
     if (r.type === 'bondNo') return `${r.fromName}婉拒了締結`;
-    Dao.bondWith({ name: r.fromName, pid, uid: r.from }); this.watchPartner(); return true;
+    Dao.bondWith({ name: r.fromName, pid, uid: r.from, char: r.char }); this.watchPartner(); return true;
   },
   // 收到的訊息
   async handle(m) {
@@ -171,7 +171,7 @@ const Cloud = {
       case 'bondReq': {
         if (g.partner) { this.send(m.from, { type: 'bondNo' }); return; }
         UI.modal('道侶締結', `<p class="big">${m.fromName}</p><p class="note" style="text-align:center">道侶編號 ${m.pid}<br>想與你結為道侶</p><div class="row center"><button class="seal" id="bY">結為道侶</button><button class="seal ghost sm" id="bN">婉拒</button></div>`, {
-          '#bY': () => { UI.close(); Dao.bondWith({ name: m.fromName, pid: m.pid, uid: m.from }); this.send(m.from, { type: 'bondOk' }); this.watchPartner(); Audio2.play('bell'); UI.toast(`與${m.fromName}結為道侶`, '#ff9ec4'); this.refresh(); },
+          '#bY': () => { UI.close(); Dao.bondWith({ name: m.fromName, pid: m.pid, uid: m.from, char: m.char }); this.send(m.from, { type: 'bondOk', char: S.d.dao.char }); this.watchPartner(); Audio2.play('bell'); UI.toast(`與${m.fromName}結為道侶`, '#ff9ec4'); this.refresh(); },
           '#bN': () => { UI.close(); this.send(m.from, { type: 'bondNo' }); },
         });
         return;

@@ -745,6 +745,24 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 /* 靜音鈕、音量滑桿 */
 #hudRes .sealBtn.mute { font-size: 16px; color: var(--gold2); border-color: var(--goldline); }
 #hudRes .sealBtn.mute.off { color: #7a8692; border-color: #3a4450; }
+/* 行囊按鈕：樣式同「聲」「閣」；有圖時蓋住「囊」字，圖載入失敗（被移除）就露出文字 */
+#hudRes span, #hudRes .sealBtn { white-space: nowrap; flex: none; }   /* 多一顆按鈕後靈石數字不能被擠到換行 */
+#hudRes .sealBtn.bag { position: relative; padding: 0; }
+#hudRes .sealBtn.bag img { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); object-fit: contain; }
+#hudRes .sealBtn.bag img + b { visibility: hidden; }
+@media (max-width: 359px) { #hudRes { gap: 4px; } #hudRes .sealBtn { width: 37px; height: 37px; font-size: 17px; } #hudRes span { gap: 3px; } }   /* 320 寬：多一顆按鈕，印章略縮 */
+/* 角色頭像：56px 圓形；道侶頁加粉色光暈 */
+.li .ico.pface { width: 56px; height: 56px; font-size: 22px; flex: none; }
+.li .ico.pface .item-ico { width: 100%; height: 100%; border-radius: 50%; filter: none; }
+.dao-hero ~ * .ico.pface, #ctrlContent .ico.pface { box-shadow: 0 0 0 2px #ff9ec4, 0 0 12px rgba(255,158,196,.7); border-radius: 50%; }
+/* 選角：點角色列展開半身立繪（靠右淡入）與介紹 */
+.ch-row { position: relative; overflow: hidden; cursor: pointer; transition: min-height .3s, background .3s; min-height: 72px; }
+.ch-row .ch-intro, .ch-row .ch-front, .ch-row .seal { display: none; }
+.ch-row.open { min-height: 190px; align-items: flex-start; background: rgba(216,196,138,.06); }
+.ch-row.open .ch-intro { display: block; margin-top: 6px; max-width: 58%; color: var(--paper); }
+.ch-row.open .ch-front { display: block; position: absolute; right: 0; bottom: 0; height: 100%; width: auto; pointer-events: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); animation: chIn .4s ease-out both; }
+.ch-row.open .seal { display: inline-flex; position: absolute; left: 14px; bottom: 12px; z-index: 1; }
+@keyframes chIn { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
 .vol { width: 100%; accent-color: var(--cinnabar2); margin: 6px 0 0; }
 .vol-n { min-width: 34px; text-align: right; font-family: var(--brush); color: var(--gold2); }
 

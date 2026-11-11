@@ -70,6 +70,8 @@ const ROOT_LIGHT = {
   earth: 'hue-rotate(-170deg) saturate(1.3) brightness(1.1)',
 };
 const ROOT_PILLAR = { thunder: 'assets/fx/pillar_thunder.webp', ice: 'assets/fx/pillar_ice.webp' };
+// 五行光柱：圖在素材清單裡才用，沒有就維持濾鏡做法
+for (const r of ['metal', 'wood', 'water', 'fire', 'earth']) { const p = `assets/fx/pillar_${r}.webp`; if (typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p)) ROOT_PILLAR[r] = p; }
 
 // 物品
 const ITEMS = {
