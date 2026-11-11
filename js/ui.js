@@ -540,7 +540,9 @@ const UI = {
     Audio2.setMood('sect'); this.setBg('sect', 'dim');
     const P = this.gpool, d = S.d, t = S.today(), G = GACHA, left = G.pity - S.pity(P);   // 讀當前這一池的保底計數
     this.scene(`<div class="gacha-ring" id="gRing"><img src="assets/fx/ring.webp" alt=""></div><i class="gacha-sky" id="gSky"></i>
-      <div class="banner static" style="animation:none;top:12%"><b style="font-size:clamp(28px,8vw,46px)">${P === 'wpn' ? '法寶池' : '功法池'}</b><span>祈願光陣</span></div>`);
+      <div class="banner static gpool" style="animation:none"><b>${P === 'wpn' ? '法寶池' : '功法池'}</b><span>祈願光陣</span></div>`);
+    // 池名放在 HUD 底部再往下 8px（HUD 高度會隨字數變，量實際位置；go() 之後才更新 HUD，所以等下一幀）
+    requestAnimationFrame(() => { const bn = $('.banner.gpool'), hud = $('#hud'); if (bn && hud) bn.style.top = hud.getBoundingClientRect().bottom - $('#scene').getBoundingClientRect().top + 8 + 'px'; });
     const rates = WTIERS.map((T, i) => `<span class="mat" style="color:${T.color};border-color:${T.edge}">${P === 'art' ? T.pin : T.name} ${Math.round(G.rates[i] * 1000) / 10}%</span>`).join('');
     const gives = P === 'art' ? '<p class="note">凡品：殘卷×1　靈品：殘卷×2　玄品：殘卷×4　仙品：隨機功法 +1 層　神品：萬劍歸宗 +1 層</p>' : '<p class="note">重複的兵器化為玄鐵（強化材料）。</p>';
     this.controls(`<div class="sec-title">機緣</div>

@@ -946,3 +946,7 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 .hero-b.atk img.sway, .hero-b.hurt img.sway, [data-fx="off"] .hfig > img.sway { display: none; }
 /* 劍氣光弧圖（assets/cast/arc.webp、assets/cast_yunxi/arc.webp）到位時取代 CSS 光弧，沿用同一段橫掃動畫 */
 .qi-sweep.img { width: 200px; height: 112px; border-radius: 0; background: center / contain no-repeat; -webkit-mask-image: none; mask-image: none; }   /* 原圖 16:9 黑底，靠 screen 混合去黑 */
+/* B2 機緣頁池名：位置由 UI.draw() 量 HUD 底部後設定（這裡的 top 只是量到之前的預設值）；320 寬字級再縮 */
+.banner.gpool { top: calc(max(10px, env(safe-area-inset-top)) + 70px); }
+.banner.gpool b { font-size: clamp(28px, 8vw, 46px); }
+@media (max-width: 359px) { .banner.gpool b { font-size: 22px; } .banner.gpool span { font-size: 12px; padding: 2px 18px; margin-top: 4px; } }
