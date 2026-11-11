@@ -102,7 +102,7 @@ const Story = {
     if (!S.d.wslot[0]) S.d.wslot[0] = 'qinggang';
     const hc = document.querySelector('.char.hero');
     if (hc) { hc.outerHTML = this.heroChar(); const c = $('#sceneContent .char.hero'); c.classList.add('gift'); FX.converge(c.getBoundingClientRect().left + 80, FX.h * 0.55, 'rgba(232,232,232,0.9)', 18, 160, 0.6); }
-    Audio2.play('pickup'); UI.toast('獲得凡器・青鋼劍', WTIERS[0].color);
+    Audio2.play('pickup'); if (!replay) UI.toast('獲得凡器・青鋼劍', WTIERS[0].color);   // 重溫劇情：不重複報獲得
     await this.lines([
       ['hero', '……弟子，定不負此劍。'],
       ['shizun', '修行之道，先固根基。回你的洞府打坐，靈氣自會運轉，離山之時亦不停歇。'],
@@ -112,6 +112,7 @@ const Story = {
     if (!replay) { S.d.arts.qingming = 1; S.d.unlocked.sect = true; S.add('herb_q', 4); S.add('herb_c', 2); S.add('stone', 100); }
     S.d.story.joined = true; S.save();
     this.hideDlg(); UI.mode('game'); UI.go('home');
+    if (replay) return;   // 重溫劇情：不再顯示入門橫幅與新手提示
     UI.banner('拜入青冥宗', `${S.d.grade}品${R.name}・${rootDesc(S.d.root, S.d.grade)}`);
     setTimeout(() => UI.toast('修為滿了就能「突破」，底部印章切換洞府、歷練、丹房、功法、法寶、機緣'), 3700);
   },
