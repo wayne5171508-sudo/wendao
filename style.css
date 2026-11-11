@@ -950,3 +950,7 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 .banner.gpool { top: calc(max(10px, env(safe-area-inset-top)) + 70px); }
 .banner.gpool b { font-size: clamp(28px, 8vw, 46px); }
 @media (max-width: 359px) { .banner.gpool b { font-size: 22px; } .banner.gpool span { font-size: 12px; padding: 2px 18px; margin-top: 4px; } }
+/* B3 兵器詳情：展示框限高（內容由 CaseFit 等比縮放），「強化／突破」列不捲動就看得到 */
+#mBody .wcase { max-height: min(30vh, 300px); }
+/* 矮螢幕：展示框再縮、省掉和名牌重複的彈窗標題與說明文字 */
+@media (max-height: 640px) { #mBody .wcase { max-height: 16vh; } #modal:has(.wcase) #mTitle, #mBody .wc-fx { display: none; } #mBody .wc-stats span { padding: 2px 0; } #mBody .wc-stats b { font-size: 17px; } }
