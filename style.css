@@ -954,3 +954,5 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 #mBody .wcase { max-height: min(30vh, 300px); }
 /* 矮螢幕：展示框再縮、省掉和名牌重複的彈窗標題與說明文字 */
 @media (max-height: 640px) { #mBody .wcase { max-height: 16vh; } #modal:has(.wcase) #mTitle, #mBody .wc-fx { display: none; } #mBody .wc-stats span { padding: 2px 0; } #mBody .wc-stats b { font-size: 17px; } }
+/* B4 矮螢幕（例如 320×568）戰鬥：主角立繪縮到約 75% 並貼底，不蓋住妖物；劍身疊圖與劍光是立繪容器內的百分比座標，跟著一起縮 */
+@media (max-height: 640px) { #app.fighting #heroB { height: 30%; bottom: -2%; } #app.fighting #heroB.blean { height: 33%; } }
