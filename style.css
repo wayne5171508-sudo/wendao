@@ -12,7 +12,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .hidden { display: none !important; }
 
 /* ───── 版面：直式上下疊、橫式左右並排 ───── */
-#app { position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: var(--ink); }
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); background: var(--ink); }   /* 欄寬鎖在視窗內：內容（例如 input 的預設寬度）不能把直式版面撐寬 */
 #scene { position: relative; overflow: hidden; min-height: 0; }
 #controls { position: relative; display: flex; flex-direction: column; min-height: 0; max-height: 58vh; background: linear-gradient(#101925, #0b121c); border-top: 1px solid var(--goldline); }
 #ctrlContent { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 8px; }
@@ -900,7 +900,7 @@ img { object-fit: contain; }
 
 /* ───── 道侶・合修 ───── */
 .dao-form { display: flex; gap: 6px; margin: 6px 0 10px; }
-.dao-form input { flex: 1; min-width: 0; padding: 8px; background: #0b121c; border: 1px solid var(--goldline); color: var(--paper); font-family: var(--brush); font-size: 15px; }
+.dao-form input { flex: 1; min-width: 0; width: 0; padding: 8px; background: #0b121c; border: 1px solid var(--goldline); color: var(--paper); font-family: var(--brush); font-size: 15px; }
 .dao-gifts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
 .dao-gifts small { width: 100%; color: var(--dim); }
 .dao-gift { display: inline-flex; align-items: center; gap: 2px; padding: 4px 8px; font-size: 13px; color: var(--paper); background: rgba(255,158,196,.08); border: 1px solid rgba(255,158,196,.4); cursor: pointer; }
