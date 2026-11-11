@@ -216,6 +216,7 @@ const ASSET_LIST = [
   'assets/ui/set_cloud.webp',
   'assets/ui/set_export.webp',
   'assets/ui/set_fx.webp',
+  'assets/ui/set_import.webp',
   'assets/ui/set_mute.webp',
   'assets/ui/set_rename.webp',
   'assets/ui/set_reset.webp',
