@@ -265,6 +265,12 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .cutin::before { content: ""; position: absolute; left: -10%; right: -40%; top: 28%; bottom: 18%; background: linear-gradient(90deg, rgba(5,8,14,0), rgba(5,8,14,.55) 30%, rgba(5,8,14,0)); border-top: 1px solid var(--c); border-bottom: 1px solid var(--c); transform: skewY(-6deg); }
 .cutin img { position: relative; height: 100%; filter: drop-shadow(0 0 18px var(--c)); }
 @keyframes cutin { 0% { opacity: 0; transform: translateX(-40%); } 18% { opacity: 1; transform: translateX(0); } 70% { opacity: 1; transform: translateX(4%); } 100% { opacity: 0; transform: translateX(10%); } }
+/* 劍氣橫掃：新月形光弧（只用漸層與遮罩，不用圖），由 Battle.qiSweep 以 transform/opacity 推向妖物 */
+.qi-sweep { position: absolute; width: 120px; height: 120px; z-index: 4; pointer-events: none; border-radius: 50%; opacity: 0; mix-blend-mode: screen; will-change: transform, opacity;
+  background: radial-gradient(closest-side, transparent 55%, color-mix(in srgb, var(--c) 70%, transparent) 64%, #fff 70%, var(--c) 75%, transparent 86%);
+  /* 弧口朝 +x（行進方向）：conic 由上方順時針量角，90deg 為右 */
+  -webkit-mask-image: conic-gradient(transparent 0 25deg, #000 55deg 125deg, transparent 155deg); mask-image: conic-gradient(transparent 0 25deg, #000 55deg 125deg, transparent 155deg); }
+[data-fx="high"] .qi-sweep:not(.ghost) { filter: drop-shadow(0 0 8px var(--c)); }
 .hero-b.yi img { filter: drop-shadow(0 0 16px #ffcf7a) drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
 
 /* ───── 兵器：五階顏色與邊框（白、綠、藍、紫金、赤金） ───── */
@@ -344,12 +350,20 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 #heroB { height: 46%; bottom: -1%; aspect-ratio: .74; --lean: 11deg; }
 #heroB.blean { --lean: 0deg; height: 44%; aspect-ratio: 700 / 840; }
 #heroB.blean.ready { animation-name: combatIdleFlat; }
-@keyframes combatIdleFlat { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) translateY(-1%) scale(1.01); } }
-#heroB.ready { transform-origin: 50% 100%; animation: combatIdle 1.8s ease-in-out infinite; }
+@keyframes combatIdleFlat { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) translateY(-1.2%); } }
+/* 待機呼吸：整體上下浮動（3.6 秒），立繪再以腳底為軸錯相輕擺，模擬衣袖隨氣流飄動；只用位移與旋轉，不縮放、不改透視 */
+#heroB.ready { transform-origin: 50% 100%; animation: combatIdle 3.6s ease-in-out infinite; }
 @keyframes combatIdle {
   0%, 100% { transform: translateX(-50%) perspective(900px) rotateX(9deg) rotate(var(--lean)); }
-  50% { transform: translateX(-50%) translateY(-1.2%) perspective(900px) rotateX(11deg) rotate(calc(var(--lean) + 1.6deg)); }
+  50% { transform: translateX(-50%) translateY(-1.4%) perspective(900px) rotateX(9deg) rotate(var(--lean)); }
 }
+#heroB.ready .hfig.pose { animation: sleeveSway 3.6s ease-in-out -0.9s infinite; }
+@keyframes sleeveSway { 0%, 100% { transform: translateX(-50%) rotate(-0.6deg); } 50% { transform: translateX(-50%) rotate(0.6deg); } }
+/* 特效強度「低」：只留浮動；「關」：靜止在前傾待機姿勢 */
+[data-fx="low"] #heroB.ready .hfig.pose { animation: none; }
+[data-fx="off"] #heroB.ready, [data-fx="off"] #heroB.ready .hfig.pose { animation: none; }
+[data-fx="off"] #heroB.ready { transform: translateX(-50%) perspective(900px) rotateX(9deg) rotate(var(--lean)); }
+[data-fx="off"] #heroB.blean.ready { transform: translateX(-50%); }
 #heroB .hfig.pose { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); transform-origin: 50% 100%; }
 #heroB .hfig.pose > img { filter: drop-shadow(0 6px 14px rgba(0,0,0,.7)); }
 #heroB .waura { --orb: 80px; }
@@ -918,3 +932,17 @@ img { object-fit: contain; }
 .dao-pid { color: #ff9ec4; letter-spacing: 2px; cursor: copy; }
 
 .char-yunxi #heroB { --lean: 3deg; }   /* 女角戰鬥立繪本身已是動態姿勢，前傾少一點 */
+/* 320 寬且 6 個技能：改成 3×2 兩排，每顆至少 44px（375/414 不受影響） */
+@media (max-width: 359px) {
+  .skills:has(> .skill:nth-child(6)) { grid-template-columns: repeat(3, 1fr); row-gap: 22px; padding: 4px 2px 0; }   /* 22px：留給第一排的技能名 */
+  .skills:has(> .skill:nth-child(6)) .skill { min-width: 44px; max-width: 48px; }
+  .skills:has(> .skill:nth-child(6)) + .row { margin-top: 22px !important; }   /* 第二排技能名在按鈕下方 18px */
+}
+.st-replay { position: absolute; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 56px); transform: translateX(-50%); z-index: 6; margin: 0; padding: 5px 14px; border-radius: 999px; background: rgba(8,12,20,.72); white-space: nowrap; font-family: var(--serif); font-size: 13px; color: #f0e4c4; letter-spacing: 1px; pointer-events: none; }   /* 劇情回顧時的靈根測試 */
+body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
+/* 戰鬥立繪衣袖／衣擺擺動：裁出的複製層（座標見 ui.js SWAY）；攻擊、受擊時先藏起來，避免和本體動畫錯位；特效「關」停用 */
+.hfig > img.sway { position: absolute; left: 0; top: 0; width: 100%; height: 100%; filter: none !important; pointer-events: none; transform-origin: var(--o); animation: clothSway 3s ease-in-out infinite; }
+@keyframes clothSway { 0%, 100% { transform: rotate(calc(-0.8deg * var(--sa))) skewX(calc(-1deg * var(--sa))); } 50% { transform: rotate(calc(0.8deg * var(--sa))) skewX(calc(1deg * var(--sa))); } }
+.hero-b.atk img.sway, .hero-b.hurt img.sway, [data-fx="off"] .hfig > img.sway { display: none; }
+/* 劍氣光弧圖（assets/cast/arc.webp、assets/cast_yunxi/arc.webp）到位時取代 CSS 光弧，沿用同一段橫掃動畫 */
+.qi-sweep.img { width: 200px; height: 112px; border-radius: 0; background: center / contain no-repeat; -webkit-mask-image: none; mask-image: none; }   /* 原圖 16:9 黑底，靠 screen 混合去黑 */

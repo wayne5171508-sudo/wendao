@@ -26,7 +26,7 @@ const Game = {
     document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') imgFail(e.target); }, true);
     [...document.images].forEach((i) => { if (i.complete && !i.naturalWidth && i.getAttribute('src')) imgFail(i); });   // 程式啟動前就已失敗的（頂部資源列）
     const had = S.load(); Char.apply(); Cloud.init();
-    FX.noShake = S.d.settings.shake === false;
+    FX.noShake = S.d.settings.shake === false; FX.applyLevel();
     // 點擊推進對話；按鈕
     $('#dlg').addEventListener('click', () => Story.advance());
     $('#skipBtn').onclick = (e) => { e.stopPropagation(); Story.skipNow(); };

@@ -107,7 +107,7 @@ const Story = {
       ['hero', '……弟子，定不負此劍。'],
       ['shizun', '修行之道，先固根基。回你的洞府打坐，靈氣自會運轉，離山之時亦不停歇。'],
       ['shixiong', '小師弟，我是陸沉舟。修為穩了，就到演武場來試劍——「歷練」裡的青冥宗。'],
-      ['shijie', '我是蘇晚吟，守著丹房。靈草送你幾株，聚氣丹能助你修行。'],
+      ['shijie', '我是柳晚吟，守著丹房。靈草送你幾株，聚氣丹能助你修行。'],
     ]);
     if (!replay) { S.d.arts.qingming = 1; S.d.unlocked.sect = true; S.add('herb_q', 4); S.add('herb_c', 2); S.add('stone', 100); }
     S.d.story.joined = true; S.save();
@@ -121,16 +121,16 @@ const Story = {
     this.hideDlg();
     for (;;) {
       const res = replay ? { root: S.d.root, grade: S.d.grade } : rollRoot();
-      await this.steleShow(res);
+      await this.steleShow(res, replay);
       if (await this.rootCard(res, replay)) { S.d.root = res.root; S.d.grade = res.grade; S.save(); return; }
     }
   },
-  async steleShow({ root, grade }) {
+  async steleShow({ root, grade }, replay) {
     UI.setBg('title', 'dim');
     UI.scene(`<div class="stele" id="stele"><img class="st-base" src="assets/bg/stele.webp" alt="測靈石"><i class="st-dusk"></i><div class="st-glow"><img src="assets/bg/stele.webp" alt=""></div>
       <img class="st-light" src="assets/fx/wuxing.webp" alt=""><img class="st-pillar" alt="">
       <div class="st-hero"><img class="sh-top" src="assets/hero/walk_back.webp" alt=""><img class="sh-bot" src="assets/hero/walk_back.webp" alt="${escHtml(HERO_NAME)}"></div>
-      <img class="st-press" src="assets/hero/press_stele.webp" alt="${escHtml(HERO_NAME)}手按測靈石"><i class="st-hand"></i></div>`);
+      <img class="st-press" src="assets/hero/press_stele.webp" alt="${escHtml(HERO_NAME)}手按測靈石"><i class="st-hand"></i></div>${replay ? '<p class="st-replay">僅回顧，不會改變靈根</p>' : ''}`);
     const st = $('#stele'), hero = st.querySelector('.st-hero');
     const at = (fx, fy) => { const r = st.getBoundingClientRect(), sc = $('#scene').getBoundingClientRect(); return { x: r.left - sc.left + fx * r.width, y: r.top - sc.top + fy * r.height }; };
     await this.wait(400);
@@ -164,7 +164,7 @@ const Story = {
     const el = document.createElement('div'); el.className = 'root-card';
     el.innerHTML = `<div class="rc-head"><b style="color:${R.color}">${R.name}</b><span class="rc-grade" style="--g:${G.color}">${grade}品</span></div>
       <p class="rc-desc">${rootDesc(root, grade)}${R.rare ? '<br><em>異靈根，百年難遇</em>' : ''}</p>
-      <p class="rc-note">品階：天&nbsp;×2、地&nbsp;×1.5、玄&nbsp;×1.2、黃&nbsp;×1（靈根加成倍率）</p>
+      ${replay ? '<p class="rc-note">僅回顧，不會改變靈根</p>' : ''}<p class="rc-note">品階：天&nbsp;×2、地&nbsp;×1.5、玄&nbsp;×1.2、黃&nbsp;×1（靈根加成倍率）</p>
       <div class="row center">${replay ? '' : left > 0 ? `<button class="seal sm ghost" id="rcAgain">重新測試<small>剩 ${left} 次</small></button>` : '<button class="seal sm ghost" id="rcAgain" disabled>已無重測機會</button>'}<button class="seal" id="rcOk">確認靈根</button></div>`;
     $('#sceneContent').appendChild(el); $('#skipBtn').classList.add('hidden');
     return new Promise((res) => {
@@ -321,8 +321,10 @@ const Story = {
       panel = `<h3>${lvName(res.to)}</h3><div class="bt-stats">${row('氣血', before.hp, after.hp)}${row('攻擊', before.atk, after.atk)}${row('防禦', before.def, after.def)}${row('靈力', before.mp, after.mp)}${row('修煉', rate0.toFixed(1) + '／息', S.rate().toFixed(1) + '／息')}</div><div class="row center"><button class="seal" id="btOk">穩固境界</button></div>`;
     } else {
       ring.classList.add('broken'); Audio2.play('fail');
-      UI.banner(res.major ? '渡劫失敗' : '突破失敗', '道基受震，境界跌落');
-      panel = `<h3 class="fail">${lvName(res.from)} → ${lvName(res.to)}</h3><p>境界跌落一層，修為散去，只剩此境一半。<br>多備破障丹再來。</p><div class="row center"><button class="seal" id="btOk">重新修煉</button></div>`;
+      // 已在最低境界（練氣初期）時不會再跌，只散去一半修為
+      const drop = res.to < res.from;
+      UI.banner(res.major ? '渡劫失敗' : '突破失敗', drop ? '道基受震，境界跌落' : '道基受震，修為散去');
+      panel = `<h3 class="fail">${drop ? `${lvName(res.from)} → ${lvName(res.to)}` : lvName(res.to)}</h3><p>${drop ? '境界跌落一層，修為散去，只剩此境一半。' : '修為散去，只剩一半。'}<br>多備破障丹再來。</p><div class="row center"><button class="seal" id="btOk">重新修煉</button></div>`;
     }
     await this.wait(1400);
     $('#scene').classList.remove('bt-white'); document.querySelectorAll('#scene .banner').forEach((b) => b.remove());

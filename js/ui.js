@@ -29,11 +29,30 @@ const HERO_SWORD = {
   bnitian: { img: 'assets/hero/hold_nitian.webp', ar: 747 / 1045, blade: [0.38, 0.45, 0.013, 0.895] },   // 持逆天劍正面（備用）
   blean: { img: 'assets/hero/battle_lean.webp', ar: 700 / 840, blade: [0.27, 0.32, 0.02, 0.8] },         // 戰鬥前傾持逆天劍（神器）
 };
+// 戰鬥立繪的衣袖／衣擺擺動（不新增圖）：把原圖用 clip-path 裁出一塊複製層疊在上面輕輕擺動
+//  p＝多邊形頂點（原圖百分比 x y）、o＝擺動支點（放在貼身那一側，接縫處幾乎不位移）、a＝幅度倍率（1 ≈ ±0.8° 旋轉、±1° 斜切）
+//  依角色 id → 立繪 kind；想調整區域直接改這裡
+const SWAY = {
+  qingyuan: {
+    bstance: [{ p: '57% 36%, 100% 44%, 100% 74%, 82% 72%, 62% 58%', o: '58% 42%' }, { p: '55% 60%, 98% 70%, 96% 88%, 70% 86%, 52% 74%', o: '55% 64%', a: 0.7 }],
+    bhold: [{ p: '33% 28%, 40% 30%, 40% 58%, 4% 58%, 8% 42%, 20% 32%', o: '38% 30%' }, { p: '0% 64%, 36% 60%, 36% 74%, 20% 80%, 0% 80%', o: '36% 62%', a: 0.7 }],
+  },
+  yunxi: {
+    bstance: [{ p: '0% 46%, 36% 50%, 36% 100%, 0% 100%', o: '36% 56%' }, { p: '50% 46%, 64% 52%, 66% 80%, 50% 82%', o: '57% 48%', a: 0.6 }],
+    bhold: [{ p: '62% 44%, 100% 50%, 100% 92%, 82% 95%, 62% 70%', o: '62% 50%' }],
+  },
+};
+// 複製層邊緣用橢圓遮罩淡出（橢圓＝多邊形外框），裁切線處完全透明，擺動時不會出現硬接縫
+const swayLayers = (kind, src) => ((typeof Char !== 'undefined' && SWAY[Char.cur().id]) || {})[kind]?.map((r, i) => {
+  const pts = r.p.split(',').map((q) => q.trim().split(/\s+/).map(parseFloat)), xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const mask = `radial-gradient(${(x1 - x0) / 2}% ${(y1 - y0) / 2}% at ${(x0 + x1) / 2}% ${(y0 + y1) / 2}%, #000 45%, transparent 100%)`;
+  return `<img class="sway" src="${src}" style="clip-path:polygon(${r.p});-webkit-mask-image:${mask};mask-image:${mask};--o:${r.o};--sa:${r.a || 1};animation-delay:${-i * 1.1}s" alt="">`;
+}).join('') || '';
 // 戰鬥立繪：battle_lean 畫的是逆天劍，只有主手是逆天劍才用；其他劍用起手式，再把主手兵器圖疊在劍身上
 const BATTLE_POSE = { normal: { hold: 'bhold', stance: 'bstance' }, nitian: { hold: 'blean', stance: 'blean' } };
 const battlePose = (w) => BATTLE_POSE[w && w.id === 'nitian' ? 'nitian' : 'normal'];
 // 疊在劍身上的兵器圖：原圖轉 rot 度後劍尖朝下，劍長約為轉正後的高度；依劍長換算圖寬，讓整把劍剛好蓋住立繪裡的劍
-// shortcut: 立繪本身畫著青鋼劍，疊圖只能蓋住大部分；補上無劍立繪後，把 battle_stance/battle_hold 換成無劍版即可
 function wovFit(img) {
   const r = (parseFloat(img.dataset.rot) || 0) * Math.PI / 180, w = img.naturalWidth, h = img.naturalHeight;
   img.style.width = (100 * w) / (h * Math.abs(Math.cos(r)) + w * Math.abs(Math.sin(r))) + '%'; img.classList.add('on');
@@ -50,12 +69,12 @@ const heroArmed = (w, kind, cls = '') => {
   if (w && H.blade) {
     const [x1, y1, x2, y2] = H.blade, dx = x2 - x1, dy = (y2 - y1) / H.ar;
     const pos = `left:${x1 * 100}%;top:${y1 * 100}%;width:${Math.hypot(dx, dy) * 100}%;transform:rotate(${(Math.atan2(dy, dx) * 180) / Math.PI}deg)`;
-    // 戰鬥立繪畫的是青鋼劍：主手換成別的劍時把那把劍的圖疊上去
-    const wov = /^b(stance|hold)$/.test(kind) && w.id !== 'qinggang' ? `<i class="wov" style="${pos}"><img src="${W_IMG(w.id)}" data-rot="${w.rot || 0}" onload="wovFit(this)" alt=""></i>` : '';
+    // 戰鬥立繪不畫劍：一律把主手兵器圖疊在劍身位置
+    const wov = /^b(stance|hold)$/.test(kind) ?`<i class="wov" style="${pos}"><img src="${W_IMG(w.id)}" data-rot="${w.rot || 0}" onload="wovFit(this)" alt=""></i>` : '';
     fx = `${wov}<i class="blade" style="${pos}"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
-  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${escHtml(HERO_NAME)}">${fx}</div>`;
+  return `<div class="hfig ${kind} ${cls} ${w ? 't' + w.tier : ''}" style="aspect-ratio:${H.ar};${w ? wVars(w) : ''}">${wAura(w)}<img src="${H.img}" alt="${escHtml(HERO_NAME)}">${/^b(stance|hold)$/.test(kind) ? swayLayers(kind, H.img) : ''}${fx}</div>`;
 };
 // 靈石：全遊戲共用同一個圖示元件（HUD、抽卡、商店、戰鬥獎勵、背包、提示）
 const STONE_IMG = 'assets/ui/stone.webp';
@@ -612,7 +631,7 @@ const UI = {
   gachaResults(res) {
     const back = () => { this.close(); this.draw(); };
     const tap = (x) => x.type === 'w' || x.type === 'f';
-    if (res.length === 1 && tap(res[0])) { this.wShow(res[0].id, '認主', back); return; }
+    if (res.length === 1 && tap(res[0]) && res[0].isNew) { this.wShow(res[0].id, '認主', back); return; }   // 重複的走清單，顯示「重複，化為玄鐵」
     const rows = res.map((x, i) => { const sub = x.type === 'w' && S.subNotice(x.id); return `<div class="li gres t${x.tier} ${tap(x) ? 'tap' : ''}" ${tap(x) ? `data-gi="${i}"` : ''} style="--c:${WTIERS[x.tier].color}">${this.resIcon(x)}<div><h4 style="color:${WTIERS[x.tier].color}">${x.name}${x.isNew ? '<i class="new">新</i>' : ''}<i class="tier">${tierName(x)}</i></h4>${x.note || sub ? `<p>${stoneText(x.note || sub)}</p>` : ''}</div><span>${tap(x) ? '›' : ''}</span></div>`; }).join('');
     this.modal(res.length === 10 ? '十連機緣' : '機緣', `<div class="list">${rows}</div><div class="row center"><button class="seal" id="gOk">收下</button></div>`, {
       '#gOk': back,
@@ -628,6 +647,7 @@ const UI = {
         <div class="li"><i class="ico" style="--c:#c8b48a">音</i><div><h4>音效音量</h4><input class="vol" type="range" min="0" max="100" value="${Math.round(Audio2.set.sfx * 100)}" id="sSfxV" aria-label="音效音量"></div><b class="vol-n" id="sSfxN">${Math.round(Audio2.set.sfx * 100)}</b></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">靜</i><div><h4>全部靜音</h4><p>右上角「聲」也可以切換</p></div><button class="seal sm ${Audio2.set.mute ? '' : 'ghost'}" id="sMute">${Audio2.set.mute ? '靜音中' : '關'}</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">震</i><div><h4>畫面震動</h4><p>雷劫、重擊時的畫面晃動</p></div><button class="seal sm ${FX.noShake ? 'ghost' : ''}" id="sShake">${FX.noShake ? '關' : '開'}</button></div>
+        <div class="li"><i class="ico" style="--c:#9fe8d8">光</i><div><h4>特效強度</h4><p>${d.settings.fx ? '' : '自動・'}劍氣、靈氣粒子、待機呼吸</p></div><button class="seal sm ${FX.level() === 'off' ? 'ghost' : ''}" id="sFx">${{ high: '高', low: '低', off: '關' }[FX.level()]}</button></div>
         <div class="li"><i class="ico" style="--c:#ff9ec4">名</i><div><h4>更名<em>${escHtml(HERO_NAME)}</em></h4><p>${S.renameCost() ? `每次 ${RENAME_COST} 靈石・間隔 24 小時` : '第一次免費'}</p></div><button class="seal sm ghost" id="sName">更名</button></div>
         <div class="li"><i class="ico" style="--c:#c8b48a">卷</i><div><h4>劇情回顧</h4><p>第一章「凡塵問道」</p></div><button class="seal sm ghost" id="sStory">重溫</button></div>
         <div class="li"><i class="ico" style="--c:#9fe8d8">雲</i><div><h4>雲端帳號</h4><p>${Cloud.on ? `已登入 ${Cloud.user.email || Cloud.user.name}，存檔自動同步` : '以 Google 登入，存檔上雲、可與道侶連線'}</p></div><button class="seal sm ${Cloud.on ? 'ghost' : ''}" id="sCloud">${Cloud.on ? '登出' : '登入'}</button></div>
@@ -639,6 +659,7 @@ const UI = {
       '#sMute': () => { Audio2.toggleMute(); this.settings(); },
       '#sCloud': async () => { if (Cloud.on) { await Cloud.signOut(); this.settings(); } else { this.close(); Cloud.signIn(); } },
       '#sShake': () => { FX.noShake = !FX.noShake; d.settings.shake = !FX.noShake; S.save(); this.settings(); },
+      '#sFx': () => { const o = ['high', 'low', 'off']; d.settings.fx = o[(o.indexOf(FX.level()) + 1) % 3]; FX.applyLevel(); S.save(); this.settings(); },
       '#sStory': () => { this.close(); Story.replay(); },
       '#sName': () => this.renameUI(),
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),

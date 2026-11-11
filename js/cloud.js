@@ -62,7 +62,7 @@ const Cloud = {
   },
   get on() { return !!this.user; },
   async signIn() {
-    if (!this.booted) { UI.toast('目前連不到雲端，請確認網路', '#ff9a9a'); return; }
+    if (!this.booted) { UI.toast(FIREBASE_CFG ? '目前連不到雲端，請確認網路' : '此版本未連接雲端（單機模式）', '#ff9a9a'); return; }
     try { await this.A.signIn(); } catch (e) { console.warn(e); UI.toast('登入未完成', '#ff9a9a'); }
   },
   async signOut() { if (!this.user) return; await this.upload(); await this.A.offline(this.user.uid); this.offs.forEach((f) => f()); this.offs = []; await this.A.signOut(); },

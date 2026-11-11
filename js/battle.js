@@ -6,7 +6,8 @@
 const Battle = {
   on: false,
   // cont：從上一關「下一關」接續，秘境不再扣每日次數
-  start(rid, idx, cont) {
+  start(rid, idx, cont, ready) {
+    if (!ready) { if (!this._prep) this._prep = Promise.resolve().then(() => this.prep(rid, idx)).catch(() => {}).then(() => { this._prep = null; this.start(rid, idx, cont, true); }); return; }
     const R = REGIONS.find((r) => r.id === rid), st0 = R.stages[idx];
     // 依境界調整難度：以目前境界加一點為準
     const st = R.scale ? { ...st0, p: S.d.lv + st0.p } : st0;
@@ -50,6 +51,19 @@ const Battle = {
     // 神器：天象異變
     if (this.wpn && this.wpn.tier >= 4) setTimeout(() => this.on && this.heaven(), 500);
   },
+  // 進場前的載入階段：特效圖去黑＋decode、本關立繪／兵器／妖物圖 decode，避免開場第一幀卡頓（第一次約 5×50ms）；最多等 3 秒
+  prep(rid, idx) {
+    const R = REGIONS.find((r) => r.id === rid), w = S.wMain(), pose = battlePose(w);
+    const srcs = [Char.path(HERO_SWORD[pose.stance].img), w && W_IMG(w.id), ...R.stages[idx].waves.map((m) => `assets/mon/${MONSTERS[m.replace('*', '')].img}.webp`)];
+    const dec = (src) => { const im = new Image(); im.src = src; return im.decode().catch(() => {}); };
+    const arc = this.arcSrc(); this.arcOk = null;
+    const arcDec = arc ? (() => { const im = new Image(); im.src = arc; return im.decode().then(() => (this.arcOk = arc), () => {}); })() : 0;
+    document.body.classList.add('busy');
+    return Promise.race([Promise.all([FX.loadSprites(), arcDec, ...srcs.filter(Boolean).map(dec)]), U.wait(3000)]).finally(() => document.body.classList.remove('busy'));
+  },
+  // 劍氣光弧圖（選用）：assets/cast/arc.webp，女主 assets/cast_yunxi/arc.webp；弧口朝右（行進方向）
+  //  要在素材清單裡、且進場前 decode 成功才用（this.arcOk），否則沿用 CSS 光弧
+  arcSrc() { const p = ((typeof Char !== 'undefined' && Char.cur().castDir) || 'assets/cast/') + 'arc.webp'; return typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p) ? p : null; },
   // 兵器技能只在達到階級後出現在技能列
   skillList() { return SKILLS.filter((k) => k.wt === undefined || S.skillOpen(k)); },
   heaven() {
@@ -58,11 +72,14 @@ const Battle = {
     UI.banner('逆天劍鳴', '神兵出鞘，天象異變');
     setTimeout(() => { FX.stormT = 0; }, 2600);
   },
+  // 技能色調：同一套施法特效依技能換色（劍氣青綠、雷法紫藍、護體金白），其他技能用技能本色
+  TINT: { jianqi: '#4ff2c4', leifa: '#8f8cff', huti: '#ffe9b0' },
+  tint(id) { return this.TINT[id] || SKILLS.find((k) => k.id === id).color; },
   // 施法立繪：短暫切入
   cutin(id) {
     if (!CAST_IMG[id]) return;
     const old = $('.cutin'); if (old) old.remove();
-    const el = document.createElement('div'); el.className = 'cutin'; el.style.setProperty('--c', SKILLS.find((k) => k.id === id).color);
+    const el = document.createElement('div'); el.className = 'cutin'; el.style.setProperty('--c', this.tint(id));
     el.innerHTML = `<img src="${CAST_IMG[id]}" alt="">`;
     $('#sceneContent').appendChild(el); setTimeout(() => el.remove(), 900);
   },
@@ -134,8 +151,8 @@ const Battle = {
     if (!S.skillOpen(k)) { UI.toast(`尚未習得「${ARTS.find((a) => a.id === k.from).name}」`); return; }
     if (this.cd[id] > 0 || h.mp < k.mp) return;
     h.mp -= k.mp; this.cd[id] = k.cd;
-    const lv = S.artLv(k.from), m = this.monPos(), hp = this.heroPos();
-    FX.array(hp.x, hp.y - 4, 110, k.color, 0.7);
+    const lv = S.artLv(k.from), m = this.monPos(), hp = this.heroPos(), tint = this.tint(id);
+    FX.array(hp.x, hp.y - 4, 110, tint, 0.7); Halo.boost(tint);
     this.cutin(id); Audio2.play('cast');   // 開招式
     const low = FX.low, alive = () => this.on && this.mon && this.mon.hp > 0;
     if (id === 'yujian') {
@@ -151,8 +168,10 @@ const Battle = {
       setTimeout(() => { if (!alive()) return; FX.spr('jianyi', m.x, m.y + 20, { w: 340, ang: -Math.PI / 2, life: 0.9, s0: 1, s1: 1.05, ghosts: 0, alpha: 0.55, hold: 0.3 }); this.dmgMon(h.atk * 2.2, k.color, { big: true }); FX.sparks(m.x, m.y, '#ffd76a', low ? 4 : 16, 340); }, 180);
       FX.text(hp.x, hp.y - 190, '劍意凜然', k.color, 22, 'hero');
     } else if (id === 'jianqi') {
-      FX.wave(hp.x, hp.y - 90, m.x, m.y, k.color, 0.3); Audio2.play('wave');
-      setTimeout(() => { this.dmgMon(h.atk * k.mult, k.color); FX.slash(m.x, m.y, 110, -0.5, k.color, 0.3); FX.impact(m.x, m.y, false, k.color); }, 200);
+      // 劍氣橫掃：立繪微前傾 → 青綠劍氣自劍尖旋轉掃向妖物（約 0.4 秒、帶拖影）→ 命中閃光、擴散光環、妖物後退震動
+      const tip = this.swordTip(), swept = this.qiSweep(tip, m, tint); Audio2.play('wave');
+      if (!swept) FX.wave(hp.x, hp.y - 90, m.x, m.y, tint, 0.3);
+      setTimeout(() => { if (!alive()) return; this.dmgMon(h.atk * k.mult, tint); if (!swept) FX.slash(m.x, m.y, 110, -0.5, tint, 0.3); FX.impact(m.x, m.y, false, tint); this.hitFx(m, tint); }, swept ? 380 : 200);   // 刀光素材是固定橘色，有劍氣橫掃時不再疊
     } else if (id === 'leifa') {
       // 雷法：全畫面變暗＋雲層閃光 → 0.15 秒後主雷柱劈落 → 環形衝擊波、地面裂痕光、電火花 → 震動與 100ms 定格
       const boost = (1 + 0.15 * (lv - 1)) * (1 + (S.rootFx().thunder || 0)), gy = m.y + 70;
@@ -167,12 +186,13 @@ const Battle = {
         FX.add({ k: 'ring', x, y: gy, r0: 30, r1: 90, color: '#b48cff', life: 0.8, width: 10 });            // 地面裂痕光
         FX.sparks(x, gy - 40, '#e6d6ff', low ? 6 : 22, 420);
         this.hitstop(100, 14);
-        if (alive()) { this.dmgMon(h.atk * k.mult * boost, k.color, { big: true }); if (this.mon) { this.mon.stun = 1; this.mon.charge = 0; } }
+        if (alive()) { this.dmgMon(h.atk * k.mult * boost, k.color, { big: true }); this.hitFx(m, tint); if (this.mon) { this.mon.stun = 1; this.mon.charge = 0; } }
       }, 150);
     } else if (id === 'huti') {
       h.shield = Math.round(h.max * k.mult * (1 + 0.1 * (lv - 1))); h.shieldT = 8; Audio2.play('shield');
       this.shieldFx('on');
-      FX.converge(hp.x, hp.y - 70, 'rgba(143,240,216,0.9)', low ? 8 : 22, 160, 0.6);
+      FX.converge(hp.x, hp.y - 70, 'rgba(255,233,176,0.9)', low ? 8 : 22, 160, 0.6);
+      if (FX.level() !== 'off') FX.ring(hp.x, hp.y - 70, tint, 30, 150, 0.5, 4);
     } else if (id === 'wanjian') {
       // 萬劍齊發：約 0.8 秒內分批落下，後排（小、遠、偏上）到前排（大、近）；每把落點小爆點；最後一波集中在目標並放衝擊波
       FX.flash = 0.3; Audio2.play('wave'); FX.dim(0.4, 1.3);
@@ -223,6 +243,40 @@ const Battle = {
       if (g) FX.hexBurst(g.cx, g.bottom - g.H / 2, g.W * 0.48, g.H * 0.48);
       setTimeout(() => els.forEach((el) => el.classList.add('hidden')), 420);
     }
+  },
+  // 劍氣橫掃（DOM＋CSS transform/opacity，不用影片）：新月形劍氣自劍尖旋轉擴散飛向妖物，後面跟兩道拖影；強度「關」時回傳 false 走舊的刀光
+  qiSweep(from, to, color) {
+    const lv = FX.level(), host = $('#sceneContent'); if (lv === 'off' || !host || !host.animate) return false;
+    this.leanAnim();
+    const dx = to.x - from.x, dy = to.y - from.y, ang = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const n = lv === 'high' ? 3 : 1;   // 本體＋拖影數
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement('i'); el.className = 'qi-sweep' + (i ? ' ghost' : ''); el.style.setProperty('--c', color);
+      if (this.arcOk) { el.classList.add('img'); el.style.backgroundImage = `url(${this.arcOk})`; }
+      el.style.left = from.x + 'px'; el.style.top = from.y + 'px'; host.appendChild(el);
+      const a = i ? 0.45 / i : 1, tf = (p, s, r) => `translate(-50%,-50%) translate(${dx * p}px,${dy * p}px) rotate(${ang + r}deg) scale(${s})`;
+      el.animate([
+        { transform: tf(0, 0.45, -40), opacity: 0 },
+        { transform: tf(0.25, 0.9, 10), opacity: a, offset: 0.2 },
+        { transform: tf(0.85, 1.5, 70), opacity: a, offset: 0.75 },
+        { transform: tf(1, 1.9, 95), opacity: 0 },
+      ], { duration: 400, delay: i * 45, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'both' }).onfinish = () => el.remove();
+    }
+    return true;
+  },
+  // 施放時立繪微前傾（以腳底為軸），不打斷普攻動作
+  leanAnim() {
+    const el = document.querySelector('#heroB .hfig'); if (!el || !el.animate || (this.atkAnim && this.atkAnim.playState === 'running')) return;
+    const f = (y, r) => ({ transform: `translateX(-50%) translateY(${y}%) rotate(${r}deg)` });
+    this.atkAnim = el.animate([f(0, 0), { ...f(-3, 4), offset: 0.3 }, f(0, 0)], { duration: 450, easing: 'ease-out' });
+  },
+  // 命中：技能色閃光＋兩圈擴散光環，妖物後退並震動（閃白與傷害數字由 dmgMon 處理）
+  hitFx(m, color) {
+    if (FX.level() === 'off') return;
+    FX.flashColor(color, 0.35);
+    FX.ring(m.x, m.y, color, 16, 150, 0.45, 5); if (FX.level() === 'high') FX.ring(m.x, m.y, '#ffffff', 10, 90, 0.3, 2);
+    const img = $('#monImg'); if (!img || !img.animate || FX.noShake) return;
+    img.animate([{ transform: 'none' }, { transform: 'translate(4px,-5%) scale(.97)', offset: 0.25 }, { transform: 'translate(-4px,-4%) scale(.97)', offset: 0.45 }, { transform: 'translate(2px,-2%)', offset: 0.7 }, { transform: 'none' }], { duration: 320, easing: 'ease-out' });
   },
   // 普攻動作（以程式位移與旋轉模擬，之後補圖可換成逐格立繪）：蓄勢後撤 → 前衝 → 揮劍 → 後座回位
   attackAnim(scale = 1) {
@@ -338,7 +392,8 @@ const Battle = {
     if (m.stun > 0) { m.stun -= dt; this.render(); return; }
     if (m.charge > 0) {
       m.charge -= dt;
-      if (m.charge <= 0) { const p = this.monPos(); FX.slash(this.heroPos().x, this.heroPos().y - 80, 140, -0.3, '#ff4a4a', 0.35); FX.ring(p.x, p.y, '#ff4a4a', 30, 220, 0.4, 5); this.hurtHero(m.atk * (m.ph ? m.ph.chargeMult : 2.4), m.boss ? '血刃斬' : '重擊', m); m.chargeCd = m.ph ? m.ph.chargeCd : 9; }
+      if (m.charge <= 0) { const p = this.monPos(), hp = this.heroPos(), dark = m.type === 'tianmo';   // 九幽天魔：紫黑血刃斬
+        if (dark) FX.voidSlash(hp.x, hp.y - 80, 140, -0.3); else FX.slash(hp.x, hp.y - 80, 140, -0.3, '#ff4a4a', 0.35); FX.ring(p.x, p.y, dark ? '#9b4dff' : '#ff4a4a', 30, 220, 0.4, 5); this.hurtHero(m.atk * (m.ph ? m.ph.chargeMult : 2.4), m.boss ? '血刃斬' : '重擊', m); m.chargeCd = m.ph ? m.ph.chargeCd : 9; }
     } else if (m.elite || m.boss) {
       m.chargeCd -= dt;
       if (m.chargeCd <= 0) { m.chargeMax = m.charge = m.ph ? m.ph.chargeT : 2.8; Audio2.play('array'); }
@@ -361,7 +416,7 @@ const Battle = {
     $('#pBarB').style.width = (100 * h.mp / h.maxmp) + '%'; $('#pTxtB').textContent = `${Math.floor(h.mp)} / ${h.maxmp}`;
     if (m) {
       $('#mBar').style.width = (100 * Math.max(0, m.hp) / m.max) + '%'; $('#mTxt').textContent = `${U.fmt(Math.max(0, m.hp))} / ${U.fmt(m.max)}`;
-      $('#mCharge').innerHTML = m.charge > 0 ? `<div class="charge"><i style="width:${100 * (1 - m.charge / m.chargeMax)}%"></i></div><div class="charge-tip">${m.boss ? '妖將蓄力「血刃斬」——快開護體或以雷法打斷' : '蓄力重擊——護體或雷法可化解'}</div>` : '';
+      $('#mCharge').innerHTML = m.charge > 0 ? `<div class="charge"><i style="width:${100 * (1 - m.charge / m.chargeMax)}%"></i></div><div class="charge-tip">${m.boss ? `${m.M.name.split('・')[0]}蓄力「血刃斬」——快開護體或以雷法打斷` : '蓄力重擊——護體或雷法可化解'}</div>` : '';
     }
     $('#heroB').classList.toggle('yi', h.yiT > 0);
     for (const k of SKILLS) {

@@ -57,22 +57,39 @@ const FX = {
   SPR_SRC: { slash: 'assets/fx/hit/slash.webp', combo: 'assets/fx/hit/combo.webp', critSlash: 'assets/fx/hit/crit_slash.webp', hit: 'assets/fx/hit/hit.webp', critBurst: 'assets/fx/hit/crit_burst.webp', shield: 'assets/fx/hit/demon_shield.webp',
     thunder1: 'assets/fx/skill/thunder1.webp', thunder2: 'assets/fx/skill/thunder2.webp', thunder3: 'assets/fx/skill/thunder3.webp',
     rainSword: 'assets/fx/skill/rain_sword.webp', yujianRing: 'assets/fx/skill/yujian_ring.webp', jianyi: 'assets/fx/skill/jianyi.webp', heroShield: 'assets/fx/skill/shield_sphere.webp', shieldRing: 'assets/fx/skill/shield_ring.webp' },
-  sprImg: {}, low: false,
+  sprImg: {},
+  // 特效強度：high | low | off（設定頁可切換）；沒設定過時低階機自動用 low
+  level() { const s = S.d && S.d.settings && S.d.settings.fx; return s || (typeof Halo !== 'undefined' && Halo.isLow() ? 'low' : 'high'); },
+  get low() { return this.level() !== 'high'; },
+  applyLevel() { document.documentElement.dataset.fx = this.level(); },
+  // 回傳 Promise：全部去黑並 decode 完成（失敗的跳過），戰鬥進場前會等它
   loadSprites() {
-    if (this._sprLoading || typeof Knock === 'undefined') return; this._sprLoading = true;
-    this.low = typeof Halo !== 'undefined' && Halo.isLow();
-    for (const [k, src] of Object.entries(this.SPR_SRC)) Knock.load(src, { round: false, lo: 14 }).then((u) => { const im = new Image(); im.onload = () => (this.sprImg[k] = im); im.src = u; }).catch(() => console.warn('[特效] 素材載入失敗：' + src));
+    if (typeof Knock === 'undefined') return Promise.resolve();
+    return (this._spr ||= Promise.all(Object.entries(this.SPR_SRC).map(([k, src]) => Knock.load(src, { round: false, lo: 14 })
+      .then((u) => { const im = new Image(); im.src = u; return im.decode().then(() => { this.sprImg[k] = im; if (k === 'slash') this.voidTint(); }); })
+      .catch(() => console.warn('[特效] 素材載入失敗：' + src)))));
   },
   // 貼圖特效：w 為顯示寬度；ang 旋轉；s0→s1 縮放；dx,dy 掃過的位移；ghosts 殘影數（低階機自動關閉）
   spr(key, x, y, o = {}) {
     const im = this.sprImg[key]; if (!im) return false;
-    const w = o.w || 200, h = (w * im.naturalHeight) / im.naturalWidth;   // 依原圖比例
-    this.add({ k: 'spr', key, x, y, w, h, ang: o.ang || 0, s0: o.s0 ?? 0.85, s1: o.s1 ?? 1.15, dx: o.dx || 0, dy: o.dy || 0, flip: !!o.flip, ghosts: this.low ? 0 : o.ghosts ?? 2, life: o.life || 0.25, spin: o.spin || 0, fall: !!o.fall, ay: o.ay ?? 0.5, hold: o.hold || 0, delay: o.delay || 0, alpha: o.alpha ?? 1, onEnd: o.onEnd });
+    const w = o.w || 200, h = (w * (im.naturalHeight || im.height)) / (im.naturalWidth || im.width);   // 染色版是 canvas，沒有 natural 尺寸   // 依原圖比例
+    this.add({ k: 'spr', key, x, y, w, h, ang: o.ang || 0, s0: o.s0 ?? 0.85, s1: o.s1 ?? 1.15, dx: o.dx || 0, dy: o.dy || 0, flip: !!o.flip, ghosts: this.low ? 0 : o.ghosts ?? 2, life: o.life || 0.25, spin: o.spin || 0, fall: !!o.fall, ay: o.ay ?? 0.5, hold: o.hold || 0, delay: o.delay || 0, alpha: o.alpha ?? 1, op: o.op, onEnd: o.onEnd });
     return true;
   },
   // 舊介面相容：技能、怪物攻擊呼叫的 slash／wave 改用刀光素材（素材未載入時退回簡單光點）
   slash(x, y, r, ang, color, life = 0.28) {
     if (!this.spr('slash', x, y, { w: r * 2.6, ang: ang * 0.6, life: Math.max(0.22, Math.min(0.32, life)), dx: r * 0.5, dy: -r * 0.35 })) this.sparks(x, y, color, 6, 220);
+  },
+  // 九幽天魔的血刃斬：同一張刀光染成紫黑兩層（深色剪影墊底＋紫光），不新增素材；染色在載入時做一次
+  voidTint() {
+    const im = this.sprImg.slash, tint = (fill) => { const cv = document.createElement('canvas'); cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+      const c = cv.getContext('2d'); c.drawImage(im, 0, 0); c.globalCompositeOperation = 'source-in'; c.fillStyle = fill; c.fillRect(0, 0, cv.width, cv.height); return cv; };
+    this.sprImg.slashShade = tint('#12001c'); this.sprImg.slashVoid = tint('#b45cff');
+  },
+  voidSlash(x, y, r, ang, life = 0.35) {
+    const o = { w: r * 2.6, ang: ang * 0.6, life, dx: r * 0.5, dy: -r * 0.35 };
+    if (!this.spr('slashShade', x, y, { ...o, w: o.w * 1.1, ghosts: 0, op: 'source-over', alpha: 0.85 })) return this.slash(x, y, r, ang, '#9b4dff', life);
+    this.spr('slashVoid', x, y, o);
   },
   wave(x0, y0, x1, y1, color, life = 0.32) {
     // 劍氣：小刀光沿直線飛向目標（刀光原圖斜角約 -35°，轉到行進方向）
@@ -87,6 +104,8 @@ const FX = {
   },
   // 波紋環：用環形素材由小擴大淡出（ry 壓扁成地面圓環）
   ripple(x, y, w, flat = 0.32, life = 0.6, alpha = 1) { if (!this.spr('shieldRing', x, y, { w, life, s0: 0.25, s1: 1.15, ghosts: 0, hold: 0.25, alpha })) this.ring(x, y, '#bff4ff', 10, w / 2, life, 3); const p = this.list[this.list.length - 1]; if (p && p.k === 'spr') p.sy = flat; },
+  // 技能色全畫面閃光（閃完自動回到預設的淡紫白）
+  flashColor(hex, a = 0.35) { const n = parseInt(hex.slice(1), 16); this.flashRGB = `${n >> 16},${(n >> 8) & 255},${n & 255}`; this.flash = Math.max(this.flash, a); },
   dim(a = 0.6, life = 0.6) { this.add({ k: 'dim', a, life }); },
   // 命中爆點：普通用 hit，暴擊用 crit_burst
   impact(x, y, crit, color) {
@@ -189,7 +208,7 @@ const FX = {
           const fadeAt = p.hold || 0.45, alpha = p.alpha * Math.min(1, t / 0.04) * (e < fadeAt ? 1 : 1 - (e - fadeAt) / (1 - fadeAt));
           const draw = (q, a) => {
             const qq = Math.max(0, q), sc = p.s0 + (p.s1 - p.s0) * qq, x = p.x + p.dx * (p.fall ? qq - 1 : qq - 0.5), y = p.y + p.dy * (p.fall ? qq - 1 : qq - 0.5);
-            c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc * (p.sy || 1));
+            c.save(); c.globalCompositeOperation = p.op || 'screen'; c.globalAlpha = a; c.translate(x, y); c.rotate(p.ang + p.spin * t); c.scale(sc * (p.flip ? -1 : 1), sc * (p.sy || 1));
             c.drawImage(im, -p.w / 2, -p.h * p.ay, p.w, p.h); c.restore();
           };
           if (p.onEnd && e >= 1 && !p.ended) { p.ended = true; p.onEnd(); }
@@ -238,7 +257,7 @@ const FX = {
       c.restore();
     }
     this.list = this.list.filter((p) => p.t < p.life);
-    if (this.flash > 0) { c.fillStyle = `rgba(230,220,255,${this.flash * 0.45})`; c.fillRect(0, 0, W, H); this.flash = Math.max(0, this.flash - dt * 2.5); }
+    if (this.flash > 0) { c.fillStyle = `rgba(${this.flashRGB || '230,220,255'},${this.flash * 0.45})`; c.fillRect(0, 0, W, H); this.flash = Math.max(0, this.flash - dt * 2.5); if (!this.flash) this.flashRGB = null; }
   },
 };
 
