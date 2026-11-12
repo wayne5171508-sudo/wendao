@@ -999,3 +999,5 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 /* N2 兵器詳情：佩戴按鈕在數值下方、強化列上方（不是 sticky）；橫向矮螢幕展示框縮到 80px */
 #mBody .row.weq { margin: 6px 0 8px; }
 @media (orientation: landscape) and (max-height: 640px) { #mBody .wcase { max-height: 80px; } #modal:has(.wcase) #mTitle, #mBody .wc-fx { display: none; } }
+/* N3 320 寬選角：介紹文字不被立繪壓住 */
+@media (max-width: 359px) { .ch-row.open .ch-intro { max-width: 52%; } .ch-row.open .ch-front { height: 85%; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 55%); mask-image: linear-gradient(90deg, transparent 0, #000 55%); } }
