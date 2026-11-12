@@ -104,6 +104,7 @@ const Dao = {
     g.today = Object.assign({ date: '', dual: 0, gift: 0 }, g.today && typeof g.today === 'object' ? g.today : {});
     for (const k of ['dual', 'gift']) { g.today[k] = Number(g.today[k]); if (!Number.isFinite(g.today[k]) || g.today[k] < 0) g.today[k] = 0; }   // 舊存檔沒有今日次數：預設 0
     if (!Array.isArray(g.outbox)) g.outbox = []; if (!Array.isArray(g.log)) g.log = [];
+    if (g.partner && !CHARACTERS[g.partner.char]) g.partner.char = g.char === 'yunxi' ? 'qingyuan' : 'yunxi';   // 舊存檔沒有道侶角色
     if (g.partner && /[<>"]/.test(g.partner.name)) g.partner.name = escHtml(g.partner.name);   // 舊存檔裡未跳脫的道侶名字
     for (const R of DUAL_ROOMS) { const r = g.rooms[R.id]; if (r && !R.styles.some((s) => s.id === r.style)) r.style = R.styles[0].id; }
   },
@@ -123,12 +124,14 @@ const Dao = {
     name = String(name || '').trim().slice(0, 8); pid = String(pid || '').trim().toUpperCase().slice(0, 12);
     if (!this.canBond()) return '需先通過青冥宗試劍，於宗門廣場締結';
     if (!name) return '請輸入道侶的道號';
-    this.g.partner = { name, pid: pid || null, since: Date.now() }; this.g.intimacy = 0;
+    this.g.partner = { name, pid: pid || null, char: this.otherChar(), since: Date.now() }; this.g.intimacy = 0;
     DaoNet.send({ type: 'bond', name: HERO_NAME, pid: this.g.pid });
     this.note(`與${name}結為道侶`); S.save(); return true;
   },
   // 連線締結成功（雙方都呼叫）
-  bondWith(P) { this.g.partner = { name: P.name, pid: P.pid || null, uid: P.uid || null, since: Date.now() }; this.g.intimacy = 0; this.note(`與${P.name}結為道侶`); S.save(); },
+  // 道侶的角色：雲端由對方資料帶入；單機與舊存檔預設為和自己相反的角色
+  otherChar() { return this.g.char === 'yunxi' ? 'qingyuan' : 'yunxi'; },
+  bondWith(P) { this.g.partner = { name: P.name, pid: P.pid || null, uid: P.uid || null, char: CHARACTERS[P.char] ? P.char : this.otherChar(), since: Date.now() }; this.g.intimacy = 0; this.note(`與${P.name}結為道侶`); S.save(); },
   // 解除：親密度歸零；合修室、雙修靈力、印記、悟性心魔抗性保留（屬於自己的修行）
   unbond(silent) {
     if (!this.g.partner) return false;
@@ -310,7 +313,7 @@ Object.assign(UI, {
     Audio2.setMood('sect'); this.setBg('dongfu', 'dim'); Audio2.loop && Audio2.loop('meditate', false);
     this.scene(`<div class="dao-hero"><div class="banner static" style="animation:none;top:20%"><b style="font-size:clamp(30px,9vw,48px)">道侶・合修</b><span>${P ? `${escHtml(HERO_NAME)} ✦ ${P.name}・${Dao.lvName()}` : '尚未結為道侶'}</span></div></div>`);
     const partner = P
-      ? `<div class="li">${gIco('ui', 'partner', '', '#ff9ec4')}<div><h4>${P.name}<em>${Dao.lvName()}・${online ? '<b style="color:#8ff0b8">在線</b>' : '離線'}</em></h4>
+      ? `<div class="li">${gIco('ui', 'char_' + P.char, 'pface', '#ff9ec4')}<div><h4>${P.name}<em>${Dao.lvName()}・${online ? '<b style="color:#8ff0b8">在線</b>' : '離線'}</em></h4>
           <div class="bar xp" style="margin-top:6px"><i style="width:${next ? (100 * g.intimacy) / next : 100}%"></i><span>親密度 ${g.intimacy}${next ? ` / ${next}` : '（已滿）'}</span></div></div><span></span></div>
          <div class="dao-gifts"><small>贈送靈物（今日 ${t.gift}/${DAO.giftDaily}）</small>${Object.keys(DAO.gifts).filter((k) => S.has(k)).map((k) => `<button class="dao-gift" data-gift="${k}">${mIco(k)}${ITEMS[k].name}<b>+${DAO.gifts[k]}</b></button>`).join('') || '<p class="note">身上沒有可贈送的靈物</p>'}</div>
          <div class="row" style="gap:8px;justify-content:flex-end">${DEV ? `<button class="seal sm ghost" id="dSim">${g.simOnline ? '模擬在線・開' : '模擬在線・關'}</button>` : ''}<button class="seal sm ghost" id="dUnbond">解除道侶</button></div>
@@ -402,9 +405,9 @@ Object.assign(UI, {
     this.modal('雙修圓滿', `<div class="list">
       <div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(res.exp)}</h4><p>${R.name}・雙修倍率 ×${DAO.dualMult(Dao.lv()).toFixed(2)}${res.ratio < 1 ? `・今日第 ${res.nth} 次，獎勵 ${Math.round(res.ratio * 100)}%` : ''}</p></div><span></span></div>
       ${res.cost ? `<div class="li">${ico('stone')}<div><h4>靈氣消耗 ${stoneAmt(res.cost, '−')}</h4></div><span></span></div>` : ''}
-      <div class="li"><i class="ico" style="--c:#ff9ec4">緣</i><div><h4>親密度 +${res.intimacy}</h4><p>${Dao.lvName()}</p></div><span></span></div>
-      <div class="li"><i class="ico" style="--c:#c9a6ff">靈</i><div><h4>雙修靈力 +${res.qi}</h4><p>連續雙修 ${res.streak} 日</p></div><span></span></div>
-      ${res.resonance ? `<div class="li"><i class="ico" style="--c:#ffd76a">鳴</i><div><h4>道侶共鳴・${res.resonance.name}</h4><p>${res.resonance.text}</p></div><span></span></div>` : ''}
+      <div class="li">${gIco('ui', 'intimacy')}<div><h4>親密度 +${res.intimacy}</h4><p>${Dao.lvName()}</p></div><span></span></div>
+      <div class="li">${gIco('ui', 'dual_qi')}<div><h4>雙修靈力 +${res.qi}</h4><p>連續雙修 ${res.streak} 日</p></div><span></span></div>
+      ${res.resonance ? `<div class="li">${gIco('ui', 'resonance')}<div><h4>道侶共鳴・${res.resonance.name}</h4><p>${res.resonance.text}</p></div><span></span></div>` : ''}
       </div><div class="row center"><button class="seal" id="dOk">收下</button></div>`, { '#dOk': () => { this.close(); this.dao(); } });
   },
 });

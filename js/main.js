@@ -35,6 +35,7 @@ const Game = {
     addEventListener('pointerdown', () => Audio2.unlock(), { once: true });
     document.querySelectorAll('#nav button').forEach((b) => (b.onclick = () => { Audio2.play('page'); UI.go(b.dataset.tab); }));
     $('#btnSet').onclick = () => UI.settings();
+    $('#btnBag').onclick = () => UI.bag();
     $('#btnMute').onclick = (e) => { e.stopPropagation(); Audio2.toggleMute(); };   // 主畫面右上角靜音
     Audio2.applyVol(); $('#btnMute').textContent = Audio2.set.mute ? '靜' : '聲'; $('#btnMute').classList.toggle('off', Audio2.set.mute);
     $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') UI.close(); });
@@ -86,8 +87,11 @@ const Game = {
   async begin() {
     Audio2.unlock(); S.reset(); S.d = S.fresh();
     // 選擇角色（男主／女修），之後名稱、劇情稱呼、立繪都跟著切換
-    S.d.dao.char = await new Promise((res) => UI.modal('選擇修行之人', `<div class="list">${Object.values(CHARACTERS).map((C) => `<div class="li"><i class="ico" style="--c:${C.gender === 'f' ? '#ff9ec4' : '#9fe8ff'}">${C.gender === 'f' ? '女' : '男'}</i><div><h4>${C.name}</h4><p>${C.gender === 'f' ? '女修' : '男修'}</p></div><button class="seal sm" data-ch="${C.id}">選擇</button></div>`).join('')}</div>`,
-      { '[data-ch]': (el) => { UI.close(); res(el.dataset.ch); } }));
+    // 點角色列先展開半身立繪與介紹，再按「選擇」確認
+    const INTRO = { qingyuan: '青石村少年，出生那夜古井青光三日不散。', yunxi: '青石村少女，劍心澄澈，生而帶玉。' };
+    S.d.dao.char = await new Promise((res) => UI.modal('選擇修行之人', `<div class="list">${Object.values(CHARACTERS).map((C) => `<div class="li ch-row" data-chrow="${C.id}">${gIco('ui', 'char_' + C.id, 'pface')}<div><h4>${C.name}</h4><p>${C.gender === 'f' ? '女修' : '男修'}</p><p class="ch-intro">${INTRO[C.id] || ''}</p></div><img class="ch-front" src="${C.assetDir}front.webp" alt="${C.name}" onerror="this.remove()"><button class="seal sm" data-ch="${C.id}">選擇</button></div>`).join('')}</div>`,
+      { '[data-chrow]': (el) => { document.querySelectorAll('#mBody .ch-row').forEach((r) => r.classList.toggle('open', r === el)); },
+        '[data-ch]': (el) => { if (el.closest('.ch-row').classList.contains('open')) { UI.close(); res(el.dataset.ch); } } }));
     Char.apply(); S.save();
     await UI.fade(true); UI.fade(false);
     Story.intro();
