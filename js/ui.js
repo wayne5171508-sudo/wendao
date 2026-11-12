@@ -531,12 +531,12 @@ const UI = {
     const eqBtns = fb ? (S.d.fslot === id ? '<button class="seal sm ghost" id="fUn">卸下法寶</button>' : '<button class="seal sm" id="fEq">佩於法寶欄</button>')
       : W_SLOTS.map((n, i) => slot === i ? `<button class="seal sm ghost" data-un="${i}">卸下${n}</button>` : `<button class="seal sm ghost" data-eqs="${i}">佩於${n}</button>`).join('');
     this.modal(w.name, `${wCase(w, o)}
+      <div class="row center weq">${eqBtns}</div>
       <p class="note" style="text-align:center;margin:2px 0 0">強化 +${o.lv}／${cap}</p>
       <div class="list">
         ${maxed ? (brk ? `<div class="li">${gIco('ui', 'breakthrough', '', T.color)}<div><h4>突破<em>強化上限 +10、屬性 +25%</em></h4><div>${brkMats}</div></div><button class="seal sm" id="wBrk" ${S.wCanBreak(id) ? '' : 'disabled'}>突破</button></div>` : '<p class="note" style="text-align:center">已臻圓滿。</p>')
           : `<div class="li">${gIco('ui', 'enhance', '', T.color)}<div><h4>強化<em>成功率 ${rate}%</em></h4><p>每級屬性 +8%。保底 ${Math.min(o.fail, W_PITY)}／${W_PITY}：連敗三次，下次必成。</p><span class="mat ${S.has('stone', cost) ? '' : 'lack'}">${stoneAmt(cost)}</span></div><button class="seal sm" id="wEnh" ${S.has('stone', cost) ? '' : 'disabled'}>強化</button></div>`}
-      </div>
-      <div class="row center">${eqBtns}</div>`, {
+      </div>`, {
       '#wEnh': () => { const r = S.wEnhance(id); if (!r) return; if (r.ok) { Audio2.play('up'); this.toast(`${w.name}強化至 +${o.lv}${r.pity ? '（保底）' : ''}`, T.color); } else { Audio2.play('fail'); this.toast(`強化失敗（保底 ${Math.min(o.fail, W_PITY)}／${W_PITY}）`, '#ff9a9a'); } this.wDetail(id); this.gear(); this.hud(); },
       '#wBrk': () => { if (S.wBreak(id)) { Audio2.play('gong'); FX.pillar(FX.w / 2, FX.h, hexA(T.color, 0.5), 90, 2); this.toast(`${w.name}突破・${'一二三'[o.brk - 1]}重`, T.color); this.wDetail(id); this.gear(); this.hud(); } },
       '[data-eqs]': (el) => { S.wEquip(id, +el.dataset.eqs); Audio2.play('pickup'); this.close(); this.gear(); this.hud(); },

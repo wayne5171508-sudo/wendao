@@ -996,3 +996,6 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
   #hudRes .sealBtn { width: 34px; height: 34px; font-size: 16px; } #hudRes .stone-ico { width: 14px; height: auto; } #hudRes span { font-size: 15px; }
   #hudRealm b { font-size: 16px; letter-spacing: 0; } #hudSeal { width: 24px; height: 24px; font-size: 15px; flex: none; }
 }
+/* N2 兵器詳情：佩戴按鈕在數值下方、強化列上方（不是 sticky）；橫向矮螢幕展示框縮到 80px */
+#mBody .row.weq { margin: 6px 0 8px; }
+@media (orientation: landscape) and (max-height: 640px) { #mBody .wcase { max-height: 80px; } #modal:has(.wcase) #mTitle, #mBody .wc-fx { display: none; } }
