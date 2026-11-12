@@ -986,3 +986,13 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
   #ctrlContent > .pity-bar ~ .gacha-btns { order: 1; margin: 4px 0 8px; }
   #ctrlContent:has(> .gacha-btns) .gpeek .wframe { width: 32px; height: 32px; }
 }
+/* N1 HUD 左側：靈根列永遠一行、超出省略；境界名不被靈石擠到。320 寬把右側印章、靈石圖示、境界字級都縮一級 */
+#hud { gap: 8px; }
+#hudRealm { flex: 0 1 auto; } #hudRes { flex: none; }
+#hudRealm small { text-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* text-wrap 要一起設：前面的 text-wrap: balance 會讓它照樣換行 */
+#hudLv { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 359px) {
+  #hud { padding-left: 8px; padding-right: 8px; gap: 4px; } #hudRealm { gap: 5px; }
+  #hudRes .sealBtn { width: 34px; height: 34px; font-size: 16px; } #hudRes .stone-ico { width: 14px; height: auto; } #hudRes span { font-size: 15px; }
+  #hudRealm b { font-size: 16px; letter-spacing: 0; } #hudSeal { width: 24px; height: 24px; font-size: 15px; flex: none; }
+}
