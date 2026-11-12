@@ -713,7 +713,7 @@ const UI = {
     this.modal('更名', `<p class="note" style="text-align:center">目前名字：<b>${escHtml(HERO_NAME)}</b><br>2～8 個字，只能用中文、英文、數字</p>
       <div class="dao-form"><input id="nmIn" maxlength="8" autocomplete="off" placeholder="輸入新名字" aria-label="新名字"></div>
       <p class="note" id="nmErr" style="text-align:center;color:#ff9a9a;min-height:1.5em">${block}</p>
-      <p class="note" style="text-align:center">${cost ? `費用 ${stoneAmt(cost)}` : '第一次更名免費'}${wait ? `・冷卻中，還要 ${Math.ceil(wait / 3600000)} 小時` : ''}</p>
+      <p class="note" style="text-align:center">${cost ? `費用 ${stoneAmt(cost)}` : '第一次更名免費'}</p>
       <div class="row center"><button class="seal" id="nmOk" ${block ? 'disabled' : ''}>確定更名</button><button class="seal ghost sm" id="nmNo">取消</button></div>`, {
       '#nmNo': () => this.settings(),
       '#nmOk': async (el) => {
