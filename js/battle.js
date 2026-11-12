@@ -305,7 +305,7 @@ const Battle = {
   swordTip() {
     const el = document.querySelector('#heroB .hfig.bstance'), sc = $('#scene').getBoundingClientRect();
     if (!el) return { x: this.heroPos().x, y: this.heroPos().y - 90 };
-    const r = el.getBoundingClientRect(), [x1, y1, x2, y2] = HERO_SWORD[this.pose.stance].blade;
+    const r = el.getBoundingClientRect(), [x1, y1, bx2, by2] = HERO_SWORD[this.pose.stance].blade, g = wGrip(this.main, this.pose.stance), x2 = bx2 - g * (bx2 - x1), y2 = by2 - g * (by2 - y1);   // 疊劍往後退了 grip，劍尖跟著退
     // 立繪整體前傾 lean 度（以腳底為軸），把劍身座標一起轉過去
     const lean = (parseFloat(getComputedStyle($('#heroB')).getPropertyValue('--lean')) || 0) * Math.PI / 180, ox = r.left - sc.left + r.width / 2, oy = r.bottom - sc.top;
     const rot = (px, py) => { const dx = px - ox, dy = py - oy; return [ox + dx * Math.cos(lean) - dy * Math.sin(lean), oy + dx * Math.sin(lean) + dy * Math.cos(lean)]; };

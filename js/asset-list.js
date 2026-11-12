@@ -227,6 +227,7 @@ const ASSET_LIST = [
   'assets/ui/sign.webp',
   'assets/ui/stone.webp',
   'assets/weapon/bitao.webp',
+  'assets/weapon/blade/qinggang.webp',
   'assets/weapon/chixiao.webp',
   'assets/weapon/jinxia.webp',
   'assets/weapon/liuyun.webp',

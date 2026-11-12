@@ -132,6 +132,7 @@ const WTIERS = [
 ];
 // 抽到的東西顯示用的品階名：兵器、法寶用「○器」，功法、殘卷用「○品」
 const tierName = (r) => (r.type === 'w' || r.type === 'f' ? WTIERS[r.tier].name : WTIERS[r.tier].pin);
+// rot：展示圖轉正的角度；grip：戰鬥劍身圖上握點的位置（由劍首往劍尖的比例，預設 0.12）；card：展示圖是帶光暈的卡面，沒有 assets/weapon/blade/<id>.webp 時戰鬥不疊圖
 const WEAPONS = [
   { id: 'qinggang',  rot: 0,   name: '青鋼劍', tier: 0, atk: 8,   crit: 0,  regen: 0,   desc: '宗門制式長劍，樸實耐用。' },
   { id: 'liuyun',    rot: 150, name: '流雲劍', tier: 1, atk: 22,  crit: 3,  regen: 0.6, desc: '劍身如雲，靈氣流轉不滯。' },
@@ -140,10 +141,10 @@ const WEAPONS = [
   { id: 'nitian',    rot: 0,   name: '逆天劍', tier: 4, atk: 240, crit: 12, regen: 3,   fx: 'pierce', fxName: '破防', fxDesc: '無視妖物防禦，對首領傷害 +25%', desc: '傳說斬過天道的神兵，出鞘則天象異變。' },
   // 法寶池新劍：暴擊路線，攻擊約同階原劍九成
   { id: 'xuantie',   rot: 3,   name: '玄鐵劍', tier: 0, atk: 7,   crit: 2,  regen: 0,   desc: '玄鐵粗鑄，沉而不鈍。' },
-  { id: 'bitao',     rot: -1,  name: '碧濤劍', tier: 1, atk: 19,  crit: 5,  regen: 0.8, desc: '劍氣如潮，青光翻湧。' },
-  { id: 'jinxia',    rot: -38, name: '金霞劍', tier: 2, atk: 44,  crit: 8,  regen: 1.2, desc: '朝霞淬鋒，揮動時金雲繚繞。' },
-  { id: 'zichen',    rot: -36, name: '紫宸劍', tier: 3, atk: 96,  crit: 12, regen: 2.2, fx: 'slow', fxName: '霜寒', fxDesc: '命中使妖物出手變慢 25%', desc: '紫氣東來，劍落星沉。' },
-  { id: 'chixiao',   rot: -34, name: '赤霄劍', tier: 4, atk: 210, crit: 16, regen: 3.4, fx: 'combo', fxName: '連擊', fxDesc: '普攻 30% 機率追加一劍', desc: '赤龍盤鋒，劍出則雷火並起。' },
+  { id: 'bitao', card: true,     rot: -1,  name: '碧濤劍', tier: 1, atk: 19,  crit: 5,  regen: 0.8, desc: '劍氣如潮，青光翻湧。' },
+  { id: 'jinxia', card: true,    rot: -38, name: '金霞劍', tier: 2, atk: 44,  crit: 8,  regen: 1.2, desc: '朝霞淬鋒，揮動時金雲繚繞。' },
+  { id: 'zichen', card: true,    rot: -36, name: '紫宸劍', tier: 3, atk: 96,  crit: 12, regen: 2.2, fx: 'slow', fxName: '霜寒', fxDesc: '命中使妖物出手變慢 25%', desc: '紫氣東來，劍落星沉。' },
+  { id: 'chixiao', card: true,   rot: -34, name: '赤霄劍', tier: 4, atk: 210, crit: 16, regen: 3.4, fx: 'combo', fxName: '連擊', fxDesc: '普攻 30% 機率追加一劍', desc: '赤龍盤鋒，劍出則雷火並起。' },
 ];
 // ───────── 法寶（鐘、鏡、塔）：佩於法寶欄一件；強化與突破規則同兵器 ─────────
 // 圖檔：assets/fabao/<類型>_t<品階>.webp；val 為加成（鐘 防禦 %、鏡 暴擊點數、塔 氣血 %）

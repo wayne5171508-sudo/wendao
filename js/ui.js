@@ -13,6 +13,10 @@ const BG_POS = { title: '74% 40%', village: '52% 62%', sect: '58% 50%', dongfu: 
 // 施法立繪：assets/cast/<技能id>.webp；沒有圖的技能不顯示切入演出
 const CAST_IMG = { jianqi: 'assets/cast/jianqi.webp', leifa: 'assets/cast/leifa.webp', huti: 'assets/cast/huti.webp', wanjian: 'assets/cast/wanjian.webp', yujian: 'assets/cast/yujian.webp', jianyi: 'assets/cast/jianyi.webp' };
 const W_IMG = (id) => `assets/weapon/${id}.webp`;
+// 戰鬥疊劍用的劍身圖：assets/weapon/blade/<id>.webp（只有劍、透明底、直立、劍柄朝上）在素材清單就用它，沒有才用展示圖；卡面圖（card）沒有劍身圖就不疊
+const W_BLADE = (w) => { const p = `assets/weapon/blade/${w.id}.webp`; return typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p) ? { src: p, rot: 0 } : w.card ? null : { src: W_IMG(w.id), rot: w.rot || 0 }; };
+// 握點：疊劍時整把劍沿劍身方向往後退 grip 比例，讓握點落在手上（劍身座標的起點）、劍首露在手的另一側
+const wGrip = (w, kind) => (w && /^b(stance|hold)$/.test(kind) && W_BLADE(w) ? w.grip ?? 0.12 : 0);
 const NPC_IMG = (key) => `assets/npc/${key}.webp`;
 // 兵器圖示：階級以顏色與邊框區分
 const wVars = (w) => `--c:${WTIERS[w.tier].color};--e:${WTIERS[w.tier].edge};--r:${w.rot || 0}deg`;
@@ -67,10 +71,11 @@ const heroArmed = (w, kind, cls = '') => {
   const H = HERO_SWORD[kind];
   let fx = '';
   if (w && H.blade) {
-    const [x1, y1, x2, y2] = H.blade, dx = x2 - x1, dy = (y2 - y1) / H.ar;
+    const ov = /^b(stance|hold)$/.test(kind) ? W_BLADE(w) : null, g = wGrip(w, kind);
+    const [bx1, by1, x2, y2] = H.blade, x1 = bx1 - g * (x2 - bx1), y1 = by1 - g * (y2 - by1), dx = x2 - bx1, dy = (y2 - by1) / H.ar;
     const pos = `left:${x1 * 100}%;top:${y1 * 100}%;width:${Math.hypot(dx, dy) * 100}%;transform:rotate(${(Math.atan2(dy, dx) * 180) / Math.PI}deg)`;
     // 戰鬥立繪不畫劍：一律把主手兵器圖疊在劍身位置
-    const wov = /^b(stance|hold)$/.test(kind) ?`<i class="wov" style="${pos}"><img src="${W_IMG(w.id)}" data-rot="${w.rot || 0}" onload="wovFit(this)" alt=""></i>` : '';
+    const wov = ov ? `<i class="wov" style="${pos};--r:${ov.rot}deg"><img src="${ov.src}" data-rot="${ov.rot}" onload="wovFit(this)" alt=""></i>` : '';
     fx = `${wov}<i class="blade" style="${pos}"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
