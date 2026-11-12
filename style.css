@@ -12,7 +12,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .hidden { display: none !important; }
 
 /* ───── 版面：直式上下疊、橫式左右並排 ───── */
-#app { position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: var(--ink); }
+#app { position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); background: var(--ink); }   /* 欄寬鎖在視窗內：內容（例如 input 的預設寬度）不能把直式版面撐寬 */
 #scene { position: relative; overflow: hidden; min-height: 0; }
 #controls { position: relative; display: flex; flex-direction: column; min-height: 0; max-height: 58vh; background: linear-gradient(#101925, #0b121c); border-top: 1px solid var(--goldline); }
 #ctrlContent { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 8px; }
@@ -900,7 +900,7 @@ img { object-fit: contain; }
 
 /* ───── 道侶・合修 ───── */
 .dao-form { display: flex; gap: 6px; margin: 6px 0 10px; }
-.dao-form input { flex: 1; min-width: 0; padding: 8px; background: #0b121c; border: 1px solid var(--goldline); color: var(--paper); font-family: var(--brush); font-size: 15px; }
+.dao-form input { flex: 1; min-width: 0; width: 0; padding: 8px; background: #0b121c; border: 1px solid var(--goldline); color: var(--paper); font-family: var(--brush); font-size: 15px; }
 .dao-gifts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
 .dao-gifts small { width: 100%; color: var(--dim); }
 .dao-gift { display: inline-flex; align-items: center; gap: 2px; padding: 4px 8px; font-size: 13px; color: var(--paper); background: rgba(255,158,196,.08); border: 1px solid rgba(255,158,196,.4); cursor: pointer; }
@@ -946,3 +946,25 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 .hero-b.atk img.sway, .hero-b.hurt img.sway, [data-fx="off"] .hfig > img.sway { display: none; }
 /* 劍氣光弧圖（assets/cast/arc.webp、assets/cast_yunxi/arc.webp）到位時取代 CSS 光弧，沿用同一段橫掃動畫 */
 .qi-sweep.img { width: 200px; height: 112px; border-radius: 0; background: center / contain no-repeat; -webkit-mask-image: none; mask-image: none; }   /* 原圖 16:9 黑底，靠 screen 混合去黑 */
+/* B2 機緣頁池名：位置由 UI.draw() 量 HUD 底部後設定（這裡的 top 只是量到之前的預設值）；320 寬字級再縮 */
+.banner.gpool { top: calc(max(10px, env(safe-area-inset-top)) + 70px); }
+.banner.gpool b { font-size: clamp(28px, 8vw, 46px); }
+@media (max-width: 359px) { .banner.gpool b { font-size: 22px; } .banner.gpool span { font-size: 12px; padding: 2px 18px; margin-top: 4px; } }
+/* B3 兵器詳情：展示框限高（內容由 CaseFit 等比縮放），「強化／突破」列不捲動就看得到 */
+#mBody .wcase { max-height: min(30vh, 300px); }
+/* 矮螢幕：展示框再縮、省掉和名牌重複的彈窗標題與說明文字 */
+@media (max-height: 640px) { #mBody .wcase { max-height: 16vh; } #modal:has(.wcase) #mTitle, #mBody .wc-fx { display: none; } #mBody .wc-stats span { padding: 2px 0; } #mBody .wc-stats b { font-size: 17px; } }
+/* B4 矮螢幕（例如 320×568）戰鬥：主角立繪縮到約 75% 並貼底，不蓋住妖物；劍身疊圖與劍光是立繪容器內的百分比座標，跟著一起縮 */
+@media (max-height: 640px) { #app.fighting #heroB { height: 30%; bottom: -2%; } #app.fighting #heroB.blean { height: 33%; } }
+/* B5 HUD：靈石數字不換行；320 寬以下靈根／戰力那行縮字、超出用省略號 */
+#hudRes .stone-amt, #hudRes span { white-space: nowrap; flex: none; }
+#hudRealm { min-width: 0; } #hudRealm > div { min-width: 0; }
+@media (max-width: 359px) { #hudRealm small { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+/* B8 矮螢幕機緣頁：場景縮小、「單抽／十連」移到保底列下方，第一屏就按得到 */
+@media (max-height: 640px) {
+  #app.tall.fit #controls { max-height: 74vh; }
+  #ctrlContent:has(> .gacha-btns) { display: flex; flex-direction: column; }
+  #ctrlContent > .pity-bar ~ * { order: 2; }
+  #ctrlContent > .pity-bar ~ .gacha-btns { order: 1; margin: 4px 0 8px; }
+  #ctrlContent:has(> .gacha-btns) .gpeek .wframe { width: 32px; height: 32px; }
+}

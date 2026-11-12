@@ -540,7 +540,9 @@ const UI = {
     Audio2.setMood('sect'); this.setBg('sect', 'dim');
     const P = this.gpool, d = S.d, t = S.today(), G = GACHA, left = G.pity - S.pity(P);   // 讀當前這一池的保底計數
     this.scene(`<div class="gacha-ring" id="gRing"><img src="assets/fx/ring.webp" alt=""></div><i class="gacha-sky" id="gSky"></i>
-      <div class="banner static" style="animation:none;top:12%"><b style="font-size:clamp(28px,8vw,46px)">${P === 'wpn' ? '法寶池' : '功法池'}</b><span>祈願光陣</span></div>`);
+      <div class="banner static gpool" style="animation:none"><b>${P === 'wpn' ? '法寶池' : '功法池'}</b><span>祈願光陣</span></div>`);
+    // 池名放在 HUD 底部再往下 8px（HUD 高度會隨字數變，量實際位置；go() 之後才更新 HUD，所以等下一幀）
+    requestAnimationFrame(() => { const bn = $('.banner.gpool'), hud = $('#hud'); if (bn && hud) bn.style.top = hud.getBoundingClientRect().bottom - $('#scene').getBoundingClientRect().top + 8 + 'px'; });
     const rates = WTIERS.map((T, i) => `<span class="mat" style="color:${T.color};border-color:${T.edge}">${P === 'art' ? T.pin : T.name} ${Math.round(G.rates[i] * 1000) / 10}%</span>`).join('');
     const gives = P === 'art' ? '<p class="note">凡品：殘卷×1　靈品：殘卷×2　玄品：殘卷×4　仙品：隨機功法 +1 層　神品：萬劍歸宗 +1 層</p>' : '<p class="note">重複的兵器化為玄鐵（強化材料）。</p>';
     this.controls(`<div class="sec-title">機緣</div>
@@ -692,11 +694,13 @@ const UI = {
   // 更名：檢查（長度、字元、禁字、冷卻、靈石）→ 先改本機 → 有登入就寫雲端，失敗就還原成舊名字並退回靈石
   renameUI() {
     const cost = S.renameCost(), wait = S.renameWait();
+    // 冷卻中或靈石不足：按鈕停用並直接寫出原因
+    const block = wait > 0 ? `更名冷卻中，還要 ${Math.ceil(wait / 3600000)} 小時` : !S.has('stone', cost) ? `靈石不足（需要 ${cost}）` : '';
     this.modal('更名', `<p class="note" style="text-align:center">目前名字：<b>${escHtml(HERO_NAME)}</b><br>2～8 個字，只能用中文、英文、數字</p>
       <div class="dao-form"><input id="nmIn" maxlength="8" autocomplete="off" placeholder="輸入新名字" aria-label="新名字"></div>
-      <p class="note" id="nmErr" style="text-align:center;color:#ff9a9a;min-height:1.5em"></p>
+      <p class="note" id="nmErr" style="text-align:center;color:#ff9a9a;min-height:1.5em">${block}</p>
       <p class="note" style="text-align:center">${cost ? `費用 ${stoneAmt(cost)}` : '第一次更名免費'}${wait ? `・冷卻中，還要 ${Math.ceil(wait / 3600000)} 小時` : ''}</p>
-      <div class="row center"><button class="seal" id="nmOk">確定更名</button><button class="seal ghost sm" id="nmNo">取消</button></div>`, {
+      <div class="row center"><button class="seal" id="nmOk" ${block ? 'disabled' : ''}>確定更名</button><button class="seal ghost sm" id="nmNo">取消</button></div>`, {
       '#nmNo': () => this.settings(),
       '#nmOk': async (el) => {
         const n = $('#nmIn').value.trim(), err = S.renameCheck(n);
@@ -712,7 +716,8 @@ const UI = {
         S.save(); this.hud(); this.redraw(); Audio2.play('pickup'); this.toast(`已更名為 ${escHtml(n)}`, '#ff9ec4'); this.settings();
       },
     });
-    const i = $('#nmIn'); if (i) { i.focus(); i.onkeydown = (e) => { if (e.key === 'Enter') $('#nmOk').click(); }; }
+    const i = $('#nmIn'); if (i) { i.focus(); i.onkeydown = (e) => { if (e.key === 'Enter') $('#nmOk').click(); };
+      i.oninput = () => { const n = i.value.trim(); $('#nmErr').textContent = block || (n ? S.nameError(n) || '' : ''); }; }   // 輸入時即時檢查名字
   },
   importSave(fromTitle) {
     this.modal('匯入存檔', `<p class="note">選擇匯出的存檔檔案，或把存檔文字貼在下面。<b style="color:#ff9a9a">目前的進度會被覆蓋。</b></p>
