@@ -1009,3 +1009,10 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 /* N8 道侶頁：登入鈕不斷字 */
 #dIn { white-space: nowrap; flex: none; }
 @media (max-width: 359px) { .dao-form:has(#dName) { flex-wrap: wrap; } .dao-form:has(#dName) input { flex: 1 1 100%; } .dao-form:has(#dName) .seal { margin-left: auto; } }   /* 320 寬：道號、編號上下兩列 */
+/* N9 320 寬戰鬥（技能兩排）：「自動施法」移到技能列右側直排，不捲動就按得到 */
+@media (max-width: 359px) {
+  #ctrlContent:has(.skills > .skill:nth-child(6)) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: center; }
+  #ctrlContent:has(.skills > .skill:nth-child(6)) > .bstat { grid-column: 1 / -1; }
+  #ctrlContent:has(.skills > .skill:nth-child(6)) > .bauto { margin: 0 !important; }
+  #ctrlContent:has(.skills > .skill:nth-child(6)) > .bauto .seal { writing-mode: vertical-rl; padding: 10px 7px; min-width: 0; letter-spacing: 2px; }
+}
