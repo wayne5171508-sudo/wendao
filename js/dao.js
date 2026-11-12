@@ -12,9 +12,10 @@
 // assetDir：該角色的立繪資料夾。檔名與 assets/hero/ 相同的圖放進去就會自動取代（沒有的沿用男主圖並在 console 警告一次）
 // textSub：劇情文字替換（劇本原本以男主撰寫）
 const CHARACTERS = {
-  qingyuan: { id: 'qingyuan', name: '林清遠', given: '清遠', gender: 'm', assetDir: 'assets/hero/', textSub: [] },
+  // faxiang：突破成功時的法相圖（純黑底，screen 混合）；不在素材清單就不顯示法相，只有光環、雷光與閃光
+  qingyuan: { id: 'qingyuan', name: '林清遠', given: '清遠', gender: 'm', assetDir: 'assets/hero/', faxiang: 'assets/fx/faxiang.webp', textSub: [] },
   // sword：該角色立繪的寬高比與劍身座標 [劍柄x,y, 劍尖x,y]（圖內比例），覆蓋 HERO_SWORD；castDir：施法立繪資料夾（缺圖就不顯示施法切入）
-  yunxi: { id: 'yunxi', name: '蘇雲汐', given: '雲汐', gender: 'f', assetDir: 'assets/hero_yunxi/', castDir: 'assets/cast_yunxi/',
+  yunxi: { id: 'yunxi', name: '蘇雲汐', given: '雲汐', gender: 'f', assetDir: 'assets/hero_yunxi/', castDir: 'assets/cast_yunxi/', faxiang: 'assets/fx/faxiang_yunxi.webp',
     sword: { hold: { ar: 683 / 1100, blade: [0.25, 0.57, 0.03, 0.95] }, sit: { ar: 816 / 665, blade: [0.06, 0.69, 0.94, 0.69] }, back: { ar: 847 / 726, hilt: null },
       bhold: { ar: 1118 / 748, blade: [0.21, 0.49, 0.0, 0.75] }, bstance: { ar: 1020 / 775, blade: [0.665, 0.632, 0.925, 0.9] }, blean: { ar: 1652 / 1100, blade: [0.524, 0.449, 0.98, 0.825] } },
     ar: { hold_nitian: 1260 / 1100 },

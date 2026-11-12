@@ -299,7 +299,8 @@ const Story = {
     $('#ctrlContent').style.pointerEvents = 'none'; $('#nav').style.pointerEvents = 'none'; $('#controls').classList.add('busy');
     const sc = $('#sceneContent'), stage = sc.querySelector('.hero-stage'), r = stage.getBoundingClientRect(), s0 = $('#scene').getBoundingClientRect();
     const footX = r.left - s0.left + r.width / 2, footY = r.bottom - s0.top - r.height * 0.06, cy = footY - r.height * 0.45;
-    sc.insertAdjacentHTML('afterbegin', '<i class="bt-dark"></i><div class="bt-cloud"><img src="assets/fx/thunder_cloud.webp" alt=""><i class="bt-core"></i></div><img class="bt-faxiang" src="assets/fx/faxiang.webp" alt="">');
+    const fxp = Char.cur().faxiang, faxiang = fxp && typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(fxp) ? fxp : null;   // 該角色的法相圖；沒有就不顯示（不借用別人的）
+    sc.insertAdjacentHTML('afterbegin', '<i class="bt-dark"></i><div class="bt-cloud"><img src="assets/fx/thunder_cloud.webp" alt=""><i class="bt-core"></i></div>' + (faxiang ? `<img class="bt-faxiang" src="${faxiang}" alt="">` : ''));
     stage.insertAdjacentHTML('beforebegin', `<div class="bt-ring" style="left:${footX}px;top:${footY}px"><img src="assets/fx/ring.webp" alt=""></div>`);
     const ring = sc.querySelector('.bt-ring'), fx = sc.querySelector('.bt-faxiang');
     // 一、蓄力
@@ -314,7 +315,7 @@ const Story = {
     let panel;
     if (res.ok) {
       // 三、成功
-      fx.classList.add('on'); ring.classList.add('burst'); $('#scene').classList.add('bt-white');
+      if (fx) fx.classList.add('on'); ring.classList.add('burst'); $('#scene').classList.add('bt-white');
       FX.flash = 1; FX.ring(footX, cy, '#ffe7a0', 20, 420, 1.3, 7); FX.burst(footX, cy, '#ffe7a0', 70, 380, 4, 1.3);
       Audio2.play('up'); Audio2.play('gong');
       UI.banner(res.major ? `晉入${REALMS[Math.floor(res.to / 3)]}期` : lvName(res.to), res.major ? '脫胎換骨，壽元大增' : '瓶頸破開，修為精進');
