@@ -322,7 +322,7 @@ Object.assign(UI, {
       : cloud ? `<p class="note">輸入對方的道侶編號（對方需已登入），對方同意後即結為道侶。</p>
          <div class="dao-form"><input id="dPid" maxlength="12" placeholder="對方的道侶編號"><button class="seal sm" id="dBond">送出邀請</button></div>`
       : `<p class="note">登入雲端帳號後，可與另一支手機上的道侶連線。未登入時可先以道號締結（單機）。</p>
-         <div class="dao-form"><input id="dName" maxlength="8" placeholder="道侶道號"><input id="dPid" maxlength="12" placeholder="道侶編號（選填）"><button class="seal sm" id="dBond">締結</button></div>`;
+         <div class="dao-form"><input id="dName" maxlength="8" placeholder="道侶道號"><input id="dPid" maxlength="12" placeholder="編號（選填）"><button class="seal sm" id="dBond">締結</button></div>`;
     const acct = typeof Cloud === 'undefined' ? '' : cloud
       ? `<p class="note">雲端：已登入 ${Cloud.user.email || Cloud.user.name}　<button class="link-btn" id="dOut">登出</button></p>`
       : `<div class="row" style="gap:8px;align-items:center;margin:4px 0 8px"><button class="seal sm" id="dIn">Google 登入</button><span class="note" style="margin:0">登入後存檔上雲、可與道侶連線</span></div>`;

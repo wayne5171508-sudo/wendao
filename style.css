@@ -1006,3 +1006,6 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 @media (max-width: 359px) { .root-card .seal { font-size: 15px; padding-left: 10px; padding-right: 10px; letter-spacing: 1px; } .root-card .row { gap: 8px; } }
 /* N6 橫向機緣頁：操作區底部留白，單抽／十連不被導覽蓋住 */
 @media (orientation: landscape) { #ctrlContent:has(> .gacha-btns) { padding-bottom: 24px; } }
+/* N8 道侶頁：登入鈕不斷字 */
+#dIn { white-space: nowrap; flex: none; }
+@media (max-width: 359px) { .dao-form:has(#dName) { flex-wrap: wrap; } .dao-form:has(#dName) input { flex: 1 1 100%; } .dao-form:has(#dName) .seal { margin-left: auto; } }   /* 320 寬：道號、編號上下兩列 */
