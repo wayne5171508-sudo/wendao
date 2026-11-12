@@ -13,6 +13,10 @@ const BG_POS = { title: '74% 40%', village: '52% 62%', sect: '58% 50%', dongfu: 
 // 施法立繪：assets/cast/<技能id>.webp；沒有圖的技能不顯示切入演出
 const CAST_IMG = { jianqi: 'assets/cast/jianqi.webp', leifa: 'assets/cast/leifa.webp', huti: 'assets/cast/huti.webp', wanjian: 'assets/cast/wanjian.webp', yujian: 'assets/cast/yujian.webp', jianyi: 'assets/cast/jianyi.webp' };
 const W_IMG = (id) => `assets/weapon/${id}.webp`;
+// 戰鬥疊劍用的劍身圖：assets/weapon/blade/<id>.webp（只有劍、透明底、直立、劍柄朝上）在素材清單就用它，沒有才用展示圖；卡面圖（card）沒有劍身圖就不疊
+const W_BLADE = (w) => { const p = `assets/weapon/blade/${w.id}.webp`; return typeof ASSET_LIST !== 'undefined' && ASSET_LIST.includes(p) ? { src: p, rot: 0 } : w.card ? null : { src: W_IMG(w.id), rot: w.rot || 0 }; };
+// 握點：疊劍時整把劍沿劍身方向往後退 grip 比例，讓握點落在手上（劍身座標的起點）、劍首露在手的另一側
+const wGrip = (w, kind) => (w && /^b(stance|hold)$/.test(kind) && W_BLADE(w) ? w.grip ?? 0.12 : 0);
 const NPC_IMG = (key) => `assets/npc/${key}.webp`;
 // 兵器圖示：階級以顏色與邊框區分
 const wVars = (w) => `--c:${WTIERS[w.tier].color};--e:${WTIERS[w.tier].edge};--r:${w.rot || 0}deg`;
@@ -67,10 +71,11 @@ const heroArmed = (w, kind, cls = '') => {
   const H = HERO_SWORD[kind];
   let fx = '';
   if (w && H.blade) {
-    const [x1, y1, x2, y2] = H.blade, dx = x2 - x1, dy = (y2 - y1) / H.ar;
+    const ov = /^b(stance|hold)$/.test(kind) ? W_BLADE(w) : null, g = wGrip(w, kind);
+    const [bx1, by1, x2, y2] = H.blade, x1 = bx1 - g * (x2 - bx1), y1 = by1 - g * (y2 - by1), dx = x2 - bx1, dy = (y2 - by1) / H.ar;
     const pos = `left:${x1 * 100}%;top:${y1 * 100}%;width:${Math.hypot(dx, dy) * 100}%;transform:rotate(${(Math.atan2(dy, dx) * 180) / Math.PI}deg)`;
     // 戰鬥立繪不畫劍：一律把主手兵器圖疊在劍身位置
-    const wov = /^b(stance|hold)$/.test(kind) ?`<i class="wov" style="${pos}"><img src="${W_IMG(w.id)}" data-rot="${w.rot || 0}" onload="wovFit(this)" alt=""></i>` : '';
+    const wov = ov ? `<i class="wov" style="${pos};--r:${ov.rot}deg"><img src="${ov.src}" data-rot="${ov.rot}" onload="wovFit(this)" alt=""></i>` : '';
     fx = `${wov}<i class="blade" style="${pos}"></i>`;
   }
   if (w && H.hilt) fx = `<i class="hilt" style="left:${H.hilt[0] * 100}%;top:${H.hilt[1] * 100}%"></i>`;
@@ -422,7 +427,7 @@ const UI = {
     const mw = S.wMain();
     Halo.mount('stand', '.hero-stage.gear > *', mw ? { c: WTIERS[mw.tier].color, e: WTIERS[mw.tier].edge } : null);   // 背後多層光環，顏色隨主手品階
     const ready = S.questsReady();
-    const tabs = [['wpn', '兵器'], ['fb', '法寶'], ['forge', '煉器'], ['shop', '商店'], ['quest', '任務']].map(([k, n]) => `<button class="${this.gtab === k ? 'on' : ''}" data-g="${k}">${n}${k === 'quest' && ready ? `<i class="pip">${ready}</i>` : ''}</button>`).join('');
+    const tabs = [['wpn', '兵器'], ['fb', '法寶'], ['forge', '煉器'], ['shop', '商店'], ['quest', '任務']].map(([k, n]) => `<button class="${this.gtab === k ? 'on' : ''}" data-g="${k}"><span class="tl">${n}${k === 'quest' && ready ? `<i class="pip">${ready}</i>` : ''}</span></button>`).join('');
     const body = { wpn: () => this.gearWpn(), fb: () => this.gearFb(), forge: () => this.gearForge(), shop: () => this.gearShop(), quest: () => this.gearQuest() }[this.gtab]();
     this.controls(`<div class="sec-title">法寶</div><div class="tabs">${tabs}</div>${body}`);
     document.querySelectorAll('[data-g]').forEach((b) => (b.onclick = () => { Audio2.play('page'); this.gear(b.dataset.g); }));
@@ -531,12 +536,12 @@ const UI = {
     const eqBtns = fb ? (S.d.fslot === id ? '<button class="seal sm ghost" id="fUn">卸下法寶</button>' : '<button class="seal sm" id="fEq">佩於法寶欄</button>')
       : W_SLOTS.map((n, i) => slot === i ? `<button class="seal sm ghost" data-un="${i}">卸下${n}</button>` : `<button class="seal sm ghost" data-eqs="${i}">佩於${n}</button>`).join('');
     this.modal(w.name, `${wCase(w, o)}
+      <div class="row center weq">${eqBtns}</div>
       <p class="note" style="text-align:center;margin:2px 0 0">強化 +${o.lv}／${cap}</p>
       <div class="list">
         ${maxed ? (brk ? `<div class="li">${gIco('ui', 'breakthrough', '', T.color)}<div><h4>突破<em>強化上限 +10、屬性 +25%</em></h4><div>${brkMats}</div></div><button class="seal sm" id="wBrk" ${S.wCanBreak(id) ? '' : 'disabled'}>突破</button></div>` : '<p class="note" style="text-align:center">已臻圓滿。</p>')
           : `<div class="li">${gIco('ui', 'enhance', '', T.color)}<div><h4>強化<em>成功率 ${rate}%</em></h4><p>每級屬性 +8%。保底 ${Math.min(o.fail, W_PITY)}／${W_PITY}：連敗三次，下次必成。</p><span class="mat ${S.has('stone', cost) ? '' : 'lack'}">${stoneAmt(cost)}</span></div><button class="seal sm" id="wEnh" ${S.has('stone', cost) ? '' : 'disabled'}>強化</button></div>`}
-      </div>
-      <div class="row center">${eqBtns}</div>`, {
+      </div>`, {
       '#wEnh': () => { const r = S.wEnhance(id); if (!r) return; if (r.ok) { Audio2.play('up'); this.toast(`${w.name}強化至 +${o.lv}${r.pity ? '（保底）' : ''}`, T.color); } else { Audio2.play('fail'); this.toast(`強化失敗（保底 ${Math.min(o.fail, W_PITY)}／${W_PITY}）`, '#ff9a9a'); } this.wDetail(id); this.gear(); this.hud(); },
       '#wBrk': () => { if (S.wBreak(id)) { Audio2.play('gong'); FX.pillar(FX.w / 2, FX.h, hexA(T.color, 0.5), 90, 2); this.toast(`${w.name}突破・${'一二三'[o.brk - 1]}重`, T.color); this.wDetail(id); this.gear(); this.hud(); } },
       '[data-eqs]': (el) => { S.wEquip(id, +el.dataset.eqs); Audio2.play('pickup'); this.close(); this.gear(); this.hud(); },
@@ -713,7 +718,7 @@ const UI = {
     this.modal('更名', `<p class="note" style="text-align:center">目前名字：<b>${escHtml(HERO_NAME)}</b><br>2～8 個字，只能用中文、英文、數字</p>
       <div class="dao-form"><input id="nmIn" maxlength="8" autocomplete="off" placeholder="輸入新名字" aria-label="新名字"></div>
       <p class="note" id="nmErr" style="text-align:center;color:#ff9a9a;min-height:1.5em">${block}</p>
-      <p class="note" style="text-align:center">${cost ? `費用 ${stoneAmt(cost)}` : '第一次更名免費'}${wait ? `・冷卻中，還要 ${Math.ceil(wait / 3600000)} 小時` : ''}</p>
+      <p class="note" style="text-align:center">${cost ? `費用 ${stoneAmt(cost)}` : '第一次更名免費'}</p>
       <div class="row center"><button class="seal" id="nmOk" ${block ? 'disabled' : ''}>確定更名</button><button class="seal ghost sm" id="nmNo">取消</button></div>`, {
       '#nmNo': () => this.settings(),
       '#nmOk': async (el) => {

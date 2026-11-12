@@ -12,9 +12,10 @@
 // assetDir：該角色的立繪資料夾。檔名與 assets/hero/ 相同的圖放進去就會自動取代（沒有的沿用男主圖並在 console 警告一次）
 // textSub：劇情文字替換（劇本原本以男主撰寫）
 const CHARACTERS = {
-  qingyuan: { id: 'qingyuan', name: '林清遠', given: '清遠', gender: 'm', assetDir: 'assets/hero/', textSub: [] },
+  // faxiang：突破成功時的法相圖（純黑底，screen 混合）；不在素材清單就不顯示法相，只有光環、雷光與閃光
+  qingyuan: { id: 'qingyuan', name: '林清遠', given: '清遠', gender: 'm', assetDir: 'assets/hero/', faxiang: 'assets/fx/faxiang.webp', textSub: [] },
   // sword：該角色立繪的寬高比與劍身座標 [劍柄x,y, 劍尖x,y]（圖內比例），覆蓋 HERO_SWORD；castDir：施法立繪資料夾（缺圖就不顯示施法切入）
-  yunxi: { id: 'yunxi', name: '蘇雲汐', given: '雲汐', gender: 'f', assetDir: 'assets/hero_yunxi/', castDir: 'assets/cast_yunxi/',
+  yunxi: { id: 'yunxi', name: '蘇雲汐', given: '雲汐', gender: 'f', assetDir: 'assets/hero_yunxi/', castDir: 'assets/cast_yunxi/', faxiang: 'assets/fx/faxiang_yunxi.webp',
     sword: { hold: { ar: 683 / 1100, blade: [0.25, 0.57, 0.03, 0.95] }, sit: { ar: 816 / 665, blade: [0.06, 0.69, 0.94, 0.69] }, back: { ar: 847 / 726, hilt: null },
       bhold: { ar: 1118 / 748, blade: [0.21, 0.49, 0.0, 0.75] }, bstance: { ar: 1020 / 775, blade: [0.665, 0.632, 0.925, 0.9] }, blean: { ar: 1652 / 1100, blade: [0.524, 0.449, 0.98, 0.825] } },
     ar: { hold_nitian: 1260 / 1100 },
@@ -322,7 +323,7 @@ Object.assign(UI, {
       : cloud ? `<p class="note">輸入對方的道侶編號（對方需已登入），對方同意後即結為道侶。</p>
          <div class="dao-form"><input id="dPid" maxlength="12" placeholder="對方的道侶編號"><button class="seal sm" id="dBond">送出邀請</button></div>`
       : `<p class="note">登入雲端帳號後，可與另一支手機上的道侶連線。未登入時可先以道號締結（單機）。</p>
-         <div class="dao-form"><input id="dName" maxlength="8" placeholder="道侶道號"><input id="dPid" maxlength="12" placeholder="道侶編號（選填）"><button class="seal sm" id="dBond">締結</button></div>`;
+         <div class="dao-form"><input id="dName" maxlength="8" placeholder="道侶道號"><input id="dPid" maxlength="12" placeholder="編號（選填）"><button class="seal sm" id="dBond">締結</button></div>`;
     const acct = typeof Cloud === 'undefined' ? '' : cloud
       ? `<p class="note">雲端：已登入 ${Cloud.user.email || Cloud.user.name}　<button class="link-btn" id="dOut">登出</button></p>`
       : `<div class="row" style="gap:8px;align-items:center;margin:4px 0 8px"><button class="seal sm" id="dIn">Google 登入</button><span class="note" style="margin:0">登入後存檔上雲、可與道侶連線</span></div>`;

@@ -37,7 +37,7 @@ const Battle = {
         <div class="lbl"><span>氣血</span><span id="hTxtB"></span></div><div class="bar hp"><i id="hBarB"></i></div>
         <div class="lbl"><span>靈力</span><span id="pTxtB"></span></div><div class="bar mp"><i id="pBarB"></i></div></div>
       <div class="skills" style="--n:${this.skillList().length}">${this.skillList().map((k) => `<button class="skill" data-k="${k.id}" style="--c:${k.color}"><img class="sk-img" src="assets/skill/${k.id}.webp" alt="" onerror="this.remove()"><b>${k.icon}</b><i class="cd"></i><i class="sk-flash"></i><span class="cdt"></span><small>${k.name}</small></button>`).join('')}</div>
-      <div class="row center" style="margin-top:18px"><button class="seal sm ${S.d.auto ? '' : 'ghost'}" id="bAuto">${S.d.auto ? '自動施法・開' : '自動施法・關'}</button></div>`);
+      <div class="row center bauto" style="margin-top:18px"><button class="seal sm ${S.d.auto ? '' : 'ghost'}" id="bAuto">${S.d.auto ? '自動施法・開' : '自動施法・關'}</button></div>`);
     document.querySelectorAll('.skill').forEach((b) => (b.onclick = () => { b.classList.remove('press'); void b.offsetWidth; b.classList.add('press'); this.cast(b.dataset.k); }));
     $('#bRun').onclick = () => this.end(false, true);
     $('#bAuto').onclick = () => { S.d.auto = !S.d.auto; S.save(); $('#bAuto').classList.toggle('ghost', !S.d.auto); $('#bAuto').textContent = S.d.auto ? '自動施法・開' : '自動施法・關'; };
@@ -305,7 +305,7 @@ const Battle = {
   swordTip() {
     const el = document.querySelector('#heroB .hfig.bstance'), sc = $('#scene').getBoundingClientRect();
     if (!el) return { x: this.heroPos().x, y: this.heroPos().y - 90 };
-    const r = el.getBoundingClientRect(), [x1, y1, x2, y2] = HERO_SWORD[this.pose.stance].blade;
+    const r = el.getBoundingClientRect(), [x1, y1, bx2, by2] = HERO_SWORD[this.pose.stance].blade, g = wGrip(this.main, this.pose.stance), x2 = bx2 - g * (bx2 - x1), y2 = by2 - g * (by2 - y1);   // 疊劍往後退了 grip，劍尖跟著退
     // 立繪整體前傾 lean 度（以腳底為軸），把劍身座標一起轉過去
     const lean = (parseFloat(getComputedStyle($('#heroB')).getPropertyValue('--lean')) || 0) * Math.PI / 180, ox = r.left - sc.left + r.width / 2, oy = r.bottom - sc.top;
     const rot = (px, py) => { const dx = px - ox, dy = py - oy; return [ox + dx * Math.cos(lean) - dy * Math.sin(lean), oy + dx * Math.sin(lean) + dy * Math.cos(lean)]; };

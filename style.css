@@ -979,10 +979,43 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 #hudRealm { min-width: 0; } #hudRealm > div { min-width: 0; }
 @media (max-width: 359px) { #hudRealm small { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
 /* B8 矮螢幕機緣頁：場景縮小、「單抽／十連」移到保底列下方，第一屏就按得到 */
-@media (max-height: 640px) {
+@media (max-height: 640px) and (orientation: portrait) {
   #app.tall.fit #controls { max-height: 74vh; }
   #ctrlContent:has(> .gacha-btns) { display: flex; flex-direction: column; }
   #ctrlContent > .pity-bar ~ * { order: 2; }
   #ctrlContent > .pity-bar ~ .gacha-btns { order: 1; margin: 4px 0 8px; }
   #ctrlContent:has(> .gacha-btns) .gpeek .wframe { width: 32px; height: 32px; }
 }
+/* N1 HUD 左側：靈根列永遠一行、超出省略；境界名不被靈石擠到。320 寬把右側印章、靈石圖示、境界字級都縮一級 */
+#hud { gap: 8px; }
+#hudRealm { flex: 0 1 auto; } #hudRes { flex: none; }
+#hudRealm small { text-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* text-wrap 要一起設：前面的 text-wrap: balance 會讓它照樣換行 */
+#hudLv { overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 359px) {
+  #hud { padding-left: 8px; padding-right: 8px; gap: 4px; } #hudRealm { gap: 5px; }
+  #hudRes .sealBtn { width: 34px; height: 34px; font-size: 16px; } #hudRes .stone-ico { width: 14px; height: auto; } #hudRes span { font-size: 15px; }
+  #hudRealm b { font-size: 16px; letter-spacing: 0; } #hudSeal { width: 24px; height: 24px; font-size: 15px; flex: none; }
+}
+/* N2 兵器詳情：佩戴按鈕在數值下方、強化列上方（不是 sticky）；橫向矮螢幕展示框縮到 80px */
+#mBody .row.weq { margin: 6px 0 8px; }
+@media (orientation: landscape) and (max-height: 640px) { #mBody .wcase { max-height: 80px; } #modal:has(.wcase) #mTitle, #mBody .wc-fx { display: none; } }
+/* N3 320 寬選角：介紹文字不被立繪壓住 */
+@media (max-width: 359px) { .ch-row.open .ch-intro { max-width: 52%; } .ch-row.open .ch-front { height: 85%; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 55%); mask-image: linear-gradient(90deg, transparent 0, #000 55%); } }
+/* N5 測靈根按鈕不斷字 */
+.root-card .seal { white-space: nowrap; }
+@media (max-width: 359px) { .root-card .seal { font-size: 15px; padding-left: 10px; padding-right: 10px; letter-spacing: 1px; } .root-card .row { gap: 8px; } }
+/* N6 橫向機緣頁：操作區底部留白，單抽／十連不被導覽蓋住 */
+@media (orientation: landscape) { #ctrlContent:has(> .gacha-btns) { padding-bottom: 24px; } }
+/* N8 道侶頁：登入鈕不斷字 */
+#dIn { white-space: nowrap; flex: none; }
+@media (max-width: 359px) { .dao-form:has(#dName) { flex-wrap: wrap; } .dao-form:has(#dName) input { flex: 1 1 100%; } .dao-form:has(#dName) .seal { margin-left: auto; } }   /* 320 寬：道號、編號上下兩列 */
+/* N9 320 寬戰鬥（技能兩排）：「自動施法」移到技能列右側直排，不捲動就按得到 */
+@media (max-width: 359px) {
+  #ctrlContent:has(.skills > .skill:nth-child(6)) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: center; }
+  #ctrlContent:has(.skills > .skill:nth-child(6)) > .bstat { grid-column: 1 / -1; }
+  #ctrlContent:has(.skills > .skill:nth-child(6)) > .bauto { margin: 0 !important; }
+  #ctrlContent:has(.skills > .skill:nth-child(6)) > .bauto .seal { writing-mode: vertical-rl; padding: 10px 7px; min-width: 0; letter-spacing: 2px; }
+}
+/* N10 320 寬：分頁上的任務數字改成小紅點，不壓到字 */
+.tabs .tl { position: relative; display: inline-block; } .tabs .tl .pip { top: -6px; right: -18px; }   /* 數字紅點掛在字的右上角外側 */
+@media (max-width: 359px) { .tabs .tl .pip { top: -3px; right: -10px; min-width: 0; width: 8px; height: 8px; padding: 0; font-size: 0; box-shadow: 0 0 5px var(--cinnabar2); } }
