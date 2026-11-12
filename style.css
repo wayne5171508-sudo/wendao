@@ -979,7 +979,7 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 #hudRealm { min-width: 0; } #hudRealm > div { min-width: 0; }
 @media (max-width: 359px) { #hudRealm small { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
 /* B8 矮螢幕機緣頁：場景縮小、「單抽／十連」移到保底列下方，第一屏就按得到 */
-@media (max-height: 640px) {
+@media (max-height: 640px) and (orientation: portrait) {
   #app.tall.fit #controls { max-height: 74vh; }
   #ctrlContent:has(> .gacha-btns) { display: flex; flex-direction: column; }
   #ctrlContent > .pity-bar ~ * { order: 2; }
@@ -1004,3 +1004,5 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
 /* N5 測靈根按鈕不斷字 */
 .root-card .seal { white-space: nowrap; }
 @media (max-width: 359px) { .root-card .seal { font-size: 15px; padding-left: 10px; padding-right: 10px; letter-spacing: 1px; } .root-card .row { gap: 8px; } }
+/* N6 橫向機緣頁：操作區底部留白，單抽／十連不被導覽蓋住 */
+@media (orientation: landscape) { #ctrlContent:has(> .gacha-btns) { padding-bottom: 24px; } }
