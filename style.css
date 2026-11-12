@@ -1016,3 +1016,6 @@ body.busy { cursor: progress; }   /* 戰鬥進場前預載中 */
   #ctrlContent:has(.skills > .skill:nth-child(6)) > .bauto { margin: 0 !important; }
   #ctrlContent:has(.skills > .skill:nth-child(6)) > .bauto .seal { writing-mode: vertical-rl; padding: 10px 7px; min-width: 0; letter-spacing: 2px; }
 }
+/* N10 320 寬：分頁上的任務數字改成小紅點，不壓到字 */
+.tabs .tl { position: relative; display: inline-block; } .tabs .tl .pip { top: -6px; right: -18px; }   /* 數字紅點掛在字的右上角外側 */
+@media (max-width: 359px) { .tabs .tl .pip { top: -3px; right: -10px; min-width: 0; width: 8px; height: 8px; padding: 0; font-size: 0; box-shadow: 0 0 5px var(--cinnabar2); } }

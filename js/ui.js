@@ -422,7 +422,7 @@ const UI = {
     const mw = S.wMain();
     Halo.mount('stand', '.hero-stage.gear > *', mw ? { c: WTIERS[mw.tier].color, e: WTIERS[mw.tier].edge } : null);   // 背後多層光環，顏色隨主手品階
     const ready = S.questsReady();
-    const tabs = [['wpn', '兵器'], ['fb', '法寶'], ['forge', '煉器'], ['shop', '商店'], ['quest', '任務']].map(([k, n]) => `<button class="${this.gtab === k ? 'on' : ''}" data-g="${k}">${n}${k === 'quest' && ready ? `<i class="pip">${ready}</i>` : ''}</button>`).join('');
+    const tabs = [['wpn', '兵器'], ['fb', '法寶'], ['forge', '煉器'], ['shop', '商店'], ['quest', '任務']].map(([k, n]) => `<button class="${this.gtab === k ? 'on' : ''}" data-g="${k}"><span class="tl">${n}${k === 'quest' && ready ? `<i class="pip">${ready}</i>` : ''}</span></button>`).join('');
     const body = { wpn: () => this.gearWpn(), fb: () => this.gearFb(), forge: () => this.gearForge(), shop: () => this.gearShop(), quest: () => this.gearQuest() }[this.gtab]();
     this.controls(`<div class="sec-title">法寶</div><div class="tabs">${tabs}</div>${body}`);
     document.querySelectorAll('[data-g]').forEach((b) => (b.onclick = () => { Audio2.play('page'); this.gear(b.dataset.g); }));
