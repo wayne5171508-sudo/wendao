@@ -1,7 +1,7 @@
 'use strict';
 // ════════════════════════════════════════════
 //  轉珠關卡制：所有可調數值都在這一個檔案
-//  體力、轉珠規則、隊伍、怪物、章節關卡、星級條件、獎勵、掃蕩
+//  體力、轉珠規則、怪物、章節關卡、星級條件、獎勵、掃蕩
 //  改完數字重新整理即可，不用動 puzzle.js／stage.js
 // ════════════════════════════════════════════
 
@@ -24,27 +24,8 @@ const PZ_CFG = {
   skillStartHalf: true, // 開場技能冷卻只剩一半
 };
 
-// ───────── 隊伍（資料驅動：隊長、副隊長、3 名隊員）─────────
-// 目前是固定假資料；之後隊長＝自己的主角、副隊長＝伴侶的主角（雲端道侶）、隊員＝抽卡角色
-// src: 'self' 用玩家名字與頭像、屬性取自靈根；'partner' 用道侶名字與頭像
-// sk 主動技 t：nuke（隊長屬性 mult 倍攻擊）、convert（from 珠全轉為隊長屬性，heal 回血比例）、pierce（本回合無視防禦減傷）、delay（敵方倒數 +n）、combo（本回合 Combo +n）
-// lead 隊長技（隊長、副隊長各自生效）t：elAtk（el 屬性隊員攻擊 ×mult，el 省略＝自己的屬性）、hp（全隊氣血 ×mult）、rcv（回復 ×mult）
-const PZ_TEAM = {
-  leader: { id: 'hero', src: 'self', role: '隊長', atk: 620, hp: 1500, rcv: 140,
-    sk: { t: 'nuke', mult: 12, name: '劍氣', cd: 4, desc: '以隊長屬性造成攻擊 12 倍傷害（計算相剋）' },
-    lead: { t: 'elAtk', mult: 1.5, name: '靈根共鳴', desc: '與隊長同屬性的隊員攻擊 ×1.5' } },
-  sub: { id: 'mate', src: 'partner', role: '副隊長', atk: 480, hp: 1300, rcv: 220,
-    sk: { t: 'convert', from: 'heart', heal: 0.2, name: '同心', cd: 5, desc: '心珠全部轉為隊長屬性珠，回復兩成氣血' },
-    lead: { t: 'hp', mult: 1.2, name: '同心護持', desc: '全隊氣血 ×1.2' } },
-  members: [
-    { id: 'jinxia', name: '金霞劍', el: 'metal', atk: 560, hp: 950, rcv: 60, img: 'assets/weapon/jinxia.webp', fx: 'jinxia',
-      sk: { t: 'pierce', name: '破防', cd: 4, desc: '本回合無視敵方的防禦與減傷' } },
-    { id: 'zichen', name: '紫宸劍', el: 'water', atk: 650, hp: 1000, rcv: 70, img: 'assets/weapon/zichen.webp', fx: 'zichen',
-      sk: { t: 'delay', n: 1, name: '霜寒', cd: 5, desc: '全體敵人出手倒數 +1' } },
-    { id: 'chixiao', name: '赤霄劍', el: 'fire', atk: 780, hp: 1100, rcv: 50, img: 'assets/weapon/chixiao.webp',
-      sk: { t: 'combo', n: 2, name: '連擊', cd: 4, desc: '本回合結算 Combo 數 +2' } },
-  ],
-};
+// ───────── 隊伍 ─────────
+// 角色、技能、陣營、星級、主角與道侶數值都在 js/roster-cfg.js
 
 // ───────── 怪物 ─────────
 // el 屬性、hp 血量、atk 攻擊、def 防禦、cd 出手倒數（回合）、img 立繪（沒有或載入失敗就顯示色塊＋名字）

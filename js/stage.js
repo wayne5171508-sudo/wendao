@@ -211,10 +211,12 @@ const Stage = {
     const html = `<h3>${st.id}　${st.name}</h3>
       <ul class="pzm-waves">${mons}</ul>
       <ul class="pzm-starlist">${stars}</ul>
+      ${typeof Roster !== 'undefined' ? Roster.summary() : ''}
       <p class="pzm-rw"><b>獎勵</b>${this.rwPreview(st)}</p>
       ${st.first ? `<p class="pzm-rw${rec.c ? ' done' : ''}"><b>首通</b>${this.rwPreview(st.first)}${rec.c ? '（已領）' : ''}</p>` : ''}
       <p class="c note">進場體力 ${st.cost}・失敗不退・目前 ${this.sta()} / ${STA_CFG.max}${can ? `<br>掃蕩每次 ${cost} 體力${left === Infinity ? '' : `・今日剩 ${left} 次`}` : `<br>${SWEEP_CFG.needStars} 星通關後可掃蕩`}</p>`;
     const btns = [[`出戰（${st.cost}）`, () => { this.closePanel(); this.play(id); }, 'go']];
+    if (typeof Roster !== 'undefined') btns.push(['編隊', () => Roster.editor(() => this.detail(id))]);
     if (can) {
       btns.push([`掃蕩 ×1`, () => this.doSweep(id, 1), '', left <= 0]);
       btns.push([`掃蕩 ×${B}`, () => this.doSweep(id, B), '', left <= 0]);
