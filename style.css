@@ -1285,3 +1285,4 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 @media (max-width: 340px) { .pzr-art { width: 76px; } }
 .pzr-card { position: relative; }
 .pzr-wild { position: absolute; top: 2px; left: 2px; z-index: 3; padding: 0 3px; border-radius: 3px; font-size: 9px; line-height: 1.4; color: #fff; background: #7a4fc9; }
+.pz-fx.fx-combo, .pz-fx.fx-comboUp, .pz-fx.fx-time, .pz-fx.fx-convert { height: 95%; }   /* 正方形特效圖 */

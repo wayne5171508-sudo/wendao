@@ -24,7 +24,8 @@ const PZ_ART = {
   five: { wood: 'assets/fx/pz_five_wood.webp', fire: 'assets/fx/pz_five_fire.webp', earth: 'assets/fx/pz_five_earth.webp',
     metal: 'assets/fx/pz_five_metal.webp', water: 'assets/fx/pz_five_water.webp', heart: 'assets/fx/pz_five_heart.webp' },
   // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應效果種類（roster-cfg.js 效果庫的 t），技能放第一個有圖的效果
-  fx: { nuke: 'assets/fx/pz_slash.webp', convert: 'assets/fx/pz_heal.webp', heal: 'assets/fx/pz_heal.webp', pierce: 'assets/fx/pz_break.webp', delay: 'assets/fx/pz_ice.webp' },
+  fx: { nuke: 'assets/fx/pz_slash.webp', heal: 'assets/fx/pz_heal.webp', pierce: 'assets/fx/pz_break.webp', delay: 'assets/fx/pz_ice.webp',
+    combo: 'assets/fx/pz_sk_combo.webp', comboUp: 'assets/fx/pz_sk_combo.webp', time: 'assets/fx/pz_sk_time.webp', convert: 'assets/fx/pz_sk_convert.webp' },
 };
 
 // ───────── 拖曳手感（之後只改這裡）─────────
