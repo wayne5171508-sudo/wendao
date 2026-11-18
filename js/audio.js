@@ -20,6 +20,11 @@ const REVEAL_SFX = ['reveal_fan', 'reveal_ling', 'reveal_xuan', 'reveal_xian', '
 const MOOD_BGM = { title: 'home', village: 'home', sect: 'home', wild: 'home', dungeon: 'battle', battle: 'battle', boss: 'boss', gacha: 'gacha', trib: 'trib' };
 // 遊戲內音效名稱 → 素材（含音量、音高隨機）；沒有列在這裡的只用合成
 const SFX_MAP = { swing1: ['slash', 0.8, 0.06], swing2: ['slash', 0.8, 0.06], swing3: ['slash', 0.9, 0.04], hitHeavy: ['crit', 0.9, 0.04], hurt: ['hurt', 0.9, 0.05], thunder: ['thunder', 0.85, 0.04], cast: ['cast', 0.7, 0.03], gather: ['gather', 0.8, 0], divine: ['divine', 1, 0], meditate: ['meditate', 0.3, 0] };
+// 個別 BGM 音量（相對其他曲，1＝原音量）：轉珠戰鬥曲偏大聲，壓到 45%
+const BGM_VOL = { pz_battle: 0.45 };
+// 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
+// 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
+const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_tick: 0.9, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, clearStep: 0.06, clearMax: 1.5 };
 const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
 
 const Audio2 = {
@@ -66,7 +71,7 @@ const Audio2 = {
   },
   makeTrack(key) {
     const el = new Audio(); el.preload = 'auto'; el.loop = key !== 'tribIntro'; el.crossOrigin = 'anonymous';
-    const tr = { el, gain: this.ctx.createGain(), ready: null };
+    const tr = { el, gain: this.ctx.createGain(), ready: null, vol: BGM_VOL[key] ?? 1 };
     tr.gain.gain.value = 0;
     try { this.ctx.createMediaElementSource(el).connect(tr.gain); } catch (e) { tr.broken = true; }
     tr.gain.connect(this.bgmBus);
@@ -127,7 +132,7 @@ const Audio2 = {
   },
   fadeIn(tr) {
     const t = this.ctx.currentTime, g = tr.gain.gain, from = g.value, delay = from > 0.05 ? 0 : FADE_IN_DELAY;
-    g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.setValueAtTime(from, t + delay); g.linearRampToValueAtTime(1, t + delay + FADE);
+    g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.setValueAtTime(from, t + delay); g.linearRampToValueAtTime(tr.vol ?? 1, t + delay + FADE);
     clearTimeout(tr.stopT);
     if (tr.el && tr.el.paused && !document.hidden) tr.el.play().catch(() => {});
   },
@@ -172,9 +177,10 @@ const Audio2 = {
   // 有素材播素材，否則用合成；同一音效最多同時 SFX_MAX 個，超過就停掉最舊的
   play(name, opt = {}) {
     if (!this.ctx) return;
-    const m = SFX_MAP[name];
-    if (!m || !this.buffers[m[0]]) return this.synth(name, opt);
-    this.playBuf(m[0], m[1] * (opt.vol ?? 1), m[2]);
+    const m = SFX_MAP[name], V = PZ_SFX_VOL;
+    const pv = name in V ? V.master * V[name] * (name === 'pz_clear' ? Math.min(V.clearMax, 1 + ((opt.combo || 1) - 1) * V.clearStep) : 1) : 1;
+    if (!m || !this.buffers[m[0]]) { this.sfxMul = pv; this.synth(name, opt); this.sfxMul = 1; return; }   // 合成音也套同一張音量表
+    this.playBuf(m[0], m[1] * (opt.vol ?? 1) * pv, m[2]);
   },
   playBuf(key, vol, jitter) {
     const buf = this.buffers[key]; if (!buf) return;
@@ -222,7 +228,7 @@ const Audio2 = {
     const t = this.ctx.currentTime + delay, o = this.ctx.createOscillator(), g = this.ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), t + dur);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    vol *= this.sfxMul || 1; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(this.sfxBus); o.start(t); o.stop(t + dur + 0.05);
   },
   noise(dur, vol = 0.3, freq = 1200, q = 1, delay = 0, type = 'bandpass') {
@@ -232,7 +238,7 @@ const Audio2 = {
     for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
     const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
     src.buffer = buf; f.type = type; f.frequency.value = freq; f.Q.value = q;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    vol *= this.sfxMul || 1; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f); f.connect(g); g.connect(this.sfxBus); src.start(t);
   },
   synth(name, opt = {}) {

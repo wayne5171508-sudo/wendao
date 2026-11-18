@@ -107,7 +107,9 @@ const Puzzle = {
     this.raf = requestAnimationFrame(loop);
   },
   close() {
+    this.held = null; this.state = 'idle';   // 拖曳中直接關閉：不結算
     this.on = false; cancelAnimationFrame(this.raf); removeEventListener('resize', this._rs);
+    (this._win || []).forEach(([t, f, o]) => removeEventListener(t, f, o)); document.removeEventListener('visibilitychange', this._vis);
     this.root.remove(); document.body.classList.remove('pz-on');
     if (typeof Audio2 !== 'undefined') Audio2.setMood(Audio2.mood);   // 切回目前場景的音樂
     if (typeof FX !== 'undefined') requestAnimationFrame(() => FX.resize());
@@ -205,10 +207,12 @@ const Puzzle = {
     // 觸控：pointer capture＋touch-action:none，擋掉 iOS 下拉重整、捲動、長按選取
     const cv = this.cv;
     cv.addEventListener('pointerdown', (e) => this.down(e));
-    cv.addEventListener('pointermove', (e) => this.move(e));
-    cv.addEventListener('pointerup', (e) => this.up(e));
-    cv.addEventListener('pointercancel', (e) => this.up(e));
-    cv.addEventListener('lostpointercapture', (e) => this.up(e));
+    // move／up 掛在 window：capture 沒設成功或手指出了盤面、出了視窗，仍收得到；被系統打斷（cancel、切 App、失焦）一律收尾
+    const end = () => this.finish();
+    this._win = [['pointermove', (e) => this.move(e)], ['pointerup', (e) => this.up(e)], ['pointercancel', (e) => this.up(e)],
+      ['touchcancel', end], ['blur', end], ['touchmove', (e) => this.state === 'drag' && e.preventDefault(), { passive: false }]];
+    this._win.forEach(([t, f, o]) => addEventListener(t, f, o));
+    this._vis = () => document.hidden && this.finish(); document.addEventListener('visibilitychange', this._vis);
     this.root.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     this.root.addEventListener('contextmenu', (e) => e.preventDefault());
     this.loadArt();
@@ -339,6 +343,7 @@ const Puzzle = {
     if (this.state !== 'drag' || (e && e.pointerId !== this.pid)) return;
     this.finish();
   },
+  // 收尾：拿起的珠子已在 grid 目前所在格，清掉 held 就落回原位；有換過位就結算
   finish() {
     if (this.state !== 'drag') return;
     try { this.cv.releasePointerCapture(this.pid); } catch (er) {}
