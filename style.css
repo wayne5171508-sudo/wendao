@@ -1090,6 +1090,10 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-timer { flex: none; height: 5px; margin-top: 3px; background: rgba(255,255,255,.08); }
 .pz-timer i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, #ff6a4a, #ffd76a); }
 .pz-boardwrap { position: relative; flex: none; display: flex; justify-content: center; margin-top: 3px; }
+.pz-lift { position: absolute; left: 0; top: 0; z-index: 4; display: none; border-radius: 50%; box-shadow: 0 5px 12px rgba(0,0,0,.5); pointer-events: none; will-change: transform; }
+.pz-lift.on { display: block; }
+/* 拖曳期間盤面以外的區塊不收觸控，避免吃掉事件或誤觸技能 */
+#pz.pz-dragging .pz-top, #pz.pz-dragging .pz-team, #pz.pz-dragging .pz-hp, #pz.pz-dragging .pz-timer { pointer-events: none; }
 #pzCv { display: block; width: var(--board); touch-action: none; border-radius: 4px; box-shadow: 0 0 0 1px var(--goldline); cursor: grab; }
 .pz-combo { position: absolute; z-index: 6; left: 50%; bottom: 8px; max-width: calc(100% - 24px); display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 5px; line-height: 1; opacity: 0; pointer-events: none; transform: translateX(-50%); transform-origin: 50% 100%; text-shadow: 0 0 8px #000, 0 0 3px #000, 0 2px 3px #000; }
 .pz-combo b { font-size: clamp(31px, 10.5vw, 45px); color: var(--c, #ffd76a); -webkit-text-stroke: 1.5px rgba(40,20,8,.7); }
