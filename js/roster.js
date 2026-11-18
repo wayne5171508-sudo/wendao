@@ -20,16 +20,16 @@ const Roster = {
   fresh() { return { v: 1, own: Object.fromEntries(PZ_STARTER.map((id) => [id, { star: 1 }])), team: PZ_STARTER.slice(0, 3), cap: 'hero', mate: null }; },
   fix(o) {
     if (!o || typeof o !== 'object' || Array.isArray(o)) return this.fresh();   // 舊存檔：沒有這欄＝送起始角色
-    const r = { v: 1, own: {}, team: [null, null, null], cap: 'hero', mate: null };
-    if (o.own && typeof o.own === 'object') for (const [id, v] of Object.entries(o.own)) {
-      const C = pzChar(id); if (!C) continue;
-      r.own[id] = { star: U.clamp(Math.floor(Number(v && v.star) || 1), 1, PZ_RARITY[C.rare].maxStar) };
-    }
-    if (Array.isArray(o.team)) o.team.slice(0, 3).forEach((id, i) => { if (r.own[id] && !r.team.includes(id)) r.team[i] = id; });
-    r.cap = r.team.includes(o.cap) ? o.cap : 'hero';
-    r.mate = this.clean(o.mate);
+    const r = { v: 1, own: {}, team: [null, null, null], cap: 'hero', mate: this.clean(o.mate) }, nid = (id) => PZ_RENAMED[id] || id;
     if (r.mate && o.mate.sim) r.mate.sim = true;
     if (r.mate && typeof o.mate.uid === 'string') r.mate.uid = o.mate.uid.slice(0, 64);
+    if (o.own && typeof o.own === 'object') for (const [id0, v] of Object.entries(o.own)) {
+      const id = nid(id0), C = pzChar(id); if (!C) continue;
+      r.own[id] = { star: Math.max((r.own[id] && r.own[id].star) || 1, U.clamp(Math.floor(Number(v && v.star) || 1), 1, PZ_RARITY[C.rare].maxStar)) };
+    }
+    if (!Object.keys(r.own).length) return { ...this.fresh(), mate: r.mate };   // 舊角色都對不到：重送起始角色
+    if (Array.isArray(o.team)) o.team.slice(0, 3).forEach((id, i) => { id = nid(id); if (r.own[id] && !r.team.includes(id)) r.team[i] = id; });
+    r.cap = r.team.includes(nid(o.cap)) ? nid(o.cap) : 'hero';
     return r;
   },
   // 雲端來的快照不可信：逐欄檢查，不合格回傳 null
@@ -60,14 +60,14 @@ const Roster = {
   },
   // 主角／道侶快照 → 隊員
   fromSnap(s, pos, self) {
-    return { id: self ? 'hero' : 'mate', src: self ? 'self' : 'partner', name: s.name, el: s.el, role: PZ_HERO.role, fac: PZ_HERO.fac, rare: '', star: 0,
+    return { id: self ? 'hero' : 'mate', src: self ? 'self' : 'partner', name: s.name, short: s.name, el: s.el, role: PZ_HERO.role, fac: PZ_HERO.fac, rare: '', star: 0,
       atk: s.atk, hp: s.hp, rcv: s.rcv, img: `assets/ui/char_${s.char}.webp`, port: false, pos, lv: s.lv, wpn: s.wpn,
       sk: pzSk(s.sk), lead: pzSk(self ? PZ_HERO.lead : s.sub), leadId: self ? PZ_HERO.lead : s.sub, mateSrc: s.src };
   },
   // 抽卡角色 → 隊員（數值乘星級）
   fromChar(id, pos) {
     const C = pzChar(id), star = (this.d.own[id] && this.d.own[id].star) || 1, k = 1 + (star - 1) * PZ_STAR.step;
-    return { id, src: 'char', name: C.name, el: C.el, role: C.role, fac: C.fac, rare: C.rare, star,
+    return { id, src: 'char', name: C.name, short: C.short || C.name.split('·').pop(), el: C.el, role: C.role, fac: C.fac, rare: C.rare, star,
       atk: Math.round(C.atk * k), hp: Math.round(C.hp * k), rcv: Math.round(C.rcv * k),
       img: C.face || C.art || '', port: !C.face && !!C.art, pos, sk: pzSk(C.sk), lead: pzSk(C.lead), leadId: C.lead };
   },
@@ -92,13 +92,13 @@ const Roster = {
       facs.push({ fac: f, n, atk: B.atk, hp: B.hp });
       mods.push({ t: 'atk', fac: f, mult: B.atk, src: '陣營' }, { t: 'hp', fac: f, mult: B.hp, src: '陣營' });
     });
-    const sum = (t) => mods.filter((e) => e.t === t).reduce((a, e) => a + (e.n || 0), 0);
+    const sum = (t, k = 'n') => mods.filter((e) => e.t === t).reduce((a, e) => a + (e[k] || 0), 0);
     const hp = Math.round(T.reduce((a, m) => a + m.hp * this.mul(mods, 'hp', m), 0)), rcv = Math.round(T.reduce((a, m) => a + m.rcv * this.mul(mods, 'rcv', m), 0));
     const atk = Math.round(T.reduce((a, m) => a + m.atk * this.mul(mods, 'atk', m), 0));
-    return { mods, facs, hp, rcv, atk, combo: sum('combo'), delay: sum('delay'), pierce: mods.some((e) => e.t === 'pierce'),
+    return { mods, facs, hp, rcv, atk, combo: sum('combo'), delay: sum('delay'), time: sum('time', 'sec'), comboUp: sum('comboUp', 'add'), pierce: mods.some((e) => e.t === 'pierce'),
       leads: leads.map(([m, L], i) => ({ ...L, who: m.name, pos: i ? '副隊長技' : '隊長技' })) };
   },
-  match(e, m) { return (!e.el || e.el === m.el) && (!e.fac || e.fac === m.fac) && (!e.role || e.role === m.role); },
+  match(e, m) { return (!e.el || e.el === m.el || (Array.isArray(e.el) && e.el.includes(m.el))) && (!e.fac || e.fac === m.fac) && (!e.role || e.role === m.role); },
   mul(mods, t, m) { return mods.reduce((a, e) => (e.t === t && e.mult && this.match(e, m) ? a * e.mult : a), 1); },
 
   // ───────── 編組操作 ─────────
@@ -115,7 +115,7 @@ const Roster = {
   // ───────── 顯示 ─────────
   face(m, cls = '') {
     const E = PZ_EL[m.el];
-    return `<span class="pzr-face ${cls}" style="--c:${E.c};--d:${E.d}">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.name.slice(-2)}</em><i>${E.ch}</i></span>`;
+    return `<span class="pzr-face ${cls}" style="--c:${E.c};--d:${E.d}">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em><i>${E.ch}</i></span>`;
   },
   skText(S1) { return S1 ? `「${S1.name}」${S1.desc}${S1.cd ? `（冷卻 ${S1.cd}）` : ''}` : '無'; },
   info(m) {
@@ -154,7 +154,7 @@ const Roster = {
       ${acts.length ? `<div class="pz-row">${acts.map(([k, t]) => `<button class="pz-btn" data-a="${k}">${t}</button>`).join('')}</div>` : ''}
       ${pick && pick.id === 'mate' ? `<p class="c note">${{ none: '尚未締結道侶：由預設道友補位', bond: '道侶尚未同步主角資料：先用預設數值', cloud: '道侶上次同步的主角資料', sim: '測試用模擬道侶' }[pick.mateSrc]}</p>` : ''}
       <h4>已擁有（${Object.keys(g.own).length}）</h4>
-      <div class="pzr-list">${free.length ? free.map((c) => { const m = this.fromChar(c.id, ''); return `<button class="pzr-card${sel === c.id ? ' sel' : ''}" data-k="${c.id}">${this.face(m)}<small>${c.name}</small></button>`; }).join('') : '<p class="note">沒有其他角色（之後由抽卡取得）</p>'}</div>
+      <div class="pzr-list">${free.length ? free.map((c) => { const m = this.fromChar(c.id, ''); return `<button class="pzr-card${sel === c.id ? ' sel' : ''}" data-k="${c.id}">${this.face(m)}<small>${m.short}</small></button>`; }).join('') : '<p class="note">沒有其他角色（之後由抽卡取得）</p>'}</div>
       ${DEV ? '<div class="pz-row wrap"><button class="pz-btn" data-dev="all">發放全部角色（測試）</button><button class="pz-btn" data-dev="mate">' + (g.mate && g.mate.sim ? '清除模擬道侶' : '模擬道侶（測試）') + '</button></div>' : ''}</div>`;
     const re = (s) => this.editor(back, s);
     Stage.panel(html, [['完成', () => (back ? back() : Stage.closePanel()), 'go']]);
@@ -212,7 +212,7 @@ const pzDev = {
   // 模擬道侶快照：不帶參數＝一組測試資料；null＝清除
   mate(s) {
     if (s === null) { Roster.d.mate = null; S.save(); return null; }
-    const m = Roster.clean(s || { name: '測試道侶', char: 'yunxi', el: 'water', lv: 6, atk: 980, hp: 2100, rcv: 260, wpn: 'zichen', sk: 'shuang_sk', sub: 'ld_guard', at: Date.now() });
+    const m = Roster.clean(s || { name: '測試道侶', char: 'yunxi', el: 'water', lv: 6, atk: 980, hp: 2100, rcv: 260, wpn: 'zichen', sk: 'shuang_sk', sub: 'ld_hp', at: Date.now() });
     if (!m) return false;
     m.sim = true; Roster.d.mate = m; S.save(); return m;
   },
