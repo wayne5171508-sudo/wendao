@@ -185,14 +185,14 @@ const Puzzle = {
         </div>
         <div class="pz-boss" id="pzBoss"><img src="${PZ_ART.boss}" alt="" onerror="this.remove()"></div>
         <div class="pz-cd" id="pzCd"><small>倒數</small><b></b></div>
-        <div class="pz-fl" id="pzFl"></div>
+        <div class="pz-fl" id="pzFl"></div><div class="pz-combo" id="pzCombo"></div>
       </div>
       <div class="pz-team">${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
           <span class="pz-face"><img src="${m.img}" alt="" onerror="this.remove()"><i>${PZ_EL[m.el].ch}</i></span>
           <span class="pz-sk"></span><small>${m.role === '兵器' ? m.name.replace('劍', '') : m.role}</small></button>`).join('')}</div>
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
       <div class="pz-timer"><i id="pzTm"></i></div>
-      <div class="pz-boardwrap"><canvas id="pzCv"></canvas><div class="pz-combo" id="pzCombo"></div><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.moveTime} 秒到就結算</div></div>
+      <div class="pz-boardwrap"><canvas id="pzCv"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.moveTime} 秒到就結算</div></div>
       <div class="pz-toast" id="pzToast"></div>
       <div class="pz-end hidden" id="pzEnd"></div>`;
     const $p = (s) => this.root.querySelector(s);
@@ -403,16 +403,20 @@ const Puzzle = {
       await U.wait(160);
     }
     const total = R.hits.reduce((s, h) => s + h.dmg, 0);
-    if (total) { await U.wait(250); this.totalDmg(total, R); this.hitBoss(total, '', 1, true); }
     if (R.heal) this.heal(R.heal);
-    await U.wait(total ? 900 : 250);
+    if (total) {
+      await U.wait(250); this.totalDmg(total, R); this.hitBoss(total, '', 1, true);
+      await U.wait(1350);                                  // 總傷害（滾動約 0.5 秒＋停留約 0.8 秒）播完才換相，兩者不重疊
+      if (this.phaseCheck()) { this.hud(); await U.wait(1300); }
+    }
+    await U.wait(250);
   },
   hitBoss(dmg, color, rel, quiet) {
     const B = this.boss; B.hp = Math.max(0, B.hp - dmg);
     if (!quiet) this.float((rel > 1 ? '剋 ' : rel < 1 ? '抗 ' : '') + U.fmt(dmg), rel > 1 ? '#ffe36a' : rel < 1 ? '#a8b4c0' : color, 'boss', rel > 1);
     const bx = this.root.querySelector('#pzBoss'); bx.classList.remove('hit'); void bx.offsetWidth; bx.classList.add('hit');
     this.sfx('pz_hit', { heavy: rel > 1 });
-    this.phaseCheck(); this.hud();
+    if (!quiet) this.phaseCheck(); this.hud();   // quiet＝連鎖總傷害：換相由 attack 等總傷害播完再處理
   },
   heal(n) {
     const real = Math.min(n, this.hpMax - this.hp); this.hp += real;
@@ -430,6 +434,7 @@ const Puzzle = {
     this.root.querySelector('#pzBoss').classList.toggle('warded', B.dr > 0);
     this.root.querySelector('#pzBoss').classList.toggle('enrage', np === P.length - 1);
     this.root.querySelector('.pz-top').style.backgroundImage = `url(${PZ_ART.bg[np] || PZ_ART.bg[0]})`;
+    return true;
   },
   async bossTurn() {
     const B = this.boss; B.cd--;
@@ -499,7 +504,7 @@ const Puzzle = {
     this.root.querySelector('.pz-top').appendChild(el);
     const b = el.firstChild, t0 = performance.now(), dur = 520;
     const step = (now) => { const k = Math.min(1, (now - t0) / dur); b.textContent = Math.round(total * (1 - Math.pow(1 - k, 3))).toLocaleString(); if (k < 1 && el.isConnected) requestAnimationFrame(step); };
-    requestAnimationFrame(step); setTimeout(() => el.remove(), 1700);
+    requestAnimationFrame(step); setTimeout(() => el.remove(), 1300);
   },
   float(txt, color, where, big) {
     const fl = this.root.querySelector('#pzFl'), el = document.createElement('span');
