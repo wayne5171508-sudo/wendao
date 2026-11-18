@@ -20,7 +20,9 @@ const PZ_ART = {
   // 消除特效：黑底圖，依消除珠子屬性選圖疊在盤面；沒填或載入失敗就用程式效果（珠子放大淡出）
   clear: { wood: 'assets/fx/pz_clr_wood.webp', fire: 'assets/fx/pz_clr_fire.webp', earth: 'assets/fx/pz_clr_earth.webp',
     metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: 'assets/fx/pz_clr_heart.webp' },
-  five: null,   // 5 連珠特效圖（屬性 → 黑底圖路徑，用 screen 疊加）；null＝程式光爆
+  // 5 連珠特效：黑底圖（四角純黑），screen 混色疊在半透明暗圈上（盤面是淺色紙，直接 screen 會看不見）；沒填或載入失敗就用程式光爆
+  five: { wood: 'assets/fx/pz_five_wood.webp', fire: 'assets/fx/pz_five_fire.webp', earth: 'assets/fx/pz_five_earth.webp',
+    metal: 'assets/fx/pz_five_metal.webp', water: 'assets/fx/pz_five_water.webp', heart: 'assets/fx/pz_five_heart.webp' },
   // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應效果種類（roster-cfg.js 效果庫的 t），技能放第一個有圖的效果
   fx: { nuke: 'assets/fx/pz_slash.webp', convert: 'assets/fx/pz_heal.webp', heal: 'assets/fx/pz_heal.webp', pierce: 'assets/fx/pz_break.webp', delay: 'assets/fx/pz_ice.webp' },
 };
@@ -247,8 +249,9 @@ const Puzzle = {
     PZ_COLORS.forEach((k) => (this.sprites[k] = this.orbSprite(k)));
   },
   loadArt() {
-    this.art = {}; this.clr = {};
+    this.art = {}; this.clr = {}; this.five = {};
     Object.entries(PZ_ART.clear).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.clr[k] = src); im.src = src; });
+    Object.entries(PZ_ART.five || {}).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.five[k] = src); im.src = src; });
     Object.entries(PZ_ART.orbs).forEach(([k, src]) => {
       if (!src) return;
       const im = new Image(); im.onload = () => { this.art[k] = im; this.sprites[k] = this.orbSprite(k); }; im.src = src;
@@ -666,14 +669,18 @@ const Puzzle = {
       wrap.appendChild(im);
     });
   },
-  // 5 連珠特效（程式暫代；之後換圖：PZ_ART.five 填屬性對應的黑底圖）：大範圍光爆＋往首領區的光柱＋螢幕閃光＋震動
+  // 5 連珠特效：屬性圖光爆（PZ_ART.five；沒圖就程式光爆）＋往首領區的光柱＋螢幕閃光＋震動
   fiveFx(G) {
     const cell = this.cell, E = PZ_EL[G.c], rb = this.root.getBoundingClientRect(), cb = this.cv.getBoundingClientRect();
     const cx = cb.left - rb.left + (G.cells.reduce((a, [, c]) => a + c, 0) / G.cells.length + 0.5) * cell;
     const cy = cb.top - rb.top + (G.cells.reduce((a, [r]) => a + r, 0) / G.cells.length + 0.5) * cell;
     const add = (cls, css) => { const d = document.createElement('div'); d.className = cls; d.style.cssText = `--c:${E.c};--d:${E.d};` + css; d.onanimationend = () => d.remove(); this.root.appendChild(d); return d; };
-    const src = (PZ_ART.five && PZ_ART.five[G.c]) || null, size = cell * 4.4;   // 一般消除每顆 1.5 格，這裡約 3 倍
-    add('pz-five', `left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;${src ? `background-image:url(${src})` : ''}`);
+    const src = this.five[G.c], size = cell * (src ? 5 : 4.4), pos = `left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;`;   // 一般消除每顆 1.5 格，這裡約 3 倍（圖的光爆約佔 85%）
+    if (src) {
+      add('pz-five-dim', pos);
+      const im = new Image(); im.className = 'pz-five-img'; im.alt = ''; im.src = src; im.style.cssText = pos;
+      im.onerror = im.onanimationend = () => im.remove(); this.root.appendChild(im);
+    } else add('pz-five', pos);
     add('pz-five-beam', `left:${cx}px;top:${PZ_LAYOUT.topMin * 0.35}px;height:${cy - PZ_LAYOUT.topMin * 0.35}px;width:${cell * 1.6}px`);
     if (G.c !== 'heart') add('pz-flash', '');
     this.root.classList.remove('pz-shake'); void this.root.offsetWidth; this.root.classList.add('pz-shake');
