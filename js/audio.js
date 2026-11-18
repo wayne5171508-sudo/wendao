@@ -10,7 +10,7 @@
 // ════════════════════════════════════════════
 
 const AUDIO_KEY = 'wendao_audio';
-const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', gacha: 'assets/audio/bgm_gacha.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3' };
+const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', gacha: 'assets/audio/bgm_gacha.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3', pz_battle: 'assets/audio/bgm_pz_battle.mp3' };
 // 短音效：assets/audio/sfx_<key>.mp3
 const SFX_SRC = { slash: 'slash', crit: 'crit', hurt: 'hurt', cast: 'cast', thunder: 'thunder', gather: 'gather', divine: 'divine', meditate: 'meditate',
   reveal_fan: 'reveal_fan', reveal_ling: 'reveal_ling', reveal_xuan: 'reveal_xuan', reveal_xian: 'reveal_xian', reveal_shen: 'reveal_shen' };
@@ -109,6 +109,7 @@ const Audio2 = {
   setMood(m) {
     this.mood = m;
     if (this.drone) this.retuneDrone();
+    if (typeof Puzzle !== 'undefined' && Puzzle.on) return;   // 轉珠開著時只記場景，關閉時再照 mood 切回
     this.bgm(MOOD_BGM[m] || 'home');
   },
   async bgm(key) {

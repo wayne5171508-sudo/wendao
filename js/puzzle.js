@@ -19,6 +19,9 @@ const PZ_ART = {
   orbs: { wood: 'assets/orb/wood.webp', fire: 'assets/orb/fire.webp', earth: 'assets/orb/earth.webp',
     metal: 'assets/orb/metal.webp', water: 'assets/orb/water.webp', heart: 'assets/orb/heart.webp' },
   // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應隊員 id，沒填的技能不放圖
+  // 消除特效：黑底圖，依消除珠子屬性選圖疊在盤面；沒填或載入失敗就用程式效果（珠子放大淡出）
+  clear: { wood: 'assets/fx/pz_clr_wood.webp', fire: 'assets/fx/pz_clr_fire.webp', earth: 'assets/fx/pz_clr_earth.webp',
+    metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: null },
   fx: { hero: 'assets/fx/pz_slash.webp', mate: 'assets/fx/pz_heal.webp', jinxia: 'assets/fx/pz_break.webp', zichen: 'assets/fx/pz_ice.webp' },
 };
 
@@ -90,6 +93,7 @@ const Puzzle = {
     if (!root) { root = document.createElement('div'); root.id = 'pz'; document.body.appendChild(root); }
     this.root = root;
     document.body.classList.add('pz-on');
+    if (typeof Audio2 !== 'undefined') Audio2.bgm('pz_battle');
     this.reset();
     this.build();
     this.layout();
@@ -101,6 +105,7 @@ const Puzzle = {
   close() {
     this.on = false; cancelAnimationFrame(this.raf); removeEventListener('resize', this._rs);
     this.root.remove(); document.body.classList.remove('pz-on');
+    if (typeof Audio2 !== 'undefined') Audio2.setMood(Audio2.mood);   // 切回目前場景的音樂
     if (typeof FX !== 'undefined') requestAnimationFrame(() => FX.resize());
   },
 
@@ -219,7 +224,8 @@ const Puzzle = {
     PZ_COLORS.forEach((k) => (this.sprites[k] = this.orbSprite(k)));
   },
   loadArt() {
-    this.art = {};
+    this.art = {}; this.clr = {};
+    Object.entries(PZ_ART.clear).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.clr[k] = src); im.src = src; });
     Object.entries(PZ_ART.orbs).forEach(([k, src]) => {
       if (!src) return;
       const im = new Image(); im.onload = () => { this.art[k] = im; this.sprites[k] = this.orbSprite(k); }; im.src = src;
@@ -265,7 +271,7 @@ const Puzzle = {
       const o = g[r][c]; if (!o || (this.held && o === this.held.o)) continue;
       if (o.y < -0.99) continue;
       let sc = 1, a = 1;
-      if (o.die) { const t = Math.min(1, o.die); sc = 1 + 0.35 * t; a = 1 - t; }
+      if (o.die) { if (this.clr[o.c]) continue; const t = Math.min(1, o.die); sc = 1 + 0.35 * t; a = 1 - t; }   // 有消除圖就由圖取代
       ctx.globalAlpha = a;
       const sz = cs * sc; ctx.drawImage(this.sprites[o.c], o.x * cs + (cs - sz) / 2, o.y * cs + (cs - sz) / 2, sz, sz);
     }
@@ -340,7 +346,7 @@ const Puzzle = {
       for (const G of gs) {
         G.cells.forEach(([r, c]) => (this.grid[r][c].die = 0.001));
         combos.push(G);
-        this.comboPop(combos.length, G);
+        this.comboPop(combos.length, G); this.clearFx(G);
         await U.wait(150);
       }
       await U.wait(200);
@@ -490,6 +496,15 @@ const Puzzle = {
   banner(a, b) {
     const el = document.createElement('div'); el.className = 'pz-banner'; el.innerHTML = `<b>${a}</b>${b ? `<span>${b}</span>` : ''}`;
     this.root.querySelector('.pz-top').appendChild(el); setTimeout(() => el.remove(), 1500);
+  },
+  clearFx(G) {
+    const src = this.clr[G.c]; if (!src) return;
+    const rs = G.cells.map(([r]) => r), cs = G.cells.map(([, c]) => c), cell = this.cell;
+    const size = cell * Math.max(2.4, (Math.max(Math.max(...rs) - Math.min(...rs), Math.max(...cs) - Math.min(...cs)) + 1) * 1.5);
+    const im = new Image(); im.className = 'pz-clr'; im.alt = ''; im.src = src;
+    im.style.cssText = `--m:url(${src});width:${size}px;height:${size}px;left:${this.cv.offsetLeft + (cs.reduce((a, b) => a + b) / cs.length + 0.5) * cell}px;top:${this.cv.offsetTop + (rs.reduce((a, b) => a + b) / rs.length + 0.5) * cell}px`;
+    im.onerror = im.onanimationend = () => im.remove();
+    this.root.querySelector('.pz-boardwrap').appendChild(im);
   },
   fx(id) {
     const src = PZ_ART.fx[id]; if (!src) return;
