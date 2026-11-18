@@ -103,9 +103,9 @@ const Puzzle = {
     this.team = pzTeam().map((m) => ({ ...m, cd: !m.sk ? 0 : PZ_CFG.skillStartHalf ? Math.ceil(m.sk.cd / 2) : m.sk.cd }));
     // 隊長技＋副隊長技＋同陣營加成（效果清單見 roster-cfg.js 效果庫）
     const C = Roster.calc(this.team);
-    this.mods = C.mods; this.leads = C.leads; this.facs = C.facs; this.base = { combo: C.combo, delay: C.delay, pierce: C.pierce };
+    this.mods = C.mods; this.leads = C.leads; this.facs = C.facs; this.base = { combo: C.combo, delay: C.delay, pierce: C.pierce, time: C.time, comboUp: C.comboUp }; this.dots = [];
     this.hpMax = C.hp; this.hp = this.hpMax; this.rcv = C.rcv;
-    this.buff = { pierce: false, combo: 0, atk: [] };
+    this.buff = this.newBuff();
     this.sid = (this.sid || 0) + 1;   // 每局一個編號：撤退或重試後，上一局還在跑的結算醒來發現編號變了就停
     this.turn = 0; this.maxCombo = 0; this.state = 'idle'; this.held = null; this.wave = 0; this.foes = []; this.tg = 0;
     this.grid = this.newBoard();
@@ -204,11 +204,11 @@ const Puzzle = {
         <div class="pz-fl" id="pzFl"></div><div class="pz-combo" id="pzCombo"></div>
       </div>
       <div class="pz-team">${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
-          <span class="pz-face">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.name.slice(-2)}</em><i>${PZ_EL[m.el].ch}</i></span>
-          <span class="pz-sk"></span><small>${m.pos === '隊員' ? m.name.slice(0, 4) : m.pos}</small></button>`).join('')}</div>
+          <span class="pz-face">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em><i>${PZ_EL[m.el].ch}</i></span>
+          <span class="pz-sk"></span><small>${m.pos === '隊員' ? m.short.slice(0, 4) : m.pos}</small></button>`).join('')}</div>
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
       <div class="pz-timer"><i id="pzTm"></i></div>
-      <div class="pz-boardwrap"><canvas id="pzCv"></canvas><canvas class="pz-lift" id="pzLift"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.moveTime} 秒到就結算</div></div>
+      <div class="pz-boardwrap"><canvas id="pzCv"></canvas><canvas class="pz-lift" id="pzLift"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.mt()} 秒到就結算</div></div>
       <div class="pz-toast" id="pzToast"></div>${this.dbg ? '<div class="pz-dbg" id="pzDbg"></div><i class="pz-dot" id="pzDot"></i>' : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-end hidden" id="pzEnd"></div>`;
@@ -291,8 +291,8 @@ const Puzzle = {
     }
     // 轉珠計時
     if (this.state === 'drag' && this.t0) {
-      const left = this.moveTime - (performance.now() - this.t0) / 1000;
-      this.root.querySelector('#pzTm').style.transform = `scaleX(${Math.max(0, left / this.moveTime)})`;
+      const left = this.mt() - (performance.now() - this.t0) / 1000;
+      this.root.querySelector('#pzTm').style.transform = `scaleX(${Math.max(0, left / this.mt())})`;
       if (left <= 0) this.finish();
     }
     if (this.dbg) this.dbgDraw();
@@ -431,9 +431,18 @@ const Puzzle = {
     if (this.hp <= 0) return this.lose();
     this.endTurn();
   },
+  newBuff() { return { pierce: false, combo: 0, atk: [], leech: 0, time: 0, comboUp: 0 }; },
+  // 這回合的轉珠秒數：基本＋隊長技＋主動技
+  mt() { return this.moveTime + this.base.time + this.buff.time; },
   endTurn() {
     this.team.forEach((m) => (m.cd = Math.max(0, m.cd - 1)));
-    this.buff = { pierce: false, combo: 0, atk: [] };
+    this.buff = this.newBuff();
+    // 損血代價（bleed）：回合結束扣，不會因此倒下
+    this.dots = this.dots.filter((d) => {
+      const n = Math.min(this.hp - 1, Math.round(this.hpMax * d.pct));
+      if (n > 0) { this.hp -= n; this.float('-' + U.fmt(n), '#c66', 'team'); }
+      return --d.n > 0;
+    });
     this.hud();
     this.state = 'idle';
   },
@@ -467,7 +476,7 @@ const Puzzle = {
   calc(combos) {
     const pow = {}, aoe = {};
     combos.forEach((G) => { const o = G.cells.length >= PZ_CFG.five.min && G.c !== 'heart' ? aoe : pow; o[G.c] = (o[G.c] || 0) + (1 + (G.cells.length - 3) * PZ_CFG.extraOrb) * this.fiveMult(G); });
-    const n = combos.length + this.buff.combo + this.base.combo, mult = 1 + (n - 1) * PZ_CFG.comboStep;
+    const n = combos.length + this.buff.combo + this.base.combo, mult = 1 + (n - 1) * (PZ_CFG.comboStep + this.base.comboUp + this.buff.comboUp);
     const hits = this.team.map((m, i) => { const k = m.atk * mult * this.leadMult(m); return pow[m.el] || aoe[m.el] ? { i, raw: k * (pow[m.el] || 0), aoe: k * (aoe[m.el] || 0) } : null; }).filter(Boolean);
     return { n, mult, hits, heal: pow.heart ? Math.round(this.rcv * pow.heart * mult) : 0, five: combos.some((G) => G.cells.length >= PZ_CFG.five.min) };
   },
@@ -499,6 +508,7 @@ const Puzzle = {
       await this.sleep(all ? 260 : 160);
     }
     if (R.heal) this.heal(R.heal);
+    if (total && this.buff.leech) { await this.sleep(200); this.heal(Math.round(total * this.buff.leech)); }
     if (total) {
       await this.sleep(250); this.totalDmg(total, R);
       await this.sleep(1350);                                  // 總傷害（滾動約 0.5 秒＋停留約 0.8 秒）播完才換相，兩者不重疊
@@ -585,20 +595,23 @@ const Puzzle = {
   effect(e, m) {
     const el = e.el === 'self' ? m.el : e.el, fac = e.fac === 'self' ? m.fac : e.fac;
     switch (e.t) {
-      case 'atk': this.buff.atk.push({ ...e, el, fac }); this.float(`${el ? PZ_EL[el].ch + '屬性' : fac ? PZ_FACS[fac].name : '全隊'}攻擊 ×${e.mult}`, '#ffd76a', 'mid'); break;
+      case 'atk': this.buff.atk.push({ ...e, el, fac }); this.float(`${el ? [].concat(el).map((x) => PZ_EL[x].ch).join('') + '屬性' : fac ? PZ_FACS[fac].name : '全隊'}攻擊 ×${e.mult}`, '#ffd76a', 'mid'); break;
       case 'heal': this.heal(Math.round(this.hpMax * (e.pct || 0.2))); break;
       case 'delay': this.alive().forEach((f) => (f.cd = Math.min(9, f.cd + (e.n || 1)))); this.float(`倒數 +${e.n || 1}`, '#9fd8ff', 'boss'); break;
-      case 'convert': { const to = e.to || m.el; this.grid.forEach((row) => row.forEach((o) => { if (o && o.c === (e.from || 'heart')) { o.c = to; o.die = 0; } })); break; }
+      case 'convert': { const to = e.to || m.el, from = [].concat(e.from || 'heart'); this.grid.forEach((row) => row.forEach((o) => { if (o && from.includes(o.c)) { o.c = to; o.die = 0; } })); break; }
+      case 'bleed': this.dots.push({ pct: e.pct || 0.05, n: e.n || 3 }); this.float(`${e.n || 3} 回合損血`, '#c66', 'mid'); break;
+      case 'leech': this.buff.leech += e.pct || 0.2; this.float('吸血', '#ff6a7a', 'mid'); break;
+      case 'time': this.buff.time += e.sec || 2; this.float(`轉珠 +${e.sec || 2} 秒`, '#9fd8ff', 'mid'); break;
+      case 'comboUp': this.buff.comboUp += e.add || 0.1; this.float('連擊加成', '#ffb08a', 'mid'); break;
       case 'pierce': this.buff.pierce = true; this.float('破防', '#f3e7b0', 'mid'); break;
       case 'combo': this.buff.combo += e.n || 1; this.float(`本回合 Combo +${e.n || 1}`, '#ffb08a', 'mid'); break;
       case 'nuke': {
-        const f = this.tgt(), nel = el || m.el; if (!f) break;
+        const f = this.tgt(), nel = (Array.isArray(el) ? el[0] : el) || m.el; if (!f) break;
         this.state = 'resolve';   // 傷害落地前不能轉珠，避免和結算重疊
         const sid = this.sid;
         setTimeout(async () => {
           if (!this.on || this.sid !== sid) return;
-          this.hitFoe(f, this.dmgTo(f, m.atk * (e.mult || 10) * this.leadMult(m), nel), pzRel(nel, f.el), PZ_EL[nel].c);
-          this.phaseCheck(f);
+          (e.all ? this.alive() : [f]).forEach((t) => { this.hitFoe(t, this.dmgTo(t, m.atk * (e.mult || 10) * this.leadMult(m), nel), pzRel(nel, t.el), PZ_EL[nel].c); this.phaseCheck(t); });
           if (this.alive().length) { this.state = 'idle'; this.hud(); return; }
           // 技能打倒整波：直接換下一波或通關（不算回合、敵方不出手）
           if (this.wave >= this.stage.waves.length - 1) return this.win();
@@ -698,7 +711,7 @@ const Puzzle = {
   help() {
     const L = this.leads.map((l) => `${l.pos}（${l.who}）「${l.name}」${l.desc}`).join('；') + (this.facs.length ? '；陣營加成：' + this.facs.map((f) => `${PZ_FACS[f.fac].name} ${f.n} 人，攻 ×${f.atk}、血 ×${f.hp}`).join('、') : '');
     this.endPanel(`<h3>轉珠說明</h3>
-      <p>按住任一顆珠子拖曳，經過的珠子會跟它換位（可斜走）。放開手指，或第一次換位後 ${this.moveTime} 秒到，就結算。</p>
+      <p>按住任一顆珠子拖曳，經過的珠子會跟它換位（可斜走）。放開手指，或第一次換位後 ${this.mt()} 秒到，就結算。</p>
       <p>橫或直 3 顆以上同色相連就消除，相連的同色算 1 個 Combo；消除後上方掉珠，可再連鎖。每多 1 Combo 傷害 +25%。</p>
       <p>每位隊員打自己顏色的珠。五行相剋：木剋土、土剋水、水剋火、火剋金、金剋木（剋 1.5 倍、被剋 0.5 倍）。心珠回血。</p>
       <p>敵人頭上數字是出手倒數；有多隻時點敵人可指定攻擊目標。點隊員頭像施放技能（冷卻歸零才能用，不會結束回合）。</p>
