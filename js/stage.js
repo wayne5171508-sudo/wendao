@@ -245,4 +245,14 @@ const Stage = {
   S.fresh = () => { const d = fresh0(); d.pz = Stage.fresh(); return d; };
   S.load = () => { const r = load0(); try { Stage.fix(S.d); } catch (e) { console.warn('[存檔] 關卡資料損毀，已重設', e); S.backupRaw(); S.d.pz = Stage.fresh(); } return r; };
   S.importText = (t) => { const r = imp0(t); if (r === true) { Stage.fix(S.d); S.save(); } return r; };
+  // 轉珠地圖或戰鬥開著時切 App 回來：「出關」彈窗會被蓋在轉珠畫面底下（看不到，關掉轉珠後才冒出來，按收下又跳回洞府）
+  // 收益照給，改用轉珠畫面自己的提示
+  if (typeof UI !== 'undefined') {
+    const om0 = UI.offlineModal.bind(UI);
+    UI.offlineModal = (o) => {
+      if (!document.body.classList.contains('pz-on')) return om0(o);
+      const msg = `閉關 ${U.dur(o.sec)}：修為 +${U.fmt(o.gain)}、靈石 +${U.fmt(o.stone)}`;
+      if (typeof Puzzle !== 'undefined' && Puzzle.on) Puzzle.toast(msg); else Stage.toast(msg);
+    };
+  }
 })();

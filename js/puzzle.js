@@ -727,7 +727,7 @@ const Puzzle = {
   // 撤退＝失敗（體力不退）
   retreat() {
     if (this.state === 'end') return this.close();
-    if (this.state !== 'idle') return;
+    if (this.state !== 'idle') { this.toast('結算中，這回合結束後才能撤退'); return; }
     this.endPanel('<h3>撤退</h3><p class="c">撤退視同失敗，進場體力不退還</p>', [['撤退', () => this.close()], ['繼續', () => this.endClose()]]);
   },
   result() { return { turns: this.turn, maxCombo: this.maxCombo, hpRatio: this.hp / this.hpMax }; },
