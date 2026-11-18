@@ -100,7 +100,7 @@ const PZ_CHARS = [
   { id: 'suningxue', name: '凌霜仙子·蘇凝雪',  el: 'water', role: 'ctrl', fac: 'sect',  rare: 'SSR', atk: 760, hp: 1550, rcv: 160, lead: 'sn_lead', sk: 'sn_sk', face: 'assets/char/suningxue_face.webp', art: 'assets/char/suningxue.webp' },
   // SR
   { id: 'luqingchuan', name: '七彩劍尊·陸清川', el: 'metal', role: 'ctrl', fac: 'sect',  rare: 'SR', atk: 660, hp: 1200, rcv: 90, lead: 'lq_lead', sk: 'lq_sk', face: 'assets/char/luqingchuan_face.webp', art: 'assets/char/luqingchuan.webp' },
-  { id: 'langye',      name: '噬魂·狼夜',      el: 'earth', role: 'dps',  fac: 'demon', rare: 'SR', atk: 760, hp: 1150, rcv: 50, lead: 'ly_lead', sk: 'ly_sk' },
+  { id: 'langye',      name: '噬魂·狼夜',      el: 'earth', role: 'dps',  fac: 'demon', rare: 'SR', atk: 760, hp: 1150, rcv: 50, lead: 'ly_lead', sk: 'ly_sk', face: 'assets/char/langye_face.webp', art: 'assets/char/langye.webp' },
   { id: 'suhongyu',    name: '赤蝶·蘇紅羽',    el: 'wood',  role: 'dps',  fac: 'rogue', rare: 'SR', atk: 720, hp: 1050, rcv: 80, lead: 'hy_lead', sk: 'hy_sk', face: 'assets/char/suhongyu_face.webp', art: 'assets/char/suhongyu.webp' },
   { id: 'tianjizi',    name: '天機子',         el: 'metal', role: 'sup',  fac: 'rogue', rare: 'SR', atk: 560, hp: 1150, rcv: 130, lead: 'tj_lead', sk: 'tj_sk', face: 'assets/char/tianjizi_face.webp', art: 'assets/char/tianjizi.webp' },
   // R
