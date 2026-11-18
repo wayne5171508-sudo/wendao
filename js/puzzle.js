@@ -41,6 +41,7 @@ const PZ_DRAG = {
   swapMs: 70,        // 被讓位的珠子滑到空位的時間（ease-out cubic，換位當下就開始）
   liftScale: 1.1,    // 拿起的珠子放大倍率
   liftOffset: 0.2,   // 拿起的珠子往上偏離手指幾格
+  edgeBuf: 0.3,      // 盤面上下各留幾格的透明緩衝：在緩衝區按下也能拿起最近一排的珠子
   outMax: 0.5,       // 手指在盤面外時，拿起的珠子最多超出盤面邊界幾格（換位判定一律夾在盤面內、取最近的格子）
   liftAlpha: 0.9,    // 拿起的珠子透明度
   ghostAlpha: 0.3,   // 原位虛影透明度
@@ -103,6 +104,7 @@ const Puzzle = {
     this.on = true;
     const t = +(new URLSearchParams(location.search).get('pzt'));
     this.moveTime = t >= 2 && t <= 30 ? t : PZ_CFG.moveTime;
+    this.dbg = /[?&]pzdebug(=|&|$)/.test(location.search);   // 拖曳除錯：盤面上方即時資訊＋手指紅點
     let root = document.getElementById('pz');
     if (!root) { root = document.createElement('div'); root.id = 'pz'; document.body.appendChild(root); }
     this.root = root;
@@ -206,7 +208,7 @@ const Puzzle = {
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
       <div class="pz-timer"><i id="pzTm"></i></div>
       <div class="pz-boardwrap"><canvas id="pzCv"></canvas><canvas class="pz-lift" id="pzLift"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.moveTime} 秒到就結算</div></div>
-      <div class="pz-toast" id="pzToast"></div>
+      <div class="pz-toast" id="pzToast"></div>${this.dbg ? '<div class="pz-dbg" id="pzDbg"></div><i class="pz-dot" id="pzDot"></i>' : ''}
       <div class="pz-end hidden" id="pzEnd"></div>`;
     const $p = (s) => this.root.querySelector(s);
     ['board', 'card', 'paper'].forEach((k) => this.root.style.setProperty('--pz-' + k, PZ_ART[k] ? `url(${PZ_ART[k]})` : 'none'));
@@ -216,7 +218,10 @@ const Puzzle = {
     this.root.querySelectorAll('.pz-mem').forEach((b) => (b.onclick = () => this.skill(+b.dataset.m)));
     // 觸控：pointer capture＋touch-action:none，擋掉 iOS 下拉重整、捲動、長按選取
     const cv = this.cv;
-    cv.addEventListener('pointerdown', (e) => this.down(e));
+    // 在整個盤面區塊（含外框與上下緩衝）按下都能起拖，夾到最近的格子
+    const wrap = this.root.querySelector('.pz-boardwrap');
+    wrap.addEventListener('pointerdown', (e) => this.down(e));
+    if (this.dbg) { cv.addEventListener('pointerleave', (e) => this.dbgEv(e)); wrap.addEventListener('pointerleave', (e) => this.dbgEv(e)); }
     // move／up 掛在 window：capture 沒設成功或手指出了盤面、出了視窗，仍收得到；被系統打斷（cancel、切 App、失焦）一律收尾
     const end = () => this.finish();
     this._win = [['pointermove', (e) => this.move(e)], ['pointerup', (e) => this.up(e)], ['pointercancel', (e) => this.up(e)],
@@ -233,11 +238,12 @@ const Puzzle = {
     const { cols, rows } = PZ_CFG, W = Math.min(innerWidth - 32, 460);   // 左右各留 10px 給盤面底板框
     // 可用高度＝視窗高 − 隊伍列、血條、計時條 − 上方首領區至少 110px
     const q = (s) => this.root.querySelector(s), used = q('.pz-team').offsetHeight + q('.pz-hp.team').offsetHeight + q('.pz-timer').offsetHeight + 44;
-    const cell = Math.floor(Math.max(28, Math.min(W / cols, (innerHeight * 0.5) / rows, (innerHeight - used - 110) / rows)));
+    const cell = Math.floor(Math.max(28, Math.min(W / cols, (innerHeight * 0.5) / rows, (innerHeight - used - 110) / (rows + 2 * PZ_DRAG.edgeBuf))));
     this.cell = cell; this.dpr = Math.min(2.5, devicePixelRatio || 1);
     this.cv.style.width = cols * cell + 'px'; this.cv.style.height = rows * cell + 'px';
     this.cv.width = Math.round(cols * cell * this.dpr); this.cv.height = Math.round(rows * cell * this.dpr);
     this.root.style.setProperty('--board', cols * cell + 'px');
+    this.root.style.setProperty('--pzbuf', Math.round(cell * PZ_DRAG.edgeBuf) + 'px');
     this.sprites = {};
     PZ_COLORS.forEach((k) => (this.sprites[k] = this.orbSprite(k)));
   },
@@ -287,6 +293,7 @@ const Puzzle = {
       this.root.querySelector('#pzTm').style.transform = `scaleX(${Math.max(0, left / this.moveTime)})`;
       if (left <= 0) this.finish();
     }
+    if (this.dbg) this.dbgDraw();
     // 繪製
     ctx.clearRect(0, 0, this.cv.width, this.cv.height);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { ctx.fillStyle = PZ_ART.board ? ((r + c) % 2 ? 'rgba(120,82,44,.16)' : 'rgba(255,248,228,.28)') : (r + c) % 2 ? 'rgba(20,14,10,.62)' : 'rgba(46,34,24,.62)'; ctx.fillRect(c * cs, r * cs, cs, cs); }
@@ -312,8 +319,9 @@ const Puzzle = {
   pt(e) { const b = this.cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; },
   down(e) {
     if (this.state !== 'idle') return;
-    const p = this.pt(e), c = Math.floor(p.x / this.cell), r = Math.floor(p.y / this.cell);
-    if (c < 0 || r < 0 || c >= PZ_CFG.cols || r >= PZ_CFG.rows || !this.grid[r][c]) return;
+    this.dbgEv(e);
+    const p = this.pt(e), c = U.clamp(Math.floor(p.x / this.cell), 0, PZ_CFG.cols - 1), r = U.clamp(Math.floor(p.y / this.cell), 0, PZ_CFG.rows - 1);
+    if (!this.grid[r][c]) return;
     e.preventDefault();
     try { this.cv.setPointerCapture(e.pointerId); } catch (er) {}
     this.pid = e.pointerId; this.state = 'drag'; this.t0 = 0; this.moved = false;
@@ -329,6 +337,7 @@ const Puzzle = {
     this.sfx('pz_pick');
   },
   move(e) {
+    this.dbgEv(e);
     if (this.state !== 'drag' || e.pointerId !== this.pid) return;
     e.preventDefault();
     // 一次 move 事件可能有多個取樣點（手指快速滑動），逐點處理才不會跳格
@@ -353,6 +362,7 @@ const Puzzle = {
     // 一次跨好幾格時沿路逐格換（含斜向）
     while (h.c !== c || h.r !== r) {
       const nc = h.c + Math.sign(c - h.c), nr = h.r + Math.sign(r - h.r), g = this.grid;
+      this.lastSwap = { t: performance.now(), dir: '↖↑↗←·→↙↓↘'[(nr - h.r + 1) * 3 + (nc - h.c + 1)], to: [nr, nc] };
       const other = g[nr][nc]; g[nr][nc] = h.o; g[h.r][h.c] = other;
       if (other) other.tw = { x: other.x, y: other.y, t: performance.now() };   // 手指一經過就滑到空位
       h.o.x = nc; h.o.y = nr; h.c = nc; h.r = nr;
@@ -361,8 +371,23 @@ const Puzzle = {
     }
   },
   up(e) {
+    if (e) this.dbgEv(e);
     if (this.state !== 'drag' || (e && e.pointerId !== this.pid)) return;
     this.finish();
+  },
+  dbgEv(e) {
+    if (!this.dbg) return;
+    this.dbgE = { type: e.type.replace('pointer', ''), x: e.clientX, y: e.clientY };
+    this.root.querySelector('#pzDot').style.transform = `translate(${e.clientX - 4}px, ${e.clientY - 4}px)`;
+  },
+  dbgDraw() {
+    const E = this.dbgE; if (!E) return;
+    const b = this.cv.getBoundingClientRect(), cell = this.cell, { cols, rows } = PZ_CFG, x = E.x - b.left, y = E.y - b.top;
+    const cx = U.clamp(x, 0, cols * cell - 1), cy = U.clamp(y, 0, rows * cell - 1), h = this.held, s = this.lastSwap;
+    const out = x < 0 || y < 0 || x >= cols * cell || y >= rows * cell;
+    this.root.querySelector('#pzDbg').textContent =
+      `原始(${Math.round(x)},${Math.round(y)}) 夾界(${Math.round(cx)},${Math.round(cy)}) 判定[${Math.floor(cy / cell)},${Math.floor(cx / cell)}] ${out ? '盤外' : '盤內'} ` +
+      `拿起${h ? `[${h.r},${h.c}]` : '—'} 換位${s ? `${Math.round(performance.now() - s.t)}ms前${s.dir}[${s.to}]` : '—'} 事件:${E.type} ${this.state}`;
   },
   dropLift() { if (this.lift) this.lift.classList.remove('on'); this.root.classList.remove('pz-dragging'); },
   // 收尾：拿起的珠子已在 grid 目前所在格，清掉 held 就落回原位；有換過位就結算
