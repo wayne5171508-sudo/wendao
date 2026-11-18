@@ -32,8 +32,17 @@ const PZ_CFG = {
   comboStep: 0.25,      // 每多 1 Combo 傷害 +25%
   extraOrb: 0.25,       // 一組超過 3 顆，每多 1 顆 +25%
   beat: 1.5, beaten: 0.5,
-  swapMs: 100,          // 拖曳時被擠開的珠子滑到空位的時間（ease-out，與幀率無關）
   comboGap: 450,        // 每個 Combo 消除之間的停頓（毫秒）
+};
+// ───────── 拖曳手感（之後只改這裡）─────────
+const PZ_DRAG = {
+  enter: 0.1,        // 換位門檻：手指越過格線、進入新格子多深（格寬比例）就換；各軸分開算，0＝碰到格線就換（易在格線上來回抖）
+  subStep: 0.25,     // 快速拖曳時兩個取樣點之間每隔幾格補一個判定點，確保沿路逐格換、不跳格
+  swapMs: 70,        // 被讓位的珠子滑到空位的時間（ease-out cubic，換位當下就開始）
+  liftScale: 1.1,    // 拿起的珠子放大倍率
+  liftOffset: 0.2,   // 拿起的珠子往上偏離手指幾格（頂列會自動收回不出盤面）
+  liftAlpha: 0.9,    // 拿起的珠子透明度
+  ghostAlpha: 0.3,   // 原位虛影透明度
 };
 const PZ_EL = {
   wood:  { ch: '木', c: '#58d07a', d: '#17602f' },
@@ -261,7 +270,7 @@ const Puzzle = {
       const o = g[r][c]; if (!o) continue;
       if (o.die) { o.die += dt / 0.22; continue; }
       if (o.tw) {
-        const k = Math.min(1, (performance.now() - o.tw.t) / PZ_CFG.swapMs), e = 1 - Math.pow(1 - k, 3);
+        const k = Math.min(1, (performance.now() - o.tw.t) / PZ_DRAG.swapMs), e = 1 - Math.pow(1 - k, 3);
         o.x = o.tw.x + (c - o.tw.x) * e; o.y = o.tw.y + (r - o.tw.y) * e; if (k >= 1) o.tw = null;
         continue;
       }
@@ -292,10 +301,10 @@ const Puzzle = {
     if (this.held) {
       const h = this.held, d = this.dpr;
       // 原位留淡影，手上的珠子跟著手指並放大
-      ctx.globalAlpha = 0.3; ctx.drawImage(this.sprites[h.o.c], h.c * cs, h.r * cs, cs, cs);
+      ctx.globalAlpha = PZ_DRAG.ghostAlpha; ctx.drawImage(this.sprites[h.o.c], h.c * cs, h.r * cs, cs, cs);
       // 浮起的珠子：1.15 倍、半透明、帶陰影，往上偏半格避免被手指擋住（頂列不超出盤面）
-      const sz = cs * 1.15, ox = h.px * d, oy = Math.max(sz / 2, h.py * d - cs * 0.5);
-      ctx.save(); ctx.globalAlpha = 0.85; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = cs * 0.22; ctx.shadowOffsetY = cs * 0.1;
+      const sz = cs * PZ_DRAG.liftScale, ox = h.px * d, oy = Math.max(sz / 2, h.py * d - cs * PZ_DRAG.liftOffset);
+      ctx.save(); ctx.globalAlpha = PZ_DRAG.liftAlpha; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = cs * 0.22; ctx.shadowOffsetY = cs * 0.1;
       ctx.drawImage(this.sprites[h.o.c], ox - sz / 2, oy - sz / 2, sz, sz); ctx.restore();
       ctx.globalAlpha = 1;
     }
@@ -310,7 +319,7 @@ const Puzzle = {
     e.preventDefault();
     try { this.cv.setPointerCapture(e.pointerId); } catch (er) {}
     this.pid = e.pointerId; this.state = 'drag'; this.t0 = 0; this.moved = false;
-    this.held = { r, c, o: this.grid[r][c], px: p.x, py: p.y };
+    this.held = { r, c, o: this.grid[r][c], px: p.x, py: p.y }; this.lastPt = p;
     if (typeof Audio2 !== 'undefined') Audio2.unlock();
     this.sfx('pz_pick');
   },
@@ -319,16 +328,20 @@ const Puzzle = {
     e.preventDefault();
     // 一次 move 事件可能有多個取樣點（手指快速滑動），逐點處理才不會跳格
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
-    (evs.length ? evs : [e]).forEach((ev) => this.track(this.pt(ev)));
+    // 相鄰取樣點距離太遠（手指甩很快）時，沿線段每 subStep 格補判定點
+    (evs.length ? evs : [e]).forEach((ev) => {
+      const p = this.pt(ev), L = this.lastPt || p, n = Math.max(1, Math.ceil(Math.hypot(p.x - L.x, p.y - L.y) / (this.cell * PZ_DRAG.subStep)));
+      for (let i = 1; i <= n; i++) this.track({ x: L.x + ((p.x - L.x) * i) / n, y: L.y + ((p.y - L.y) * i) / n });
+      this.lastPt = p;
+    });
   },
   track(p) {
     const h = this.held, { cols, rows } = PZ_CFG, cell = this.cell;
     h.px = U.clamp(p.x, 0, cols * cell - 1); h.py = U.clamp(p.y, 0, rows * cell - 1);
-    const c = Math.floor(h.px / cell), r = Math.floor(h.py / cell);
+    // 各軸分開判定：越過格線並進入新格 enter 深度才算換到那一軸；另一軸貼著格線不影響。兩軸都過＝斜換
+    const ax = (v, cur) => { const k = Math.floor(v); return k > cur ? (v - k >= PZ_DRAG.enter ? k : k - 1) : k < cur ? (k + 1 - v >= PZ_DRAG.enter ? k : k + 1) : k; };
+    const c = ax(h.px / cell, h.c), r = ax(h.py / cell, h.r);
     if (c === h.c && r === h.r) return;
-    // 進入新格的內圈（中間 76%）才換位，避免在格線上抖動來回換
-    const fx = h.px / cell - c, fy = h.py / cell - r, m = 0.12;
-    if (fx < m || fx > 1 - m || fy < m || fy > 1 - m) return;
     // 一次跨好幾格時沿路逐格換（含斜向）
     while (h.c !== c || h.r !== r) {
       const nc = h.c + Math.sign(c - h.c), nr = h.r + Math.sign(r - h.r), g = this.grid;
