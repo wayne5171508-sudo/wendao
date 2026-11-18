@@ -10,10 +10,16 @@
 // 之後換日系手繪風時只改這裡：填上路徑就用圖，null 或載入失敗就用程式畫的色塊珠／漸層背景
 // 珠子圖建議正方形透明底（例 160×160），會縮放到格子大小
 const PZ_ART = {
-  bg: 'assets/bg/realm.webp',          // 上半部戰鬥背景（之後換直式構圖）
-  bgPos: '50% 55%',
-  boss: 'assets/mon/yaojiang.webp',    // 首領立繪
-  orbs: { wood: null, fire: null, earth: null, metal: null, water: null, heart: null },   // 例：'assets/orb/wood.webp'
+  bg: ['assets/bg/pz_day.webp', 'assets/bg/pz_dusk.webp', 'assets/bg/pz_night.webp'],   // 上半部戰鬥背景，依首領第一／二／三相換晨、昏、夜
+  bgPos: '50% 40%',
+  boss: 'assets/mon/xuejia.webp',      // 首領立繪（透明底）
+  board: 'assets/pz/board.webp',       // 盤面底板（奶油紙棕框），null＝不貼
+  card: 'assets/pz/card.webp',         // 隊員卡框（透明底）
+  paper: 'assets/pz/paper.webp',       // 下半部紙紋（壓暗疊在底色上）
+  orbs: { wood: 'assets/orb/wood.webp', fire: 'assets/orb/fire.webp', earth: 'assets/orb/earth.webp',
+    metal: 'assets/orb/metal.webp', water: 'assets/orb/water.webp', heart: 'assets/orb/heart.webp' },
+  // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應隊員 id，沒填的技能不放圖
+  fx: { hero: 'assets/fx/pz_slash.webp', mate: 'assets/fx/pz_heal.webp', jinxia: 'assets/fx/pz_break.webp', zichen: 'assets/fx/pz_ice.webp' },
 };
 
 // ───────── 規則數值 ─────────
@@ -162,7 +168,7 @@ const Puzzle = {
   build() {
     const T = this.team, B = this.boss;
     this.root.innerHTML = `
-      <div class="pz-top" style="background-image:url(${PZ_ART.bg});background-position:${PZ_ART.bgPos}">
+      <div class="pz-top" style="background-image:url(${PZ_ART.bg[0]});background-position:${PZ_ART.bgPos}">
         <div class="pz-bar"><button class="pz-btn" id="pzExit">撤</button><span>轉珠試煉・原型</span><button class="pz-btn" id="pzHelp">？</button></div>
         <div class="pz-bhud">
           <div class="pz-bname"><b>${PZ_BOSS.name}</b><em id="pzPh"></em><i class="pz-el" id="pzBEl"></i></div>
@@ -182,6 +188,7 @@ const Puzzle = {
       <div class="pz-toast" id="pzToast"></div>
       <div class="pz-end hidden" id="pzEnd"></div>`;
     const $p = (s) => this.root.querySelector(s);
+    ['board', 'card', 'paper'].forEach((k) => this.root.style.setProperty('--pz-' + k, PZ_ART[k] ? `url(${PZ_ART[k]})` : 'none'));
     this.cv = $p('#pzCv'); this.ctx = this.cv.getContext('2d');
     $p('#pzExit').onclick = () => this.close();
     $p('#pzHelp').onclick = () => this.help();
@@ -200,9 +207,9 @@ const Puzzle = {
   },
   // 盤面大小：寬度貼齊螢幕（最多 480），高度不超過可用高度的一半
   layout() {
-    const { cols, rows } = PZ_CFG, W = Math.min(innerWidth - 12, 480);
+    const { cols, rows } = PZ_CFG, W = Math.min(innerWidth - 32, 460);   // 左右各留 10px 給盤面底板框
     // 可用高度＝視窗高 − 隊伍列、血條、計時條 − 上方首領區至少 110px
-    const q = (s) => this.root.querySelector(s), used = q('.pz-team').offsetHeight + q('.pz-hp.team').offsetHeight + q('.pz-timer').offsetHeight + 24;
+    const q = (s) => this.root.querySelector(s), used = q('.pz-team').offsetHeight + q('.pz-hp.team').offsetHeight + q('.pz-timer').offsetHeight + 44;
     const cell = Math.floor(Math.max(28, Math.min(W / cols, (innerHeight * 0.5) / rows, (innerHeight - used - 110) / rows)));
     this.cell = cell; this.dpr = Math.min(2.5, devicePixelRatio || 1);
     this.cv.style.width = cols * cell + 'px'; this.cv.style.height = rows * cell + 'px';
@@ -253,7 +260,7 @@ const Puzzle = {
     }
     // 繪製
     ctx.clearRect(0, 0, this.cv.width, this.cv.height);
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { ctx.fillStyle = (r + c) % 2 ? 'rgba(20,14,10,.62)' : 'rgba(46,34,24,.62)'; ctx.fillRect(c * cs, r * cs, cs, cs); }
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { ctx.fillStyle = PZ_ART.board ? ((r + c) % 2 ? 'rgba(120,82,44,.16)' : 'rgba(255,248,228,.28)') : (r + c) % 2 ? 'rgba(20,14,10,.62)' : 'rgba(46,34,24,.62)'; ctx.fillRect(c * cs, r * cs, cs, cs); }
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const o = g[r][c]; if (!o || (this.held && o === this.held.o)) continue;
       if (o.y < -0.99) continue;
@@ -409,6 +416,7 @@ const Puzzle = {
     if (typeof Audio2 !== 'undefined') Audio2.play('roar');
     this.root.querySelector('#pzBoss').classList.toggle('warded', B.dr > 0);
     this.root.querySelector('#pzBoss').classList.toggle('enrage', np === P.length - 1);
+    this.root.querySelector('.pz-top').style.backgroundImage = `url(${PZ_ART.bg[np] || PZ_ART.bg[0]})`;
   },
   async bossTurn() {
     const B = this.boss; B.cd--;
@@ -439,6 +447,7 @@ const Puzzle = {
     m.cd = m.sk.cd;
     this.banner(m.sk.name, m.name);
     if (typeof Audio2 !== 'undefined') Audio2.play('cast');
+    this.fx(m.id);
     if (m.id === 'hero') {
       const rel = pzRel(m.el, B.el), dmg = Math.round(Math.max(1, (m.atk * 12 * rel - B.def) * (1 - B.dr)));
       setTimeout(() => { this.hitBoss(dmg, PZ_EL[m.el].c, rel); if (B.hp <= 0) { this.state = 'resolve'; setTimeout(() => this.win(), 600); } }, 350);
@@ -482,6 +491,12 @@ const Puzzle = {
     const el = document.createElement('div'); el.className = 'pz-banner'; el.innerHTML = `<b>${a}</b>${b ? `<span>${b}</span>` : ''}`;
     this.root.querySelector('.pz-top').appendChild(el); setTimeout(() => el.remove(), 1500);
   },
+  fx(id) {
+    const src = PZ_ART.fx[id]; if (!src) return;
+    const im = new Image(); im.className = `pz-fx fx-${id}`; im.alt = ''; im.src = src;
+    im.onerror = im.onanimationend = () => im.remove();
+    this.root.querySelector('.pz-top').appendChild(im);   // 不放 #pzFl：它有 z-index，screen 混色會只混到透明底而露出黑框
+  },
   toast(msg) {
     const t = this.root.querySelector('#pzToast'); t.textContent = msg; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
     clearTimeout(this._tt); this._tt = setTimeout(() => t.classList.remove('show'), 2600);
@@ -510,7 +525,7 @@ const Puzzle = {
     this.state = 'end';
     this.endPanel(`<h3>道消身殞</h3><p class="c">撐了 ${this.turn} 回合・首領剩 ${Math.round((100 * this.boss.hp) / this.boss.max)}%</p>`, [['再戰', () => this.restart()], ['離開', () => this.close()]]);
   },
-  restart() { this.reset(); const fl = this.root.querySelector('#pzFl'); this.root.querySelector('#pzBoss').className = 'pz-boss'; fl.innerHTML = ''; this.endClose(); this.hud(); },
+  restart() { this.reset(); this.root.querySelector('.pz-top').style.backgroundImage = `url(${PZ_ART.bg[0]})`; const fl = this.root.querySelector('#pzFl'); this.root.querySelector('#pzBoss').className = 'pz-boss'; fl.innerHTML = ''; this.endClose(); this.hud(); },
 
   // 合成短音（Audio2 的音訊環境與音效音量）
   tone(f, vol, dur, type = 'sine') {
@@ -533,7 +548,7 @@ if (typeof DEV !== 'undefined' && DEV) {
     if (!t) return;
     const b = document.createElement('button');
     b.className = 'region'; b.id = 'pzEntry';
-    b.style.cssText = `background-image:url(${PZ_ART.bg});background-position:${PZ_ART.bgPos}`;
+    b.style.cssText = `background-image:url(${PZ_ART.bg[0]});background-position:${PZ_ART.bgPos}`;
     b.innerHTML = '<h4>轉珠試煉</h4><p>原型・血甲妖將</p><span class="prog">測試・不寫存檔</span>';
     b.onclick = () => Puzzle.open();
     t.after(b);
