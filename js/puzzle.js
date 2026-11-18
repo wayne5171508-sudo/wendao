@@ -117,6 +117,7 @@ const Puzzle = {
     this.hpMax = Math.round(this.team.reduce((a, m) => a + m.hp, 0) * mul('hp')); this.hp = this.hpMax;
     this.rcv = Math.round(this.team.reduce((a, m) => a + m.rcv, 0) * mul('rcv'));
     this.buff = { pierce: false, combo: 0 };
+    this.sid = (this.sid || 0) + 1;   // 每局一個編號：撤退或重試後，上一局還在跑的結算醒來發現編號變了就停
     this.turn = 0; this.maxCombo = 0; this.state = 'idle'; this.held = null; this.wave = 0; this.foes = []; this.tg = 0;
     this.grid = this.newBoard();
   },
@@ -411,24 +412,26 @@ const Puzzle = {
   },
 
   // ───────── 結算：消除、連鎖、傷害、敵方回合、換波 ─────────
-  async resolve() {
-    this.state = 'resolve';
+  // 結算中的等待：醒來時已關閉或換了一局（重試、撤退再開）就丟出 PZ_STALE 中止，舊結算不會動到新的一局
+  async sleep(ms) { const sid = this.sid; await U.wait(ms); if (!this.on || this.sid !== sid) throw 'PZ_STALE'; },
+  async settle() { const sid = this.sid; await this.waitSettle(); if (!this.on || this.sid !== sid) throw 'PZ_STALE'; },
+  resolve() { this.state = 'resolve'; return this.resolveTurn().catch((e) => { if (e !== 'PZ_STALE') throw e; }); },
+  async resolveTurn() {
     const combos = [];
     for (let wave = 0; wave < 30; wave++) {
-      await this.waitSettle();
+      await this.settle();
       const gs = this.groups();
       if (!gs.length) break;
       for (const G of gs) {
         G.cells.forEach(([r, c]) => (this.grid[r][c].die = 0.001));
         combos.push(G);
         this.comboPop(combos.length, G); this.clearFx(G);
-        await U.wait(PZ_CFG.comboGap);
+        await this.sleep(PZ_CFG.comboGap);
       }
       gs.forEach((G) => G.cells.forEach(([r, c]) => (this.grid[r][c] = null)));
       this.drop();
     }
-    await this.waitSettle();
-    if (!this.on) return;
+    await this.settle();
     this.turn++;
     if (combos.length) await this.attack(combos);
     if (await this.waveCheck()) return;
@@ -446,10 +449,9 @@ const Puzzle = {
   async waveCheck() {
     if (this.alive().length) return false;
     if (this.wave >= this.stage.waves.length - 1) { this.win(); return true; }
-    await U.wait(500);
-    if (!this.on) return true;
+    await this.sleep(500);
     this.spawn(this.wave + 1);
-    await U.wait(900);
+    await this.sleep(900);
     this.endTurn();
     return true;
   },
@@ -490,15 +492,15 @@ const Puzzle = {
       b.appendChild(el); setTimeout(() => el.remove(), 1600);
       this.hitFoe(f, dmg, rel, PZ_EL[m.el].c);
       total += dmg;
-      await U.wait(160);
+      await this.sleep(160);
     }
     if (R.heal) this.heal(R.heal);
     if (total) {
-      await U.wait(250); this.totalDmg(total, R);
-      await U.wait(1350);                                  // 總傷害（滾動約 0.5 秒＋停留約 0.8 秒）播完才換相，兩者不重疊
-      for (const f of this.alive()) if (this.phaseCheck(f)) { this.hud(); await U.wait(1300); }
+      await this.sleep(250); this.totalDmg(total, R);
+      await this.sleep(1350);                                  // 總傷害（滾動約 0.5 秒＋停留約 0.8 秒）播完才換相，兩者不重疊
+      for (const f of this.alive()) if (this.phaseCheck(f)) { this.hud(); await this.sleep(1300); }
     }
-    await U.wait(250);
+    await this.sleep(250);
   },
   // 單隻受傷：數字飄在那隻頭上；倒下就淡出
   hitFoe(f, dmg, rel, color) {
@@ -542,15 +544,15 @@ const Puzzle = {
     this.alive().forEach((f) => f.cd--);
     this.hud();
     const act = this.alive().filter((f) => f.cd <= 0);
-    if (!act.length) { await U.wait(150); return; }
-    await U.wait(250);
+    if (!act.length) { await this.sleep(150); return; }
+    await this.sleep(250);
     for (const f of act) {
       if (this.hp <= 0) break;
       f.hits++;
       const H = f.M.heavy, heavy = !!H && f.hits % H.every === 0, hm = heavy ? (f.ph && f.ph.heavyMult) || H.mult : 1;
       const dmg = Math.round(f.atk * hm * U.rand(0.92, 1.08));
       const el = this.foeEl(f); if (el) { el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); }
-      await U.wait(220);
+      await this.sleep(220);
       this.hp = Math.max(0, this.hp - dmg);
       this.float((heavy ? H.name + ' ' : '-') + U.fmt(dmg), '#ff6a6a', 'team', heavy);
       this.root.classList.remove('hurt'); void this.root.offsetWidth; this.root.classList.add('hurt');
@@ -559,7 +561,7 @@ const Puzzle = {
       if (f.leech) { const lh = Math.round(dmg * f.leech); f.hp = Math.min(f.max, f.hp + lh); this.float('吸血 +' + U.fmt(lh), '#ff6a7a', 'boss'); }
       f.cd = this.foeCd(f);
       this.hud();
-      await U.wait(act.length > 1 ? 380 : 450);
+      await this.sleep(act.length > 1 ? 380 : 450);
     }
   },
 
@@ -576,14 +578,15 @@ const Puzzle = {
       const f = this.tgt(), lead = this.team[0];
       if (f) {
         this.state = 'resolve';   // 傷害落地前不能轉珠，避免和結算重疊
+        const sid = this.sid;
         setTimeout(async () => {
-          if (!this.on) return;
+          if (!this.on || this.sid !== sid) return;
           const rel = pzRel(lead.el, f.el); this.hitFoe(f, this.dmgTo(f, m.atk * (sk.mult || 10), lead.el), rel, PZ_EL[lead.el].c);
           this.phaseCheck(f);
           if (this.alive().length) { this.state = 'idle'; this.hud(); return; }
           // 技能打倒整波：直接換下一波或通關（不算回合、敵方不出手）
           if (this.wave >= this.stage.waves.length - 1) return this.win();
-          await U.wait(500); if (!this.on) return;
+          await U.wait(500); if (!this.on || this.sid !== sid) return;
           this.spawn(this.wave + 1); this.state = 'idle'; this.hud();
         }, 350);
       }
