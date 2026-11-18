@@ -74,6 +74,8 @@ const Cloud = {
     // 雲端存檔：本機沒進度就直接用雲端；兩邊都有、且雲端不是本機上次同步的那份（別台裝置或新手機）時一律讓玩家選
     const cs = await this.A.get(`saves/${u.uid}`);
     let cd = null; if (cs && cs.data) try { cd = JSON.parse(cs.data); } catch (e) { console.warn('[雲端] 雲端存檔損毀，略過'); }
+    let ptUid = null; try { ptUid = localStorage.getItem(WIPE_KEY + '_pt'); } catch (e) {}
+    if (ptUid) this.unbondPartner({ uid: ptUid });   // 上次重修時沒通知到道侶：補送解除
     const wipeAt = this.wipeAt();
     if (cd && cd.root && (!S.d || !S.d.root) && wipeAt && (cs.at || 0) < wipeAt) {
       // 本機重新修行過，但雲端還留著重修前的存檔（重修時沒登入或還沒連上雲端）：不自動抓回，先問玩家
@@ -159,9 +161,20 @@ const Cloud = {
     this.wiping = true; clearTimeout(this.saveT); this.saveT = 0;   // 刪除期間不上傳，免得把存檔又寫回去
     try {
       await Promise.race([this.A.remove(`saves/${uid}`), U.wait(10000).then(() => { throw new Error('timeout'); })]);
+      await this.unbondPartner();
       return true;
     } catch (e) { console.warn('[雲端] 雲端存檔刪除失敗', e); return '雲端存檔刪除失敗'; }
     finally { this.wiping = false; }
+  },
+  // 重修時通知道侶解除締結（對方收到 unbond 會清掉自己存檔裡的道侶）。送不出去不擋重修，記下來下次登入再送
+  async unbondPartner(pt) {
+    const P = pt || (S.d && S.d.dao && S.d.dao.partner); if (!P || !P.uid) return true;
+    if (!this.user) { try { localStorage.setItem(WIPE_KEY + '_pt', P.uid); } catch (e) {} return false; }
+    try {
+      await Promise.race([this.A.push(`inbox/${P.uid}`, { type: 'unbond', from: this.user.uid, fromName: HERO_NAME, at: Date.now() }), U.wait(5000).then(() => { throw new Error('timeout'); })]);
+      try { localStorage.removeItem(WIPE_KEY + '_pt'); } catch (e) {}
+      return true;
+    } catch (e) { console.warn('[雲端] 解除道侶通知送出失敗', e); try { localStorage.setItem(WIPE_KEY + '_pt', P.uid); } catch (e2) {} return false; }
   },
   // 重修時間記號：重修當下沒登入雲端時，下次登入看到比這更早的雲端存檔就先詢問，不自動抓回
   wipeAt() { try { return Number(localStorage.getItem(WIPE_KEY)) || 0; } catch (e) { return 0; } },
