@@ -686,7 +686,7 @@ const UI = {
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),
       '#sExp': () => this.exportSave(),
       '#sImp': () => this.importSave(),
-      '#sReset': () => this.modal('重新修行', '<p class="big">確定刪除存檔？</p><div class="row center"><button class="seal" id="rY">刪除</button><button class="seal ghost sm" id="rN">取消</button></div>', { '#rY': () => { S.reset(); location.reload(); }, '#rN': () => this.settings() }),
+      '#sReset': () => this.modal('重新修行', '<p class="big">確定刪除存檔？</p><div class="row center"><button class="seal" id="rY">刪除</button><button class="seal ghost sm" id="rN">取消</button></div>', { '#rY': () => { S.wiped = true; S.reset(); location.reload(); }, '#rN': () => this.settings() }),
     });
     const vol = (id, n, kind) => { const el = $(id); if (el) el.oninput = () => { Audio2.unlock(); Audio2.setVol(kind, el.value / 100); $(n).textContent = el.value; if (kind === 'sfx') Audio2.play('swing1'); }; };
     vol('#sBgm', '#sBgmN', 'bgm'); vol('#sSfxV', '#sSfxN', 'sfx');

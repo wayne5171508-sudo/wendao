@@ -85,7 +85,8 @@ const S = {
     delete d.gacha;
     d.pityArtifact = norm(d.pityArtifact); d.pityTechnique = norm(d.pityTechnique);
   },
-  save() { if (!this.d) return; this.d.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.d)); } catch (e) {} },
+  save() { if (!this.d || this.wiped) return;   // wiped：「重新修行」刪檔後到重新整理前不再寫回（beforeunload 會呼叫 save）
+    this.d.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.d)); } catch (e) {} },
   // 匯入存檔：驗證格式後覆蓋；成功回傳 true，失敗回傳原因
   importText(text) {
     let d;
