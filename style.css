@@ -1066,12 +1066,12 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-cd.danger { border-color: #ff5a4a; box-shadow: 0 0 12px rgba(255,60,60,.7); }
 .pz-cd.danger b { color: #ff8a7a; }
 .pz-fl { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
-.pz-clr { position: absolute; transform: translate(-50%, -50%); pointer-events: none; -webkit-mask: var(--m) center / 100% 100% no-repeat; mask: var(--m) center / 100% 100% no-repeat luminance; filter: brightness(1.25) saturate(1.2); animation: pzClr .55s ease-out forwards; }
+.pz-clr { position: absolute; transform: translate(-50%, -50%) scale(.5); pointer-events: none; -webkit-mask: var(--m) center / 100% 100% no-repeat; mask: var(--m) center / 100% 100% no-repeat luminance; filter: brightness(1.25) saturate(1.2); animation: pzClr .9s ease-out forwards; }
 .pz-fx { position: absolute; z-index: 2; left: 50%; top: 50%; height: 120%; width: auto; transform: translate(-50%, -50%); mix-blend-mode: screen; pointer-events: none; animation: pzFx .9s ease-out forwards; }
 .pz-num { position: absolute; left: 50%; top: 45%; transform: translateX(calc(-50% + var(--dx))); font-size: 22px; font-weight: 700; white-space: nowrap; text-shadow: 0 0 3px #000, 0 2px 4px #000; animation: pzUp 1.1s ease-out forwards; pointer-events: none; z-index: 5; }
 .pz-num.big { font-size: 30px; }
 .pz-num.mid { top: 62%; font-size: 18px; }
-.pz-num.team { top: -6px; font-size: 18px; }
+.pz-num.team { top: auto; bottom: -24px; font-size: 18px; }   /* 落在隊伍血條上，不跟隊員頭上的傷害數字疊 */
 .pz-num.team.big { font-size: 24px; }
 .pz-banner { position: absolute; left: 0; right: 0; top: 46%; z-index: 6; display: flex; flex-direction: column; align-items: center; padding: 6px 0; background: linear-gradient(90deg, transparent, rgba(0,0,0,.7), transparent); pointer-events: none; animation: pzBanner 1.5s ease-out forwards; }
 .pz-banner b { font-size: 26px; color: var(--gold2); letter-spacing: 4px; }
@@ -1081,19 +1081,26 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-face { position: relative; width: min(54px, 13vw, 7.4vh); aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--c) 55%, #222), var(--d)); }
 .pz-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; }
 .pz-face i { position: absolute; right: 1px; bottom: 1px; width: 16px; height: 16px; font-size: 10px; }
-.pz-sk { margin-top: 2px; font-size: 11px; line-height: 1.1; color: #7a5a3c; white-space: nowrap; }
+.pz-sk { margin-top: 3px; padding: 2px 6px; font-size: 12px; line-height: 1.2; color: #f3e6cf; background: rgba(40,26,14,.78); border-radius: 9px; white-space: nowrap; }
 .pz-mem small { font-size: 10px; line-height: 1.1; color: var(--paper); opacity: .75; }
 .pz-mem.ready { border-color: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 70%, transparent), inset 0 0 8px color-mix(in srgb, var(--c) 40%, transparent); }
-.pz-mem.ready .pz-sk { color: var(--d); font-weight: 700; animation: pzBlink 1.4s infinite; }
+.pz-mem.ready .pz-sk { color: #fff; font-weight: 700; background: var(--d); box-shadow: 0 0 8px var(--c); animation: pzBlink 1.4s infinite; }
+.pz-mem:not(.ready) .pz-face { filter: grayscale(.45) brightness(.85); }
 .pz-mem.atk { animation: pzAtk .3s ease-out; }
 .pz-timer { flex: none; height: 5px; margin-top: 3px; background: rgba(255,255,255,.08); }
 .pz-timer i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, #ff6a4a, #ffd76a); }
 .pz-boardwrap { position: relative; flex: none; display: flex; justify-content: center; margin-top: 3px; }
 #pzCv { display: block; width: var(--board); touch-action: none; border-radius: 4px; box-shadow: 0 0 0 1px var(--goldline); cursor: grab; }
-.pz-combo { position: absolute; z-index: 5; right: 12px; bottom: 6px; max-width: calc(100% - 24px); display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; column-gap: 4px; line-height: 1; transform-origin: 100% 100%; opacity: 0; pointer-events: none; text-shadow: 0 0 6px #000, 0 2px 3px #000; }
-.pz-combo b { font-size: clamp(28px, 10vw, 40px); color: var(--c, #ffd76a); }
-.pz-combo span { font-size: clamp(12px, 3.8vw, 15px); color: #fff; }
-.pz-combo.show { opacity: 1; animation: pzPop .2s ease-out; }
+.pz-combo { position: absolute; z-index: 6; left: 50%; top: 50%; max-width: calc(100% - 24px); display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 6px; line-height: 1; opacity: 0; pointer-events: none; transform: translate(-50%, -50%); text-shadow: 0 0 8px #000, 0 0 3px #000, 0 2px 3px #000; }
+.pz-combo b { font-size: clamp(44px, 15vw, 64px); color: var(--c, #ffd76a); -webkit-text-stroke: 1.5px rgba(40,20,8,.7); }
+.pz-combo span { font-size: clamp(20px, 6.5vw, 28px); color: #fff; }
+.pz-combo.show { animation: pzCombo .6s ease-out forwards; }
+.pz-mnum { position: absolute; left: 50%; top: -14px; z-index: 6; font-size: 15px; font-weight: 700; white-space: nowrap; color: #fff; text-shadow: 0 0 3px #000, 0 1px 3px #000; pointer-events: none; animation: pzMnum 1.6s ease-out forwards; }
+.pz-mnum.beat { font-size: 19px; color: #ffe36a; }
+.pz-mnum.weak { font-size: 13px; color: #9aa3ab; }
+.pz-total { position: absolute; left: 50%; top: calc(100px + env(safe-area-inset-top, 0px)); z-index: 6; display: flex; flex-direction: column; align-items: center; pointer-events: none; text-shadow: 0 0 8px #000, 0 2px 4px #000; animation: pzTotal 1.7s ease-out forwards; }
+.pz-total b { font-size: clamp(34px, 11vw, 46px); color: #ffd76a; line-height: 1; font-variant-numeric: tabular-nums; }
+.pz-total small { margin-top: 2px; font-size: 13px; color: #fff; }
 .pz-hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 86%; padding: 8px 6px; background: rgba(5,8,14,.78); border: 1px solid var(--goldline); border-radius: 6px; text-align: center; font-size: 13px; color: #fff; text-shadow: 0 0 4px #000, 0 1px 2px #000; pointer-events: none; transition: opacity .4s; }
 .pz-hint.off { opacity: 0; }
 #pz > .pz-toast { width: auto; }
@@ -1115,7 +1122,10 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 @keyframes pzBlink { 50% { opacity: .55; } }
 @keyframes pzFx { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.7); } 20% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08); } }
 /* 盤面是淺色奶油紙，screen 只會提亮會看不見；改用圖自己的亮度當遮罩（黑＝透明），淺底深底都看得到 */
-@keyframes pzClr { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.4); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.15); } }
+@keyframes pzClr { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); } 15% { opacity: 1; } 40% { opacity: 1; transform: translate(-50%, -50%) scale(.95); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+@keyframes pzCombo { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(.96); } }
+@keyframes pzMnum { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.7); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 30% { transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -14px); } }
+@keyframes pzTotal { 0% { opacity: 0; transform: translateX(-50%) scale(.6); } 12% { opacity: 1; transform: translateX(-50%) scale(1.12); } 22% { transform: translateX(-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-10px); } }
 @keyframes pzFade { from { opacity: 1; } to { opacity: 0; } }
 @keyframes pzBanner { 0% { opacity: 0; transform: scaleY(.3); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pz-num, .pz-banner { animation-duration: .01s; } }

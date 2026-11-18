@@ -105,6 +105,7 @@ const ASSET_LIST = [
   'assets/fx/pz_break.webp',
   'assets/fx/pz_clr_earth.webp',
   'assets/fx/pz_clr_fire.webp',
+  'assets/fx/pz_clr_heart.webp',
   'assets/fx/pz_clr_metal.webp',
   'assets/fx/pz_clr_water.webp',
   'assets/fx/pz_clr_wood.webp',

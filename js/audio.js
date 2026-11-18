@@ -173,7 +173,7 @@ const Audio2 = {
   play(name, opt = {}) {
     if (!this.ctx) return;
     const m = SFX_MAP[name];
-    if (!m || !this.buffers[m[0]]) return this.synth(name);
+    if (!m || !this.buffers[m[0]]) return this.synth(name, opt);
     this.playBuf(m[0], m[1] * (opt.vol ?? 1), m[2]);
   },
   playBuf(key, vol, jitter) {
@@ -235,9 +235,16 @@ const Audio2 = {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f); f.connect(g); g.connect(this.sfxBus); src.start(t);
   },
-  synth(name) {
+  synth(name, opt = {}) {
     if (!this.ctx) return;
     switch (name) {
+      // 轉珠臨時合成音：之後有音檔時，在 SFX_SRC 加檔名、SFX_MAP 加 pz_xxx: ['檔名', 音量, 音高隨機] 即自動改播音檔
+      case 'pz_pick': this.tone(660, 0.09, 'sine', 0.12, 220); break;
+      case 'pz_tick': this.tone(1300 + Math.random() * 120, 0.03, 'square', 0.035); break;
+      case 'pz_clear': { const f = 440 * Math.pow(2, Math.min((opt.combo || 1) - 1, 14) / 12); this.tone(f, 0.28, 'triangle', 0.14); this.tone(f * 1.5, 0.22, 'sine', 0.06, 0, 0.03); this.noise(0.08, 0.08, 4000, 1); break; }
+      case 'pz_cast': this.tone(440, 0.45, 'sine', 0.12, 660); this.tone(880, 0.35, 'triangle', 0.05, 440, 0.05); this.noise(0.3, 0.1, 3000, 1); break;
+      case 'pz_hit': if (opt.heavy) { this.noise(0.14, 0.4, 600, 1); this.tone(110, 0.16, 'square', 0.09, -50); } else { this.noise(0.07, 0.28, 1300, 1.2); this.tone(200, 0.08, 'square', 0.06, -90); } break;
+      case 'pz_hurt': this.tone(220, 0.3, 'sawtooth', 0.14, -130); this.noise(0.16, 0.24, 500); break;
       case 'swing1': this.noise(0.13, 0.22, 3200, 0.7); break;
       case 'swing2': this.noise(0.13, 0.22, 2600, 0.7); break;
       case 'swing3': this.noise(0.22, 0.3, 1800, 0.6); this.tone(700, 0.25, 'triangle', 0.08, 500); break;

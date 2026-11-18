@@ -21,7 +21,7 @@ const PZ_ART = {
   // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應隊員 id，沒填的技能不放圖
   // 消除特效：黑底圖，依消除珠子屬性選圖疊在盤面；沒填或載入失敗就用程式效果（珠子放大淡出）
   clear: { wood: 'assets/fx/pz_clr_wood.webp', fire: 'assets/fx/pz_clr_fire.webp', earth: 'assets/fx/pz_clr_earth.webp',
-    metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: 'assets/fx/pz_heal.webp' },   // 心珠借用回血圖
+    metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: 'assets/fx/pz_clr_heart.webp' },
   fx: { hero: 'assets/fx/pz_slash.webp', mate: 'assets/fx/pz_heal.webp', jinxia: 'assets/fx/pz_break.webp', zichen: 'assets/fx/pz_ice.webp' },
 };
 
@@ -32,6 +32,7 @@ const PZ_CFG = {
   comboStep: 0.25,      // 每多 1 Combo 傷害 +25%
   extraOrb: 0.25,       // 一組超過 3 顆，每多 1 顆 +25%
   beat: 1.5, beaten: 0.5,
+  comboGap: 450,        // 每個 Combo 消除之間的停頓（毫秒）
 };
 const PZ_EL = {
   wood:  { ch: '木', c: '#58d07a', d: '#17602f' },
@@ -48,9 +49,11 @@ const pzRel = (a, d) => (PZ_BEATS[a] === d ? PZ_CFG.beat : PZ_BEATS[d] === a ? P
 // 靈根對應珠色：雷歸火、冰歸水
 const PZ_ROOT = { metal: 'metal', wood: 'wood', water: 'water', fire: 'fire', earth: 'earth', thunder: 'fire', ice: 'water' };
 
+// 首領血量：一般玩家（每回合 3～6 Combo）約 5～8 回合打完；調難度只改這個數字
+const PZ_BOSS_HP = 28000;
 // 首領：沿用血甲妖將的三相概念（減傷、暴怒吸血），出手改成倒數回合；每第 3 次出手為蓄力大招「血刃斬」
 const PZ_BOSS = {
-  name: '血甲妖將・厲蒼', hp: 90000, atk: 1500, def: 60, heavyEvery: 3, heavyName: '血刃斬',
+  name: '血甲妖將・厲蒼', hp: PZ_BOSS_HP, atk: 1500, def: 60, heavyEvery: 3, heavyName: '血刃斬',
   phases: [
     { name: '第一相', el: 'fire', cd: 3, heavyMult: 2.8 },
     { at: 0.66, name: '第二相', el: 'earth', cd: 3, heavyMult: 2.8, dr: 0.25, banner: ['妖將祭陣', '血陣護身，減傷兩成五，屬性轉為土'] },
@@ -182,14 +185,14 @@ const Puzzle = {
         </div>
         <div class="pz-boss" id="pzBoss"><img src="${PZ_ART.boss}" alt="" onerror="this.remove()"></div>
         <div class="pz-cd" id="pzCd"><small>倒數</small><b></b></div>
-        <div class="pz-fl" id="pzFl"></div><div class="pz-combo" id="pzCombo"></div>
+        <div class="pz-fl" id="pzFl"></div>
       </div>
       <div class="pz-team">${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
           <span class="pz-face"><img src="${m.img}" alt="" onerror="this.remove()"><i>${PZ_EL[m.el].ch}</i></span>
           <span class="pz-sk"></span><small>${m.role === '兵器' ? m.name.replace('劍', '') : m.role}</small></button>`).join('')}</div>
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
       <div class="pz-timer"><i id="pzTm"></i></div>
-      <div class="pz-boardwrap"><canvas id="pzCv"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.moveTime} 秒到就結算</div></div>
+      <div class="pz-boardwrap"><canvas id="pzCv"></canvas><div class="pz-combo" id="pzCombo"></div><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.moveTime} 秒到就結算</div></div>
       <div class="pz-toast" id="pzToast"></div>
       <div class="pz-end hidden" id="pzEnd"></div>`;
     const $p = (s) => this.root.querySelector(s);
@@ -296,7 +299,7 @@ const Puzzle = {
     this.pid = e.pointerId; this.state = 'drag'; this.t0 = 0; this.moved = false;
     this.held = { r, c, o: this.grid[r][c], px: p.x, py: p.y };
     if (typeof Audio2 !== 'undefined') Audio2.unlock();
-    this.tone(520, 0.03, 0.05);
+    this.sfx('pz_pick');
   },
   move(e) {
     if (this.state !== 'drag' || e.pointerId !== this.pid) return;
@@ -319,7 +322,7 @@ const Puzzle = {
       const other = g[nr][nc]; g[nr][nc] = h.o; g[h.r][h.c] = other;
       h.o.x = nc; h.o.y = nr; h.c = nc; h.r = nr;
       if (!this.moved) { this.moved = true; this.t0 = performance.now(); const hint = this.root.querySelector('#pzHint'); if (hint) hint.classList.add('off'); }
-      this.tone(380 + Math.random() * 40, 0.018, 0.035);
+      this.sfx('pz_tick');
     }
   },
   up(e) {
@@ -347,9 +350,8 @@ const Puzzle = {
         G.cells.forEach(([r, c]) => (this.grid[r][c].die = 0.001));
         combos.push(G);
         this.comboPop(combos.length, G); this.clearFx(G);
-        await U.wait(150);
+        await U.wait(PZ_CFG.comboGap);
       }
-      await U.wait(200);
       gs.forEach((G) => G.cells.forEach(([r, c]) => (this.grid[r][c] = null)));
       this.drop();
     }
@@ -362,15 +364,14 @@ const Puzzle = {
     this.team.forEach((m) => (m.cd = Math.max(0, m.cd - 1)));
     this.buff = { pierce: false, combo: 0 };
     this.hud();
-    setTimeout(() => this.root.querySelector('#pzCombo').classList.remove('show'), 300);
     this.state = 'idle';
   },
   waitSettle() { return new Promise((res) => { const f = () => (!this.on ? res() : this.settled() ? res() : requestAnimationFrame(f)); f(); }); },
   comboPop(n, G) {
     const el = this.root.querySelector('#pzCombo');
-    el.innerHTML = `<b>${n}</b><span>Combo</span>`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    el.innerHTML = `<b>${n}</b><span>Combo</span>`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');   // 動畫自己淡出
     el.style.setProperty('--c', PZ_EL[G.c].c);
-    this.tone(440 * Math.pow(2, Math.min(n - 1, 14) / 12), 0.07, 0.16, 'triangle');
+    this.sfx('pz_clear', { combo: n });
     if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
   },
 
@@ -393,18 +394,24 @@ const Puzzle = {
     if (this.buff.combo) this.float(`連擊 +${this.buff.combo}`, '#ffd76a', 'mid');
     for (const h of R.hits) {
       const b = this.root.querySelector(`.pz-mem[data-m="${h.i}"]`); b.classList.remove('atk'); void b.offsetWidth; b.classList.add('atk');
-      await U.wait(110);
-      this.hitBoss(h.dmg, PZ_EL[this.team[h.i].el].c, h.rel);
-      await U.wait(170);
+      const el = document.createElement('span');
+      el.className = 'pz-mnum' + (h.rel > 1 ? ' beat' : h.rel < 1 ? ' weak' : '');
+      el.textContent = (h.rel > 1 ? '剋 ' : h.rel < 1 ? '抗 ' : '') + U.fmt(h.dmg);
+      if (h.rel === 1) el.style.color = PZ_EL[this.team[h.i].el].c;
+      b.appendChild(el); setTimeout(() => el.remove(), 1600);
+      this.sfx('pz_hit', { heavy: h.rel > 1 });
+      await U.wait(160);
     }
+    const total = R.hits.reduce((s, h) => s + h.dmg, 0);
+    if (total) { await U.wait(250); this.totalDmg(total, R); this.hitBoss(total, '', 1, true); }
     if (R.heal) this.heal(R.heal);
-    await U.wait(250);
+    await U.wait(total ? 900 : 250);
   },
-  hitBoss(dmg, color, rel) {
+  hitBoss(dmg, color, rel, quiet) {
     const B = this.boss; B.hp = Math.max(0, B.hp - dmg);
-    this.float((rel > 1 ? '剋 ' : rel < 1 ? '抗 ' : '') + U.fmt(dmg), rel > 1 ? '#ffe36a' : rel < 1 ? '#a8b4c0' : color, 'boss', rel > 1);
+    if (!quiet) this.float((rel > 1 ? '剋 ' : rel < 1 ? '抗 ' : '') + U.fmt(dmg), rel > 1 ? '#ffe36a' : rel < 1 ? '#a8b4c0' : color, 'boss', rel > 1);
     const bx = this.root.querySelector('#pzBoss'); bx.classList.remove('hit'); void bx.offsetWidth; bx.classList.add('hit');
-    if (typeof Audio2 !== 'undefined') Audio2.play(rel > 1 ? 'hitHeavy' : 'swing1');
+    this.sfx('pz_hit', { heavy: rel > 1 });
     this.phaseCheck(); this.hud();
   },
   heal(n) {
@@ -436,7 +443,7 @@ const Puzzle = {
     this.hp = Math.max(0, this.hp - dmg);
     this.float((heavy ? PZ_BOSS.heavyName + ' ' : '-') + U.fmt(dmg), '#ff6a6a', 'team', heavy);
     this.root.classList.remove('hurt'); void this.root.offsetWidth; this.root.classList.add('hurt');
-    if (typeof Audio2 !== 'undefined') Audio2.play('hurt');
+    this.sfx('pz_hurt');
     if (navigator.vibrate) try { navigator.vibrate(heavy ? [40, 40, 60] : 30); } catch (er) {}
     if (B.leech) { const lh = Math.round(dmg * B.leech); B.hp = Math.min(B.max, B.hp + lh); this.float('吸血 +' + U.fmt(lh), '#ff6a7a', 'boss'); }
     B.cd = B.ph.cd;
@@ -452,7 +459,7 @@ const Puzzle = {
     const B = this.boss;
     m.cd = m.sk.cd;
     this.banner(m.sk.name, m.name);
-    if (typeof Audio2 !== 'undefined') Audio2.play('cast');
+    this.sfx('pz_cast');
     this.fx(m.id);
     if (m.id === 'hero') {
       const rel = pzRel(m.el, B.el), dmg = Math.round(Math.max(1, (m.atk * 12 * rel - B.def) * (1 - B.dr)));
@@ -484,6 +491,15 @@ const Puzzle = {
       const m = this.team[i]; b.classList.toggle('ready', m.cd === 0);
       b.querySelector('.pz-sk').textContent = m.cd === 0 ? m.sk.name : `${m.sk.name} ${m.cd}`;
     });
+  },
+  // 總傷害：數字從 0 滾到總數，下方標 Combo 倍率
+  totalDmg(total, R) {
+    const el = document.createElement('div'); el.className = 'pz-total';
+    el.innerHTML = `<b>0</b><small>${R.n} Combo ×${R.mult.toFixed(2)}</small>`;
+    this.root.querySelector('.pz-top').appendChild(el);
+    const b = el.firstChild, t0 = performance.now(), dur = 520;
+    const step = (now) => { const k = Math.min(1, (now - t0) / dur); b.textContent = Math.round(total * (1 - Math.pow(1 - k, 3))).toLocaleString(); if (k < 1 && el.isConnected) requestAnimationFrame(step); };
+    requestAnimationFrame(step); setTimeout(() => el.remove(), 1700);
   },
   float(txt, color, where, big) {
     const fl = this.root.querySelector('#pzFl'), el = document.createElement('span');
@@ -545,14 +561,8 @@ const Puzzle = {
   restart() { this.reset(); this.root.querySelector('.pz-top').style.backgroundImage = `url(${PZ_ART.bg[0]})`; const fl = this.root.querySelector('#pzFl'); this.root.querySelector('#pzBoss').className = 'pz-boss'; fl.innerHTML = ''; this.endClose(); this.hud(); },
 
   // 合成短音（Audio2 的音訊環境與音效音量）
-  tone(f, vol, dur, type = 'sine') {
-    const A = typeof Audio2 !== 'undefined' ? Audio2 : null; if (!A || !A.ctx || !A.sfxBus) return;
-    try {
-      const t = A.ctx.currentTime, o = A.ctx.createOscillator(), g = A.ctx.createGain();
-      o.type = type; o.frequency.setValueAtTime(f, t); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g); g.connect(A.sfxBus); o.start(t); o.stop(t + dur + 0.02);
-    } catch (er) {}
-  },
+  // 音效一律走 Audio2.play(key)：目前是合成音，之後在 audio.js 的 SFX_MAP 掛上音檔就自動換
+  sfx(key, opt) { if (typeof Audio2 !== 'undefined') Audio2.play(key, opt); },
 };
 
 // ───────── 開發模式入口 ─────────
