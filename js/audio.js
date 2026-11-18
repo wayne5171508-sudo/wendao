@@ -24,7 +24,7 @@ const SFX_MAP = { swing1: ['slash', 0.8, 0.06], swing2: ['slash', 0.8, 0.06], sw
 const BGM_VOL = { pz_battle: 0.45 };
 // 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
 // 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
-const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_tick: 0.9, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, clearStep: 0.06, clearMax: 1.5 };
+const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_tick: 0.9, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
 const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
 
 const Audio2 = {
@@ -248,6 +248,7 @@ const Audio2 = {
       case 'pz_pick': this.tone(660, 0.09, 'sine', 0.12, 220); break;
       case 'pz_tick': this.tone(1300 + Math.random() * 120, 0.03, 'square', 0.035); break;
       case 'pz_clear': { const f = 440 * Math.pow(2, Math.min((opt.combo || 1) - 1, 14) / 12); this.tone(f, 0.28, 'triangle', 0.14); this.tone(f * 1.5, 0.22, 'sine', 0.06, 0, 0.03); this.noise(0.08, 0.08, 4000, 1); break; }
+      case 'pz_five': { const f = 330 * Math.pow(2, Math.min((opt.combo || 1) - 1, 12) / 12); this.tone(f / 4, 0.6, 'sawtooth', 0.16, -40); this.tone(f, 0.5, 'triangle', 0.16); this.tone(f * 1.26, 0.45, 'triangle', 0.1, 0, 0.04); this.tone(f * 1.5, 0.45, 'sine', 0.1, 0, 0.08); this.tone(f * 2, 0.35, 'sine', 0.06, 200, 0.1); this.noise(0.5, 0.3, 1800, 0.8); break; }
       case 'pz_cast': this.tone(440, 0.45, 'sine', 0.12, 660); this.tone(880, 0.35, 'triangle', 0.05, 440, 0.05); this.noise(0.3, 0.1, 3000, 1); break;
       case 'pz_hit': if (opt.heavy) { this.noise(0.14, 0.4, 600, 1); this.tone(110, 0.16, 'square', 0.09, -50); } else { this.noise(0.07, 0.28, 1300, 1.2); this.tone(200, 0.08, 'square', 0.06, -90); } break;
       case 'pz_hurt': this.tone(220, 0.3, 'sawtooth', 0.14, -130); this.noise(0.16, 0.24, 500); break;

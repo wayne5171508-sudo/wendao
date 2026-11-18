@@ -20,6 +20,9 @@ const PZ_ART = {
   // 消除特效：黑底圖，依消除珠子屬性選圖疊在盤面；沒填或載入失敗就用程式效果（珠子放大淡出）
   clear: { wood: 'assets/fx/pz_clr_wood.webp', fire: 'assets/fx/pz_clr_fire.webp', earth: 'assets/fx/pz_clr_earth.webp',
     metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: 'assets/fx/pz_clr_heart.webp' },
+  // 5 連珠特效：黑底圖（四角純黑），screen 混色疊在半透明暗圈上（盤面是淺色紙，直接 screen 會看不見）；沒填或載入失敗就用程式光爆
+  five: { wood: 'assets/fx/pz_five_wood.webp', fire: 'assets/fx/pz_five_fire.webp', earth: 'assets/fx/pz_five_earth.webp',
+    metal: 'assets/fx/pz_five_metal.webp', water: 'assets/fx/pz_five_water.webp', heart: 'assets/fx/pz_five_heart.webp' },
   // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應效果種類（roster-cfg.js 效果庫的 t），技能放第一個有圖的效果
   fx: { nuke: 'assets/fx/pz_slash.webp', convert: 'assets/fx/pz_heal.webp', heal: 'assets/fx/pz_heal.webp', pierce: 'assets/fx/pz_break.webp', delay: 'assets/fx/pz_ice.webp' },
 };
@@ -246,8 +249,9 @@ const Puzzle = {
     PZ_COLORS.forEach((k) => (this.sprites[k] = this.orbSprite(k)));
   },
   loadArt() {
-    this.art = {}; this.clr = {};
+    this.art = {}; this.clr = {}; this.five = {};
     Object.entries(PZ_ART.clear).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.clr[k] = src); im.src = src; });
+    Object.entries(PZ_ART.five || {}).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.five[k] = src); im.src = src; });
     Object.entries(PZ_ART.orbs).forEach(([k, src]) => {
       if (!src) return;
       const im = new Image(); im.onload = () => { this.art[k] = im; this.sprites[k] = this.orbSprite(k); }; im.src = src;
@@ -412,7 +416,8 @@ const Puzzle = {
       for (const G of gs) {
         G.cells.forEach(([r, c]) => (this.grid[r][c].die = 0.001));
         combos.push(G);
-        this.comboPop(combos.length, G); this.clearFx(G);
+        const five = G.cells.length >= PZ_CFG.five.min;
+        this.comboPop(combos.length, G, five); this.clearFx(G); if (five) this.fiveFx(G);
         await this.sleep(PZ_CFG.comboGap);
       }
       gs.forEach((G) => G.cells.forEach(([r, c]) => (this.grid[r][c] = null)));
@@ -443,12 +448,12 @@ const Puzzle = {
     return true;
   },
   waitSettle() { return new Promise((res) => { const f = () => (!this.on ? res() : this.settled() ? res() : requestAnimationFrame(f)); f(); }); },
-  comboPop(n, G) {
+  comboPop(n, G, five) {
     const el = this.root.querySelector('#pzCombo');
-    el.innerHTML = `<b>${n}</b><span>Combo</span>`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');   // 動畫自己淡出
+    el.innerHTML = `<b>${n}</b><span>Combo</span>${five ? '<em>5連珠</em>' : ''}`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');   // 動畫自己淡出
     el.style.setProperty('--c', PZ_EL[G.c].c);
-    this.sfx('pz_clear', { combo: n });
-    if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
+    this.sfx(five ? 'pz_five' : 'pz_clear', { combo: n });
+    if (navigator.vibrate) try { navigator.vibrate(five ? [30, 30, 50] : 12); } catch (er) {}
   },
 
   // 傷害公式：隊員攻擊 ×（該色每組 1＋多出顆數×25%）×（1＋(Combo−1)×25%）× 隊長技，對目標再乘相剋、扣防禦與減傷
@@ -457,11 +462,14 @@ const Puzzle = {
     const d = raw * pzRel(el, f.el);
     return Math.round(this.buff.pierce || this.base.pierce ? d : Math.max(1, (d - f.def) * (1 - f.dr)));
   },
+  // 5 連珠（PZ_CFG.five）：該組另乘加成，且算進 aoe（打全體）；心珠只加成回復
+  fiveMult(G) { const F = PZ_CFG.five, k = G.cells.length; return k >= F.min ? 1 + F.bonus + (k - F.min) * F.per : 1; },
   calc(combos) {
-    const pow = {}; combos.forEach((G) => (pow[G.c] = (pow[G.c] || 0) + 1 + (G.cells.length - 3) * PZ_CFG.extraOrb));
+    const pow = {}, aoe = {};
+    combos.forEach((G) => { const o = G.cells.length >= PZ_CFG.five.min && G.c !== 'heart' ? aoe : pow; o[G.c] = (o[G.c] || 0) + (1 + (G.cells.length - 3) * PZ_CFG.extraOrb) * this.fiveMult(G); });
     const n = combos.length + this.buff.combo + this.base.combo, mult = 1 + (n - 1) * PZ_CFG.comboStep;
-    const hits = this.team.map((m, i) => (pow[m.el] ? { i, raw: m.atk * pow[m.el] * mult * this.leadMult(m) } : null)).filter(Boolean);
-    return { n, mult, hits, heal: pow.heart ? Math.round(this.rcv * pow.heart * mult) : 0 };
+    const hits = this.team.map((m, i) => { const k = m.atk * mult * this.leadMult(m); return pow[m.el] || aoe[m.el] ? { i, raw: k * (pow[m.el] || 0), aoe: k * (aoe[m.el] || 0) } : null; }).filter(Boolean);
+    return { n, mult, hits, heal: pow.heart ? Math.round(this.rcv * pow.heart * mult) : 0, five: combos.some((G) => G.cells.length >= PZ_CFG.five.min) };
   },
   async attack(combos) {
     const R = this.calc(combos);
@@ -469,17 +477,26 @@ const Puzzle = {
     if (this.buff.combo + this.base.combo) this.float(`Combo +${this.buff.combo + this.base.combo}`, '#ffd76a', 'mid');
     let total = 0;
     for (const h of R.hits) {
-      const f = this.tgt(); if (!f) break;   // 全倒了：剩下的攻擊不用打
-      const m = this.team[h.i], rel = pzRel(m.el, f.el), dmg = this.dmgTo(f, h.raw, m.el);
-      const b = this.root.querySelector(`.pz-mem[data-m="${h.i}"]`); b.classList.remove('atk'); void b.offsetWidth; b.classList.add('atk');
-      const el = document.createElement('span');
-      el.className = 'pz-mnum' + (rel > 1 ? ' beat' : rel < 1 ? ' weak' : '');
-      el.textContent = (rel > 1 ? '剋 ' : rel < 1 ? '抗 ' : '') + U.fmt(dmg);
-      if (rel === 1) el.style.color = PZ_EL[m.el].c;
+      if (!this.alive().length) break;   // 全倒了：剩下的攻擊不用打
+      const m = this.team[h.i], b = this.root.querySelector(`.pz-mem[data-m="${h.i}"]`);
+      b.classList.remove('atk'); void b.offsetWidth; b.classList.add('atk');
+      // 單體：打目標；5 連珠：打每一隻活著的敵人，相剋依各自屬性
+      const shots = [...(h.raw ? [[this.tgt(), h.raw]] : []), ...(h.aoe ? this.alive().map((f) => [f, h.aoe]) : [])];
+      let sum = 0, rel1 = 1;
+      shots.forEach(([f, raw], k) => {
+        if (f.hp <= 0) return;
+        const rel = pzRel(m.el, f.el), dmg = this.dmgTo(f, raw, m.el);
+        if (!k) rel1 = rel;
+        this.hitFoe(f, dmg, rel, PZ_EL[m.el].c);
+        sum += dmg;
+      });
+      const el = document.createElement('span'), all = !!h.aoe;
+      el.className = 'pz-mnum' + (all ? ' all' : rel1 > 1 ? ' beat' : rel1 < 1 ? ' weak' : '');
+      el.textContent = (all ? '全體 ' : rel1 > 1 ? '剋 ' : rel1 < 1 ? '抗 ' : '') + U.fmt(sum);
+      if (all || rel1 === 1) el.style.color = PZ_EL[m.el].c;
       b.appendChild(el); setTimeout(() => el.remove(), 1600);
-      this.hitFoe(f, dmg, rel, PZ_EL[m.el].c);
-      total += dmg;
-      await this.sleep(160);
+      total += sum;
+      await this.sleep(all ? 260 : 160);
     }
     if (R.heal) this.heal(R.heal);
     if (total) {
@@ -623,7 +640,7 @@ const Puzzle = {
   // 總傷害：數字從 0 滾到總數，下方標 Combo 倍率
   totalDmg(total, R) {
     const el = document.createElement('div'); el.className = 'pz-total';
-    el.innerHTML = `<b>0</b><small>${R.n} Combo ×${R.mult.toFixed(2)}</small>`;
+    el.innerHTML = `<b>0</b><small>${R.five ? '<em>5連珠</em>' : ''}${R.n} Combo ×${R.mult.toFixed(2)}</small>`;
     this.root.querySelector('.pz-top').appendChild(el);
     const b = el.firstChild, t0 = performance.now(), dur = 520;
     const step = (now) => { const k = Math.min(1, (now - t0) / dur); b.textContent = Math.round(total * (1 - Math.pow(1 - k, 3))).toLocaleString(); if (k < 1 && el.isConnected) requestAnimationFrame(step); };
@@ -651,6 +668,22 @@ const Puzzle = {
       im.onerror = im.onanimationend = () => im.remove();
       wrap.appendChild(im);
     });
+  },
+  // 5 連珠特效：屬性圖光爆（PZ_ART.five；沒圖就程式光爆）＋往首領區的光柱＋螢幕閃光＋震動
+  fiveFx(G) {
+    const cell = this.cell, E = PZ_EL[G.c], rb = this.root.getBoundingClientRect(), cb = this.cv.getBoundingClientRect();
+    const cx = cb.left - rb.left + (G.cells.reduce((a, [, c]) => a + c, 0) / G.cells.length + 0.5) * cell;
+    const cy = cb.top - rb.top + (G.cells.reduce((a, [r]) => a + r, 0) / G.cells.length + 0.5) * cell;
+    const add = (cls, css) => { const d = document.createElement('div'); d.className = cls; d.style.cssText = `--c:${E.c};--d:${E.d};` + css; d.onanimationend = () => d.remove(); this.root.appendChild(d); return d; };
+    const src = this.five[G.c], size = cell * (src ? 5 : 4.4), pos = `left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;`;   // 一般消除每顆 1.5 格，這裡約 3 倍（圖的光爆約佔 85%）
+    if (src) {
+      add('pz-five-dim', pos);
+      const im = new Image(); im.className = 'pz-five-img'; im.alt = ''; im.src = src; im.style.cssText = pos;
+      im.onerror = im.onanimationend = () => im.remove(); this.root.appendChild(im);
+    } else add('pz-five', pos);
+    add('pz-five-beam', `left:${cx}px;top:${PZ_LAYOUT.topMin * 0.35}px;height:${cy - PZ_LAYOUT.topMin * 0.35}px;width:${cell * 1.6}px`);
+    if (G.c !== 'heart') add('pz-flash', '');
+    this.root.classList.remove('pz-shake'); void this.root.offsetWidth; this.root.classList.add('pz-shake');
   },
   fx(t) {
     const src = PZ_ART.fx[t]; if (!src) return;

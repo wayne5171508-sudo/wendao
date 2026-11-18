@@ -1257,3 +1257,26 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 @media (max-width: 340px) { .pzr-face { width: 40px; } .pzr-card small { font-size: 10px; } }
 .pz-face img ~ em, .pzr-face img ~ em { display: none; }
 .pzr-list > p { grid-column: 1 / -1; }
+
+/* ───────── 5 連珠（程式特效暫代，之後換圖）───────── */
+#pz > .pz-five { position: absolute; z-index: 7; width: auto; transform: translate(-50%, -50%) scale(.2); border-radius: 50%; pointer-events: none;   /* 盤面是淺色紙，不用 screen 混色（會看不見） */
+  background: radial-gradient(circle, #fff 0 12%, color-mix(in srgb, var(--c) 70%, #fff) 22%, var(--c) 38%, color-mix(in srgb, var(--c) 60%, transparent) 55%, transparent 70%) center / cover no-repeat;
+  box-shadow: 0 0 28px 8px color-mix(in srgb, var(--c) 80%, transparent), inset 0 0 24px 6px color-mix(in srgb, var(--c) 70%, #fff);
+  filter: saturate(1.4) brightness(1.15); animation: pzFive .8s cubic-bezier(.15,.8,.3,1) forwards; }
+#pz > .pz-five[style*="background-image"] { background-size: cover; }
+#pz > .pz-five-beam { position: absolute; z-index: 6; width: auto; transform: translateX(-50%) scaleX(.2); transform-origin: 50% 100%; pointer-events: none;
+  background: linear-gradient(to top, #fff, color-mix(in srgb, var(--c) 60%, #fff) 12%, var(--c) 40%, color-mix(in srgb, var(--c) 50%, transparent) 85%, transparent); border-radius: 50% 50% 8px 8px / 20% 20% 8px 8px;
+  box-shadow: 0 0 24px 6px color-mix(in srgb, var(--c) 60%, transparent); opacity: .9; animation: pzBeam .7s ease-out forwards; }
+#pz > .pz-flash { position: absolute; inset: 0; z-index: 8; width: auto; pointer-events: none; background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--c) 55%, #fff), transparent 75%); mix-blend-mode: screen; animation: pzFlash .32s ease-out forwards; }
+#pz.pz-shake { animation: pzShake .36s linear; }
+@keyframes pzFive { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 55% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+@keyframes pzBeam { 0% { transform: translateX(-50%) scaleX(.2) scaleY(.3); opacity: 0; } 25% { transform: translateX(-50%) scaleX(1) scaleY(1); opacity: .9; } 100% { transform: translateX(-50%) scaleX(.4) scaleY(1); opacity: 0; } }
+@keyframes pzFlash { 0% { opacity: .85; } 100% { opacity: 0; } }
+@keyframes pzShake { 0%, 100% { transform: none; } 20% { transform: translate(-5px, 3px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-3px, -2px); } 80% { transform: translate(3px, 2px); } }
+.pz-combo em, .pz-total em { margin-right: 6px; padding: 1px 6px; border-radius: 3px; font-style: normal; font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(#e0473a, #8a1e10); text-shadow: none; box-shadow: 0 0 8px rgba(255,120,80,.8); }
+.pz-combo em { flex-basis: 100%; max-width: max-content; margin: 2px auto 0; }
+.pz-mnum.all { font-size: 14px; }
+.pz-mem:first-child .pz-mnum { margin-left: 18px; }
+.pz-mem:last-child .pz-mnum { margin-left: -18px; }
+#pz > .pz-five-img { position: absolute; z-index: 7; transform: translate(-50%, -50%) scale(.25); pointer-events: none; mix-blend-mode: screen; filter: brightness(1.25) saturate(1.2); animation: pzFive .85s cubic-bezier(.15,.8,.3,1) forwards; }
+#pz > .pz-five-dim { position: absolute; z-index: 7; transform: translate(-50%, -50%) scale(.25); border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(10,8,14,.8) 0 35%, rgba(10,8,14,.5) 50%, transparent 68%); animation: pzFive .85s cubic-bezier(.15,.8,.3,1) forwards; }
