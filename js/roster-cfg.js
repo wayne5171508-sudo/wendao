@@ -37,10 +37,11 @@ const PZ_SKILLS = {
   // 通用（測試、道侶模擬用）
   ld_hp:      { name: '固守', desc: '全隊氣血 ×1.5', fx: [{ t: 'hp', mult: 1.5 }] },
   // ── SSR ──
-  xq_lead:    { name: '玄穹庇佑', desc: '全隊氣血 ×2', fx: [{ t: 'hp', mult: 2 }] },
+  xq_lead:    { name: '玄穹庇佑', desc: '全隊氣血 ×1.5', fx: [{ t: 'hp', mult: 1.5 }] },   // 平衡 1118：×2 → ×1.5
   xq_sk:      { name: '天尊垂憐', cd: 6, desc: '回復五成氣血', fx: [{ t: 'heal', pct: 0.5 }] },
-  lt_lead:    { name: '血煞滔天', desc: '火屬性隊員攻擊 ×2.5', fx: [{ t: 'atk', el: 'fire', mult: 2.5 }] },
-  lt_sk:      { name: '血海焚天', cd: 6, desc: '以火屬性對全體造成攻擊 12 倍傷害；之後 3 回合每回合損失 5% 氣血', fx: [{ t: 'nuke', el: 'fire', mult: 12, all: true }, { t: 'bleed', pct: 0.05, n: 3 }] },
+  lt_lead:    { name: '血煞滔天', desc: '火屬性隊員攻擊 ×2.1', fx: [{ t: 'atk', el: 'fire', mult: 2.1 }] },   // 平衡 1118：×2.5 → ×2.1（−16%）
+  // 平衡 1118：12 倍 → 9 倍。厲天絕當隊長、一星：980 × 9 × 隊長技 2.1 ＝ 18,522，扣血甲妖將防禦 60 ＝ 18,462，約首領 28,000 血的 66%（舊版 29,340＝105%）
+  lt_sk:      { name: '血海焚天', cd: 6, desc: '以火屬性對全體造成攻擊 9 倍傷害；之後 3 回合每回合損失 5% 氣血', fx: [{ t: 'nuke', el: 'fire', mult: 9, all: true }, { t: 'bleed', pct: 0.05, n: 3 }] },
   zj_lead:    { name: '殘魂業火', desc: '火與木屬性隊員攻擊 ×1.8', fx: [{ t: 'atk', el: ['fire', 'wood'], mult: 1.8 }] },
   zj_sk:      { name: '焚魂燼', cd: 6, desc: '以火屬性對全體造成攻擊 8 倍傷害，回復兩成氣血', fx: [{ t: 'nuke', el: 'fire', mult: 8, all: true }, { t: 'heal', pct: 0.2 }] },
   sn_lead:    { name: '凌霜心訣', desc: '水屬性隊員攻擊 ×1.5，全隊氣血 ×1.2', fx: [{ t: 'atk', el: 'water', mult: 1.5 }, { t: 'hp', mult: 1.2 }] },
@@ -72,7 +73,8 @@ const PZ_FACS = { sect: { name: '正道宗門', c: '#9fd8ff' }, demon: { name: '
 const PZ_RARITY = { R: { c: '#bfc4ca', maxStar: 3 }, SR: { c: '#ffd36a', maxStar: 4 }, SSR: { c: '#ff7a4a', maxStar: 5 } };
 // 星級加成：數值 ×（1 ＋（星級−1）× step）；之後抽到重複角色升星
 const PZ_STAR = { step: 0.12 };
-// 同陣營加成：隊伍 5 人（含主角與副隊長）裡同陣營人數 → 該陣營成員攻擊、氣血倍率（取達到的最高一檔）
+// 同陣營加成：某陣營人數＝隊上該陣營抽卡角色數＋萬用（主角、副隊長，最多 2）→ 該陣營成員與萬用的攻擊、氣血倍率
+// 三個陣營各算一次，只取最高檔的一個陣營（至少要有 1 個該陣營抽卡角色）
 const PZ_FAC_BONUS = [{ n: 3, atk: 1.1, hp: 1.05 }, { n: 4, atk: 1.2, hp: 1.1 }, { n: 5, atk: 1.35, hp: 1.15 }];
 
 // ───────── 主角（隊長／副隊長）─────────
