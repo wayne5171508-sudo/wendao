@@ -95,8 +95,11 @@ function pzTeam() {
   ];
 }
 
+// 撤退或重開後，上一局還沒跑完的結算（等待中的 async）一律中止，不能動到新的一局
+const PZ_STALE = { stale: true };
+
 const Puzzle = {
-  on: false,
+  on: false, sid: 0,
 
   // ───────── 開關 ─────────
   open() {
@@ -128,6 +131,7 @@ const Puzzle = {
   },
 
   reset() {
+    this.sid++;   // 新的一局：舊結算、技能延遲傷害看到 sid 變了就停
     this.team = pzTeam().map((m) => ({ ...m, cd: Math.ceil(m.sk.cd / 2) }));   // 開場技能冷卻一半
     this.hpMax = this.team.reduce((a, m) => a + m.hp, 0); this.hp = this.hpMax;
     this.rcv = this.team.reduce((a, m) => a + m.rcv, 0);
@@ -402,22 +406,28 @@ const Puzzle = {
 
   // ───────── 結算：消除、連鎖、傷害、首領回合 ─────────
   async resolve() {
+    try { await this.resolveTurn(); } catch (e) { if (e !== PZ_STALE) throw e; }
+  },
+  // 本局專用的等待：醒來時已撤退或重開就丟出 PZ_STALE 中止
+  async sleep(ms) { const sid = this.sid; await U.wait(ms); if (sid !== this.sid || !this.on) throw PZ_STALE; },
+  async settle() { const sid = this.sid; await this.waitSettle(); if (sid !== this.sid || !this.on) throw PZ_STALE; },
+  async resolveTurn() {
     this.state = 'resolve';
     const combos = [];
     for (let wave = 0; wave < 30; wave++) {
-      await this.waitSettle();
+      await this.settle();
       const gs = this.groups();
       if (!gs.length) break;
       for (const G of gs) {
         G.cells.forEach(([r, c]) => (this.grid[r][c].die = 0.001));
         combos.push(G);
         this.comboPop(combos.length, G); this.clearFx(G);
-        await U.wait(PZ_CFG.comboGap);
+        await this.sleep(PZ_CFG.comboGap);
       }
       gs.forEach((G) => G.cells.forEach(([r, c]) => (this.grid[r][c] = null)));
       this.drop();
     }
-    await this.waitSettle();
+    await this.settle();
     this.turn++;
     if (combos.length) await this.attack(combos);
     if (this.boss.hp <= 0) return this.win();
@@ -462,16 +472,16 @@ const Puzzle = {
       if (h.rel === 1) el.style.color = PZ_EL[this.team[h.i].el].c;
       b.appendChild(el); setTimeout(() => el.remove(), 1600);
       this.sfx('pz_hit', { heavy: h.rel > 1 });
-      await U.wait(160);
+      await this.sleep(160);
     }
     const total = R.hits.reduce((s, h) => s + h.dmg, 0);
     if (R.heal) this.heal(R.heal);
     if (total) {
-      await U.wait(250); this.totalDmg(total, R); this.hitBoss(total, '', 1, true);
-      await U.wait(1350);                                  // 總傷害（滾動約 0.5 秒＋停留約 0.8 秒）播完才換相，兩者不重疊
-      if (this.phaseCheck()) { this.hud(); await U.wait(1300); }
+      await this.sleep(250); this.totalDmg(total, R); this.hitBoss(total, '', 1, true);
+      await this.sleep(1350);                                  // 總傷害（滾動約 0.5 秒＋停留約 0.8 秒）播完才換相，兩者不重疊
+      if (this.phaseCheck()) { this.hud(); await this.sleep(1300); }
     }
-    await U.wait(250);
+    await this.sleep(250);
   },
   hitBoss(dmg, color, rel, quiet) {
     const B = this.boss; B.hp = Math.max(0, B.hp - dmg);
@@ -501,12 +511,12 @@ const Puzzle = {
   async bossTurn() {
     const B = this.boss; B.cd--;
     this.hud();
-    if (B.cd > 0) { await U.wait(150); return; }
-    await U.wait(250);
+    if (B.cd > 0) { await this.sleep(150); return; }
+    await this.sleep(250);
     B.hits++;
     const heavy = B.hits % PZ_BOSS.heavyEvery === 0, dmg = Math.round(B.atk * (heavy ? B.ph.heavyMult : 1) * U.rand(0.92, 1.08));
     const bx = this.root.querySelector('#pzBoss'); bx.classList.remove('lunge'); void bx.offsetWidth; bx.classList.add('lunge');
-    await U.wait(220);
+    await this.sleep(220);
     this.hp = Math.max(0, this.hp - dmg);
     this.float((heavy ? PZ_BOSS.heavyName + ' ' : '-') + U.fmt(dmg), '#ff6a6a', 'team', heavy);
     this.root.classList.remove('hurt'); void this.root.offsetWidth; this.root.classList.add('hurt');
@@ -515,7 +525,7 @@ const Puzzle = {
     if (B.leech) { const lh = Math.round(dmg * B.leech); B.hp = Math.min(B.max, B.hp + lh); this.float('吸血 +' + U.fmt(lh), '#ff6a7a', 'boss'); }
     B.cd = B.ph.cd;
     this.hud();
-    await U.wait(450);
+    await this.sleep(450);
   },
 
   // ───────── 隊員技能（冷卻以回合計，施放不結束回合） ─────────
@@ -530,7 +540,8 @@ const Puzzle = {
     this.fx(m.id);
     if (m.id === 'hero') {
       const rel = pzRel(m.el, B.el), dmg = Math.round(Math.max(1, (m.atk * 12 * rel - B.def) * (1 - B.dr)));
-      setTimeout(() => { this.hitBoss(dmg, PZ_EL[m.el].c, rel); if (B.hp <= 0) { this.state = 'resolve'; setTimeout(() => this.win(), 600); } }, 350);
+      const sid = this.sid;
+      setTimeout(() => { if (sid !== this.sid || !this.on) return; this.hitBoss(dmg, PZ_EL[m.el].c, rel); if (B.hp <= 0) { this.state = 'resolve'; setTimeout(() => sid === this.sid && this.on && this.win(), 600); } }, 350);
     } else if (m.id === 'mate') {
       const to = this.team[0].el;
       this.grid.forEach((row) => row.forEach((o) => { if (o && o.c === 'heart') { o.c = to; o.die = 0; } }));
