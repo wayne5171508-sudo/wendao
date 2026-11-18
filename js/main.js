@@ -51,7 +51,17 @@ const Game = {
       ? '<p class="big">存檔有部分資料損毀，已修復</p><p class="note" style="text-align:center">損毀的欄位已換回預設值，原始存檔已另存備份。<br>可按「續緣」繼續修行。</p><div class="row center"><button class="seal" id="leOk">知道了</button></div>'
       : '<p class="big">存檔損毀，無法讀取</p><p class="note" style="text-align:center">原始存檔已另存備份，請勿清除瀏覽器資料。<br>有匯出過存檔可用「匯入存檔」還原；按「入道」會開始新的修行。</p><div class="row center"><button class="seal" id="leOk">知道了</button></div>', { '#leOk': () => UI.close() });
     requestAnimationFrame((t) => { this.last = t; this.loop(t); });
-    addEventListener('visibilitychange', () => { if (document.hidden) S.save(); else if (S.d.root && !Battle.on) { const o = S.offline(); if (o) { UI.offlineModal(o); UI.hud(); } } });
+    addEventListener('visibilitychange', () => {
+      if (document.hidden) { S.save(); return; }
+      if (!S.d.root || Battle.on) return;
+      const o = S.offline(); if (!o) return;
+      S.save();   // 更新 last，之後按「續緣」不會再算一次
+      // 標題、劇情、突破／抽卡／雙修演出或已有彈窗時不跳「出關」：按收下會切回洞府，標題畫面會卡住、演出會被打斷；改用提示
+      const a = $('#app').classList, busy = a.contains('title-mode') || a.contains('story-mode') || a.contains('gacha-show') || $('#controls').classList.contains('busy')
+        || !$('#skipBtn').classList.contains('hidden') || !$('#modal').classList.contains('hidden') || (typeof DualShow !== 'undefined' && DualShow.state === 'playing');
+      if (busy) { UI.toast(`閉關 ${U.dur(o.sec)}：修為 +${U.fmt(o.gain)}、靈石 +${U.fmt(o.stone)}`, '#9fe8d8'); if (!a.contains('title-mode')) UI.hud(); return; }
+      UI.offlineModal(o); UI.hud();
+    });
     addEventListener('beforeunload', () => S.save());
   },
 
