@@ -32,6 +32,7 @@ const PZ_CFG = {
   comboStep: 0.25,      // 每多 1 Combo 傷害 +25%
   extraOrb: 0.25,       // 一組超過 3 顆，每多 1 顆 +25%
   beat: 1.5, beaten: 0.5,
+  swapMs: 100,          // 拖曳時被擠開的珠子滑到空位的時間（ease-out，與幀率無關）
   comboGap: 450,        // 每個 Combo 消除之間的停頓（毫秒）
 };
 const PZ_EL = {
@@ -255,6 +256,11 @@ const Puzzle = {
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const o = g[r][c]; if (!o) continue;
       if (o.die) { o.die += dt / 0.22; continue; }
+      if (o.tw) {
+        const k = Math.min(1, (performance.now() - o.tw.t) / PZ_CFG.swapMs), e = 1 - Math.pow(1 - k, 3);
+        o.x = o.tw.x + (c - o.tw.x) * e; o.y = o.tw.y + (r - o.tw.y) * e; if (k >= 1) o.tw = null;
+        continue;
+      }
       o.x += (c - o.x) * Math.min(1, dt * 28);
       if (o.fall) { o.vy += 55 * dt; o.y += o.vy * dt; if (o.y >= r) { o.y = r; o.vy = 0; o.fall = false; } }
       else o.y += (r - o.y) * Math.min(1, dt * 28);
@@ -283,7 +289,10 @@ const Puzzle = {
       const h = this.held, d = this.dpr;
       // 原位留淡影，手上的珠子跟著手指並放大
       ctx.globalAlpha = 0.3; ctx.drawImage(this.sprites[h.o.c], h.c * cs, h.r * cs, cs, cs);
-      ctx.globalAlpha = 0.92; const sz = cs * 1.12; ctx.drawImage(this.sprites[h.o.c], h.px * d - sz / 2, h.py * d - sz / 2, sz, sz);
+      // 浮起的珠子：1.15 倍、半透明、帶陰影，往上偏半格避免被手指擋住（頂列不超出盤面）
+      const sz = cs * 1.15, ox = h.px * d, oy = Math.max(sz / 2, h.py * d - cs * 0.5);
+      ctx.save(); ctx.globalAlpha = 0.85; ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = cs * 0.22; ctx.shadowOffsetY = cs * 0.1;
+      ctx.drawImage(this.sprites[h.o.c], ox - sz / 2, oy - sz / 2, sz, sz); ctx.restore();
       ctx.globalAlpha = 1;
     }
   },
@@ -320,6 +329,7 @@ const Puzzle = {
     while (h.c !== c || h.r !== r) {
       const nc = h.c + Math.sign(c - h.c), nr = h.r + Math.sign(r - h.r), g = this.grid;
       const other = g[nr][nc]; g[nr][nc] = h.o; g[h.r][h.c] = other;
+      if (other) other.tw = { x: other.x, y: other.y, t: performance.now() };   // 手指一經過就滑到空位
       h.o.x = nc; h.o.y = nr; h.c = nc; h.r = nr;
       if (!this.moved) { this.moved = true; this.t0 = performance.now(); const hint = this.root.querySelector('#pzHint'); if (hint) hint.classList.add('off'); }
       this.sfx('pz_tick');
@@ -509,7 +519,7 @@ const Puzzle = {
   float(txt, color, where, big) {
     const fl = this.root.querySelector('#pzFl'), el = document.createElement('span');
     el.className = 'pz-num ' + where + (big ? ' big' : ''); el.textContent = txt; el.style.color = color;
-    el.style.setProperty('--dx', Math.round(U.rand(-40, 40)) + 'px');
+    el.style.setProperty('--dx', where === 'team' ? '0px' : Math.round(U.rand(-40, 40)) + 'px');
     if (where === 'team') { el.style.top = 'auto'; }
     (where === 'team' ? this.root.querySelector('.pz-team') : fl).appendChild(el);
     setTimeout(() => el.remove(), 1100);

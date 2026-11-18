@@ -1071,7 +1071,7 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-num { position: absolute; left: 50%; top: 45%; transform: translateX(calc(-50% + var(--dx))); font-size: 22px; font-weight: 700; white-space: nowrap; text-shadow: 0 0 3px #000, 0 2px 4px #000; animation: pzUp 1.1s ease-out forwards; pointer-events: none; z-index: 5; }
 .pz-num.big { font-size: 30px; }
 .pz-num.mid { top: 62%; font-size: 18px; }
-.pz-num.team { top: auto; bottom: -21px; z-index: 8; padding: 0 6px; font-size: 16px; line-height: 18px; border-radius: 9px; background: rgba(10,14,10,.62); animation-name: pzUpS; }   /* 疊在隊伍血條上，不被卡框蓋到 */
+.pz-num.team { top: auto; bottom: -21px; left: 6px; z-index: 8; padding: 0 6px; font-size: 16px; line-height: 18px; border-radius: 9px; background: rgba(10,14,10,.62); animation-name: pzUpS; }   /* 靠血條左端，不蓋到中間的血量文字 */
 .pz-num.team.big { font-size: 24px; }
 .pz-banner { position: absolute; left: 0; right: 0; top: 46%; z-index: 6; display: flex; flex-direction: column; align-items: center; padding: 6px 0; background: linear-gradient(90deg, transparent, rgba(0,0,0,.7), transparent); pointer-events: none; animation: pzBanner 1.5s ease-out forwards; }
 .pz-banner b { font-size: 26px; color: var(--gold2); letter-spacing: 4px; }
@@ -1114,7 +1114,7 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-panel p.c { text-align: center; }
 .pz-panel .note { font-size: 12px; color: var(--dim); }
 .pz-row { display: flex; justify-content: center; gap: 12px; margin-top: 12px; }
-@keyframes pzUpS { 0% { opacity: 0; transform: translate(calc(-50% + var(--dx)), 6px) scale(.8); } 15% { opacity: 1; transform: translate(calc(-50% + var(--dx)), 0) scale(1.08); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -8px); } }
+@keyframes pzUpS { 0% { opacity: 0; transform: translateY(6px) scale(.8); } 15% { opacity: 1; transform: translateY(0) scale(1.08); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
 @keyframes pzUp { 0% { opacity: 0; transform: translate(calc(-50% + var(--dx)), 10px) scale(.8); } 15% { opacity: 1; transform: translate(calc(-50% + var(--dx)), 0) scale(1.1); } 100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -46px) scale(1); } }
 @keyframes pzHit { 0%, 100% { transform: none; filter: none; } 40% { transform: translateX(-6px); filter: brightness(2); } 70% { transform: translateX(5px); } }
 @keyframes pzLunge { 0%, 100% { transform: none; } 45% { transform: translateY(14%) scale(1.12); } }
