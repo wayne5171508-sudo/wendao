@@ -60,7 +60,7 @@ const Roster = {
   },
   // 主角／道侶快照 → 隊員
   fromSnap(s, pos, self) {
-    return { id: self ? 'hero' : 'mate', src: self ? 'self' : 'partner', name: s.name, short: s.name, el: s.el, role: PZ_HERO.role, fac: PZ_HERO.fac, rare: '', star: 0,
+    return { id: self ? 'hero' : 'mate', src: self ? 'self' : 'partner', name: s.name, short: s.name, el: s.el, role: PZ_HERO.role, fac: PZ_HERO.fac, wild: true, rare: '', star: 0,
       atk: s.atk, hp: s.hp, rcv: s.rcv, img: `assets/ui/char_${s.char}.webp`, port: false, pos, lv: s.lv, wpn: s.wpn,
       sk: pzSk(s.sk), lead: pzSk(self ? PZ_HERO.lead : s.sub), leadId: self ? PZ_HERO.lead : s.sub, mateSrc: s.src };
   },
@@ -85,20 +85,22 @@ const Roster = {
   calc(T) {
     const leads = [[T[0], T[0].lead], [T[1], T[1].lead]].filter(([, L]) => L), mods = [];
     leads.forEach(([m, L]) => L.fx.forEach((e) => mods.push({ ...e, el: e.el === 'self' ? m.el : e.el, fac: e.fac === 'self' ? m.fac : e.fac, src: L.name })));
-    const facs = [];
-    Object.keys(PZ_FACS).forEach((f) => {
-      const n = T.filter((m) => m.fac === f).length, B = [...PZ_FAC_BONUS].reverse().find((b) => n >= b.n);
-      if (!B) return;
-      facs.push({ fac: f, n, atk: B.atk, hp: B.hp });
-      mods.push({ t: 'atk', fac: f, mult: B.atk, src: '陣營' }, { t: 'hp', fac: f, mult: B.hp, src: '陣營' });
-    });
+    // 同陣營加成：主角、副隊長是「萬用」，可補進任一陣營；各陣營＝抽卡角色數＋萬用數，只取最高的一個陣營
+    const wild = T.filter((m) => m.wild).length, facs = [];
+    const best = Object.keys(PZ_FACS).map((f) => ({ fac: f, own: T.filter((m) => !m.wild && m.fac === f).length }))
+      .map((o) => ({ ...o, wild, n: o.own + wild, B: [...PZ_FAC_BONUS].reverse().find((b) => o.own + wild >= b.n) }))
+      .filter((o) => o.B && o.own).sort((a, b) => b.n - a.n || b.own - a.own)[0];   // 同人數時抽卡角色多的優先
+    if (best) {
+      facs.push({ fac: best.fac, n: best.n, own: best.own, wild, atk: best.B.atk, hp: best.B.hp });
+      mods.push({ t: 'atk', fac: best.fac, wild: true, mult: best.B.atk, src: '陣營' }, { t: 'hp', fac: best.fac, wild: true, mult: best.B.hp, src: '陣營' });
+    }
     const sum = (t, k = 'n') => mods.filter((e) => e.t === t).reduce((a, e) => a + (e[k] || 0), 0);
     const hp = Math.round(T.reduce((a, m) => a + m.hp * this.mul(mods, 'hp', m), 0)), rcv = Math.round(T.reduce((a, m) => a + m.rcv * this.mul(mods, 'rcv', m), 0));
     const atk = Math.round(T.reduce((a, m) => a + m.atk * this.mul(mods, 'atk', m), 0));
     return { mods, facs, hp, rcv, atk, combo: sum('combo'), delay: sum('delay'), time: sum('time', 'sec'), comboUp: sum('comboUp', 'add'), pierce: mods.some((e) => e.t === 'pierce'),
       leads: leads.map(([m, L], i) => ({ ...L, who: m.name, pos: i ? '副隊長技' : '隊長技' })) };
   },
-  match(e, m) { return (!e.el || e.el === m.el || (Array.isArray(e.el) && e.el.includes(m.el))) && (!e.fac || e.fac === m.fac) && (!e.role || e.role === m.role); },
+  match(e, m) { return (!e.el || e.el === m.el || (Array.isArray(e.el) && e.el.includes(m.el))) && (!e.fac || (e.wild && m.wild) || e.fac === m.fac) && (!e.role || e.role === m.role); },
   mul(mods, t, m) { return mods.reduce((a, e) => (e.t === t && e.mult && this.match(e, m) ? a * e.mult : a), 1); },
 
   // ───────── 編組操作 ─────────
@@ -121,13 +123,13 @@ const Roster = {
   info(m) {
     const F = PZ_FACS[m.fac], R = PZ_RARITY[m.rare];
     return `<div class="pzr-info">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
-      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${F.c}">${F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
+      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}">${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
       <p><em>${m.id === 'mate' ? '副隊長技' : '隊長技'}</em>${this.skText(m.lead)}</p><p><em>主動技</em>${this.skText(m.sk)}</p></div></div>`;
   },
   // 地圖關卡說明裡的一行隊伍摘要
   summary() {
     const T = this.team(), C = this.calc(T);
-    return `<div class="pzr-mini">${T.map((m) => this.face(m)).join('')}</div><p class="c note">氣血 ${U.fmt(C.hp)}・攻擊 ${U.fmt(C.atk)}${C.facs.length ? '・' + C.facs.map((f) => PZ_FACS[f.fac].name + f.n + '人').join('、') : ''}</p>`;
+    return `<div class="pzr-mini">${T.map((m) => this.face(m)).join('')}</div><p class="c note">氣血 ${U.fmt(C.hp)}・攻擊 ${U.fmt(C.atk)}${C.facs.length ? '・' + C.facs.map((f) => PZ_FACS[f.fac].name + f.n + '人').join('') : ''}</p>`;
   },
 
   // ───────── 編組畫面（開在章節地圖的面板裡）─────────
@@ -136,12 +138,12 @@ const Roster = {
     const g = this.d, T = this.team(), C = this.calc(T), byId = Object.fromEntries(T.map((m) => [m.id, m]));
     sel = sel || 'hero';
     const slots = [0, 1, 2].map((i) => g.team[i]);
-    const card = (m, key, lab) => `<button class="pzr-card${sel === key ? ' sel' : ''}${m && m.pos === '隊長' ? ' cap' : ''}" data-k="${key}">${m ? this.face(m) : '<span class="pzr-face empty">＋</span>'}<small>${lab}</small></button>`;
+    const card = (m, key, lab) => `<button class="pzr-card${sel === key ? ' sel' : ''}${m && m.pos === '隊長' ? ' cap' : ''}" data-k="${key}">${m ? this.face(m) : '<span class="pzr-face empty">＋</span>'}${m && m.wild ? '<b class="pzr-wild">萬用</b>' : ''}<small>${lab}</small></button>`;
     const free = PZ_CHARS.filter((c) => g.own[c.id] && !slots.includes(c.id));
     const pick = sel.startsWith('slot') ? null : byId[sel] || (g.own[sel] ? this.fromChar(sel, '') : null);
     const inTeam = pick && (pick.id === 'hero' || slots.includes(pick.id));
     const emptySlot = slots.indexOf(null);
-    const facTxt = C.facs.length ? C.facs.map((f) => `${PZ_FACS[f.fac].name} ${f.n} 人：攻 ×${f.atk}、血 ×${f.hp}`).join('<br>') : '同陣營 3 人以上有加成';
+    const facTxt = C.facs.length ? C.facs.map((f) => `${PZ_FACS[f.fac].name} ${f.n} 人（角色 ${f.own}＋萬用 ${f.wild}）：攻 ×${f.atk}、血 ×${f.hp}`).join('') : '同陣營 3 人以上有加成（主角、副隊長是萬用，可補任一陣營）';
     const acts = [];
     if (pick && inTeam && pick.pos !== '隊長') acts.push(['cap', '設為隊長']);
     if (pick && inTeam && pick.id !== 'hero') acts.push(['out', '移出隊伍']);

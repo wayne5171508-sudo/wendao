@@ -1283,3 +1283,5 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 #pz > .pz-five-dim { position: absolute; z-index: 7; transform: translate(-50%, -50%) scale(.25); border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(10,8,14,.8) 0 35%, rgba(10,8,14,.5) 50%, transparent 68%); animation: pzFive .85s cubic-bezier(.15,.8,.3,1) forwards; }
 .pzr-art { flex: none; align-self: flex-start; width: 92px; aspect-ratio: 9 / 16; object-fit: contain; border-radius: 6px; background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,.12), transparent 70%); }
 @media (max-width: 340px) { .pzr-art { width: 76px; } }
+.pzr-card { position: relative; }
+.pzr-wild { position: absolute; top: 2px; left: 2px; z-index: 3; padding: 0 3px; border-radius: 3px; font-size: 9px; line-height: 1.4; color: #fff; background: #7a4fc9; }
