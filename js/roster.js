@@ -69,7 +69,7 @@ const Roster = {
     const C = pzChar(id), star = (this.d.own[id] && this.d.own[id].star) || 1, k = 1 + (star - 1) * PZ_STAR.step;
     return { id, src: 'char', name: C.name, short: C.short || C.name.split('·').pop(), el: C.el, role: C.role, fac: C.fac, rare: C.rare, star,
       atk: Math.round(C.atk * k), hp: Math.round(C.hp * k), rcv: Math.round(C.rcv * k),
-      img: C.face || C.art || '', port: !C.face && !!C.art, pos, sk: pzSk(C.sk), lead: pzSk(C.lead), leadId: C.lead };
+      img: C.face || C.art || '', port: !C.face && !!C.art, art: C.art || '', pos, sk: pzSk(C.sk), lead: pzSk(C.lead), leadId: C.lead };
   },
 
   // ───────── 組隊 ─────────
@@ -120,7 +120,7 @@ const Roster = {
   skText(S1) { return S1 ? `「${S1.name}」${S1.desc}${S1.cd ? `（冷卻 ${S1.cd}）` : ''}` : '無'; },
   info(m) {
     const F = PZ_FACS[m.fac], R = PZ_RARITY[m.rare];
-    return `<div class="pzr-info">${this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
+    return `<div class="pzr-info">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
       <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${F.c}">${F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
       <p><em>${m.id === 'mate' ? '副隊長技' : '隊長技'}</em>${this.skText(m.lead)}</p><p><em>主動技</em>${this.skText(m.sk)}</p></div></div>`;
   },

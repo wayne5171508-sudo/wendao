@@ -89,23 +89,23 @@ const PZ_MATE_DEFAULT = { name: '雲遊道友', char: 'yunxi', el: 'wood', lv: 0
 
 // ───────── 抽卡角色 ─────────
 // id 唯一；name 名號（「稱號·名字」時卡片只顯示名字，或用 short 指定）；el 五行；role 定位；fac 陣營；rare 稀有度；atk/hp/rcv 一星數值；lead 隊長技、sk 主動技（PZ_SKILLS 的 id）
-// face 頭像（正方形，建議 256×256）；art 立繪（直式，建議 720×1280 透明底）。face 沒有就裁 art 上半部，都沒有就用屬性色塊＋名字
+// face 頭像（正方形 256×256）；art 立繪（直式 720×1280 透明底），都放 assets/char/。face 沒有就裁 art 上半部，都沒有就用屬性色塊＋名字
 const PZ_CHARS = [
   // SSR
-  { id: 'xuanqiong', name: '玄穹天尊',         el: 'earth', role: 'sup',  fac: 'sect',  rare: 'SSR', atk: 720, hp: 1900, rcv: 220, lead: 'xq_lead', sk: 'xq_sk', art: 'assets/npc/shizun.webp' },
-  { id: 'litianjue', name: '血煞魔尊·厲天絕',  el: 'fire',  role: 'dps',  fac: 'demon', rare: 'SSR', atk: 980, hp: 1350, rcv: 40, lead: 'lt_lead', sk: 'lt_sk' },
-  { id: 'zhuji',     name: '焚天殘魂·朱寂',    el: 'fire',  role: 'dps',  fac: 'rogue', rare: 'SSR', atk: 900, hp: 1300, rcv: 110, lead: 'zj_lead', sk: 'zj_sk' },
-  { id: 'suningxue', name: '凌霜仙子·蘇凝雪',  el: 'water', role: 'ctrl', fac: 'sect',  rare: 'SSR', atk: 760, hp: 1550, rcv: 160, lead: 'sn_lead', sk: 'sn_sk', art: 'assets/npc/shijie.webp' },
+  { id: 'xuanqiong', name: '玄穹天尊',         el: 'earth', role: 'sup',  fac: 'sect',  rare: 'SSR', atk: 720, hp: 1900, rcv: 220, lead: 'xq_lead', sk: 'xq_sk', face: 'assets/char/xuanqiong_face.webp', art: 'assets/char/xuanqiong.webp' },
+  { id: 'litianjue', name: '血煞魔尊·厲天絕',  el: 'fire',  role: 'dps',  fac: 'demon', rare: 'SSR', atk: 980, hp: 1350, rcv: 40, lead: 'lt_lead', sk: 'lt_sk', face: 'assets/char/litianjue_face.webp', art: 'assets/char/litianjue.webp' },
+  { id: 'zhuji',     name: '焚天殘魂·朱寂',    el: 'fire',  role: 'dps',  fac: 'rogue', rare: 'SSR', atk: 900, hp: 1300, rcv: 110, lead: 'zj_lead', sk: 'zj_sk', face: 'assets/char/zhuji_face.webp', art: 'assets/char/zhuji.webp' },
+  { id: 'suningxue', name: '凌霜仙子·蘇凝雪',  el: 'water', role: 'ctrl', fac: 'sect',  rare: 'SSR', atk: 760, hp: 1550, rcv: 160, lead: 'sn_lead', sk: 'sn_sk', face: 'assets/char/suningxue_face.webp', art: 'assets/char/suningxue.webp' },
   // SR
-  { id: 'luqingchuan', name: '七彩劍尊·陸清川', el: 'metal', role: 'ctrl', fac: 'sect',  rare: 'SR', atk: 660, hp: 1200, rcv: 90, lead: 'lq_lead', sk: 'lq_sk', art: 'assets/npc/shixiong.webp' },
+  { id: 'luqingchuan', name: '七彩劍尊·陸清川', el: 'metal', role: 'ctrl', fac: 'sect',  rare: 'SR', atk: 660, hp: 1200, rcv: 90, lead: 'lq_lead', sk: 'lq_sk', face: 'assets/char/luqingchuan_face.webp', art: 'assets/char/luqingchuan.webp' },
   { id: 'langye',      name: '噬魂·狼夜',      el: 'earth', role: 'dps',  fac: 'demon', rare: 'SR', atk: 760, hp: 1150, rcv: 50, lead: 'ly_lead', sk: 'ly_sk' },
-  { id: 'suhongyu',    name: '赤蝶·蘇紅羽',    el: 'wood',  role: 'dps',  fac: 'rogue', rare: 'SR', atk: 720, hp: 1050, rcv: 80, lead: 'hy_lead', sk: 'hy_sk' },
-  { id: 'tianjizi',    name: '天機子',         el: 'metal', role: 'sup',  fac: 'rogue', rare: 'SR', atk: 560, hp: 1150, rcv: 130, lead: 'tj_lead', sk: 'tj_sk', art: 'assets/npc/xuanheng.webp' },
+  { id: 'suhongyu',    name: '赤蝶·蘇紅羽',    el: 'wood',  role: 'dps',  fac: 'rogue', rare: 'SR', atk: 720, hp: 1050, rcv: 80, lead: 'hy_lead', sk: 'hy_sk', face: 'assets/char/suhongyu_face.webp', art: 'assets/char/suhongyu.webp' },
+  { id: 'tianjizi',    name: '天機子',         el: 'metal', role: 'sup',  fac: 'rogue', rare: 'SR', atk: 560, hp: 1150, rcv: 130, lead: 'tj_lead', sk: 'tj_sk', face: 'assets/char/tianjizi_face.webp', art: 'assets/char/tianjizi.webp' },
   // R
-  { id: 'linzhao',   name: '少年劍子·林昭',    el: 'metal', role: 'dps',  fac: 'sect',  rare: 'R', atk: 560, hp: 1000, rcv: 60, lead: 'lz_lead', sk: 'lz_sk', art: 'assets/npc/guard.webp' },
-  { id: 'bairuoshui', name: '回春聖手·白若水', el: 'wood',  role: 'heal', fac: 'sect',  rare: 'R', atk: 400, hp: 1050, rcv: 240, lead: 'bs_lead', sk: 'bs_sk' },
-  { id: 'youyao',    name: '魔族聖女·幽瑤',    el: 'water', role: 'sup',  fac: 'demon', rare: 'R', atk: 470, hp: 1000, rcv: 110, lead: 'yy_lead', sk: 'yy_sk' },
-  { id: 'tieyue',    name: '魔將·鐵嶽',        el: 'earth', role: 'tank', fac: 'demon', rare: 'R', atk: 420, hp: 2000, rcv: 60, lead: 'ty_lead', sk: 'ty_sk' },
+  { id: 'linzhao',   name: '少年劍子·林昭',    el: 'metal', role: 'dps',  fac: 'sect',  rare: 'R', atk: 560, hp: 1000, rcv: 60, lead: 'lz_lead', sk: 'lz_sk', face: 'assets/char/linzhao_face.webp', art: 'assets/char/linzhao.webp' },
+  { id: 'bairuoshui', name: '回春聖手·白若水', el: 'wood',  role: 'heal', fac: 'sect',  rare: 'R', atk: 400, hp: 1050, rcv: 240, lead: 'bs_lead', sk: 'bs_sk', face: 'assets/char/bairuoshui_face.webp', art: 'assets/char/bairuoshui.webp' },
+  { id: 'youyao',    name: '魔族聖女·幽瑤',    el: 'water', role: 'sup',  fac: 'demon', rare: 'R', atk: 470, hp: 1000, rcv: 110, lead: 'yy_lead', sk: 'yy_sk', face: 'assets/char/youyao_face.webp', art: 'assets/char/youyao.webp' },
+  { id: 'tieyue',    name: '魔將·鐵嶽',        el: 'earth', role: 'tank', fac: 'demon', rare: 'R', atk: 420, hp: 2000, rcv: 60, lead: 'ty_lead', sk: 'ty_sk', face: 'assets/char/tieyue_face.webp', art: 'assets/char/tieyue.webp' },
 ];
 // 新存檔與舊存檔升級時送的角色（之後抽卡才會產出其他角色）
 const PZ_STARTER = ['linzhao', 'bairuoshui', 'tieyue'];
