@@ -1,39 +1,29 @@
 'use strict';
 // ════════════════════════════════════════════
-//  轉珠戰鬥原型（P0）：只在開發模式開啟，舊戰鬥 Battle 完全不動，也不讀寫存檔
-//  進入：網址 ?dev&pz 直接開，或開發模式下「歷練」頁最上方的「轉珠試煉」
+//  轉珠戰鬥（關卡制）：只在開發模式開啟，舊戰鬥 Battle 完全不動
+//  進入：網址 ?dev&pz 開章節地圖，或開發模式下「歷練」頁最上方的「轉珠關卡」
 //  玩法：按住珠子拖曳，經過的珠子會換位；放開或轉珠時間到就結算
 //        橫或直三顆以上同色相連即消除，相連的同色一起算一個 Combo；消除後上方掉落補珠，可連鎖
+//  一關＝數波小怪＋最後一波首領；數值（隊伍、怪物、關卡、獎勵）都在 js/stage-cfg.js，地圖與存檔在 js/stage.js
 // ════════════════════════════════════════════
 
 // ───────── 可替換素材 ─────────
 // 之後換日系手繪風時只改這裡：填上路徑就用圖，null 或載入失敗就用程式畫的色塊珠／漸層背景
-// 珠子圖建議正方形透明底（例 160×160），會縮放到格子大小
+// 珠子圖建議正方形透明底（例 160×160），會縮放到格子大小；怪物立繪在 stage-cfg.js 的 PZ_MONS
 const PZ_ART = {
-  bg: ['assets/bg/pz_day.webp', 'assets/bg/pz_dusk.webp', 'assets/bg/pz_night.webp'],   // 上半部戰鬥背景，依首領第一／二／三相換晨、昏、夜
   bgPos: '50% 40%',
-  boss: 'assets/mon/xuejia.webp',      // 首領立繪（透明底）
   board: 'assets/pz/board.webp',       // 盤面底板（奶油紙棕框），null＝不貼
   card: 'assets/pz/card.webp',         // 隊員卡框（透明底）
   paper: 'assets/pz/paper.webp',       // 下半部紙紋（壓暗疊在底色上）
   orbs: { wood: 'assets/orb/wood.webp', fire: 'assets/orb/fire.webp', earth: 'assets/orb/earth.webp',
     metal: 'assets/orb/metal.webp', water: 'assets/orb/water.webp', heart: 'assets/orb/heart.webp' },
-  // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應隊員 id，沒填的技能不放圖
   // 消除特效：黑底圖，依消除珠子屬性選圖疊在盤面；沒填或載入失敗就用程式效果（珠子放大淡出）
   clear: { wood: 'assets/fx/pz_clr_wood.webp', fire: 'assets/fx/pz_clr_fire.webp', earth: 'assets/fx/pz_clr_earth.webp',
     metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: 'assets/fx/pz_clr_heart.webp' },
-  fx: { hero: 'assets/fx/pz_slash.webp', mate: 'assets/fx/pz_heal.webp', jinxia: 'assets/fx/pz_break.webp', zichen: 'assets/fx/pz_ice.webp' },
+  // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應技能種類（stage-cfg.js 的 sk.t），沒填的不放圖
+  fx: { nuke: 'assets/fx/pz_slash.webp', convert: 'assets/fx/pz_heal.webp', pierce: 'assets/fx/pz_break.webp', delay: 'assets/fx/pz_ice.webp' },
 };
 
-// ───────── 規則數值 ─────────
-const PZ_CFG = {
-  cols: 6, rows: 5,
-  moveTime: 5,          // 轉珠秒數（第一次換位才開始計時）；網址加 &pzt=8 可改
-  comboStep: 0.25,      // 每多 1 Combo 傷害 +25%
-  extraOrb: 0.25,       // 一組超過 3 顆，每多 1 顆 +25%
-  beat: 1.5, beaten: 0.5,
-  comboGap: 450,        // 每個 Combo 消除之間的停頓（毫秒）
-};
 // ───────── 拖曳手感（之後只改這裡）─────────
 const PZ_DRAG = {
   enter: 0.1,        // 換位門檻：手指越過格線、進入新格子多深（格寬比例）就換；各軸分開算，0＝碰到格線就換（易在格線上來回抖）
@@ -45,6 +35,11 @@ const PZ_DRAG = {
   outMax: 0.5,       // 手指在盤面外時，拿起的珠子最多超出盤面邊界幾格（換位判定一律夾在盤面內、取最近的格子）
   liftAlpha: 0.9,    // 拿起的珠子透明度
   ghostAlpha: 0.3,   // 原位虛影透明度
+};
+// ───────── 版面 ─────────
+const PZ_LAYOUT = {
+  topMin: 190,       // 上方戰鬥區至少多高（px）：標題列 34＋提示列 16＋立繪（首領名字血條疊在立繪下緣）約 130
+  boardMaxH: 0.5,    // 盤面最多佔視窗高度幾成
 };
 const PZ_EL = {
   wood:  { ch: '木', c: '#58d07a', d: '#17602f' },
@@ -61,37 +56,19 @@ const pzRel = (a, d) => (PZ_BEATS[a] === d ? PZ_CFG.beat : PZ_BEATS[d] === a ? P
 // 靈根對應珠色：雷歸火、冰歸水
 const PZ_ROOT = { metal: 'metal', wood: 'wood', water: 'water', fire: 'fire', earth: 'earth', thunder: 'fire', ice: 'water' };
 
-// 首領血量：一般玩家（每回合 3～6 Combo）約 5～8 回合打完；調難度只改這個數字
-const PZ_BOSS_HP = 28000;
-// 首領：沿用血甲妖將的三相概念（減傷、暴怒吸血），出手改成倒數回合；每第 3 次出手為蓄力大招「血刃斬」
-const PZ_BOSS = {
-  name: '血甲妖將・厲蒼', hp: PZ_BOSS_HP, atk: 1500, def: 60, heavyEvery: 3, heavyName: '血刃斬',
-  phases: [
-    { name: '第一相', el: 'fire', cd: 3, heavyMult: 2.8 },
-    { at: 0.66, name: '第二相', el: 'earth', cd: 3, heavyMult: 2.8, dr: 0.25, banner: ['妖將祭陣', '血陣護身，減傷兩成五，屬性轉為土'] },
-    { at: 0.33, name: '第三相', el: 'fire', cd: 2, heavyMult: 2.6, atk: 1.3, leech: 0.25, banner: ['血甲暴怒', '出手加快，以血養血'] },
-  ],
-};
-
-// 隊伍：主角（隊長）＋道侶＋兵器 3 把，固定假資料；之後接真實兵器與存檔
+// 隊伍：依 PZ_TEAM 組成 [隊長, 副隊長, 隊員×3]；隊長的名字、頭像、屬性取自存檔，副隊長取自道侶（沒有就用另一位主角）
 function pzTeam() {
-  const d = (typeof S !== 'undefined' && S.d) || {};
+  const d = (typeof S !== 'undefined' && S.d) || {}, C = typeof CHARACTERS !== 'undefined' ? CHARACTERS : {};
   const lead = PZ_ROOT[d.root] || 'wood';
-  const me = (d.dao && d.dao.char) || 'qingyuan', mate = me === 'yunxi' ? 'qingyuan' : 'yunxi';
-  const C = typeof CHARACTERS !== 'undefined' ? CHARACTERS : {};
+  const me = (d.dao && d.dao.char) || 'qingyuan', P = d.dao && d.dao.partner;
+  const mate = (P && C[P.char] && P.char) || (me === 'yunxi' ? 'qingyuan' : 'yunxi');
   const nm = (id, fb) => (C[id] && C[id].name) || fb;
-  const mateEl = lead === 'wood' ? 'earth' : 'wood';   // 道侶補上隊上缺的木或土，五行湊齊
+  const mk = (T, extra) => ({ ...T, ...extra, sk: { ...T.sk }, lead: T.lead ? { ...T.lead } : null });
   return [
-    { id: 'hero', role: '隊長', name: d.name || nm(me, '林清遠'), el: lead, atk: 620, hp: 1500, rcv: 140, img: `assets/ui/char_${me}.webp`,
-      sk: { name: '劍氣', cd: 4, desc: '以隊長屬性造成攻擊 12 倍傷害（計算相剋）' } },
-    { id: 'mate', role: '道侶', name: nm(mate, '蘇雲汐'), el: mateEl, atk: 480, hp: 1300, rcv: 220, img: `assets/ui/char_${mate}.webp`,
-      sk: { name: '同心', cd: 5, desc: '心珠全部轉為隊長屬性珠，回復兩成氣血' } },
-    { id: 'jinxia', role: '兵器', name: '金霞劍', el: 'metal', atk: 560, hp: 950, rcv: 60, img: 'assets/weapon/jinxia.webp',
-      sk: { name: '破防', cd: 4, desc: '本回合無視首領的防禦與減傷' } },
-    { id: 'zichen', role: '兵器', name: '紫宸劍', el: 'water', atk: 650, hp: 1000, rcv: 70, img: 'assets/weapon/zichen.webp',
-      sk: { name: '霜寒', cd: 5, desc: '首領出手倒數 +1' } },
-    { id: 'chixiao', role: '兵器', name: '赤霄劍', el: 'fire', atk: 780, hp: 1100, rcv: 50, img: 'assets/weapon/chixiao.webp',
-      sk: { name: '連擊', cd: 4, desc: '本回合結算 Combo 數 +2' } },
+    mk(PZ_TEAM.leader, { name: d.name || nm(me, '林清遠'), el: lead, img: `assets/ui/char_${me}.webp` }),
+    // 副隊長補上隊上缺的木或土，五行湊齊（之後改成伴侶主角自己的靈根）
+    mk(PZ_TEAM.sub, { name: (P && P.name) || nm(mate, '蘇雲汐'), el: lead === 'wood' ? 'earth' : 'wood', img: `assets/ui/char_${mate}.webp` }),
+    ...PZ_TEAM.members.map((m) => mk(m, { role: '隊員' })),
   ];
 }
 
@@ -99,8 +76,10 @@ const Puzzle = {
   on: false,
 
   // ───────── 開關 ─────────
-  open() {
+  // opts.stage：stage.js 的關卡（體力已由 Stage.play 扣過）
+  open(opts = {}) {
     if (this.on) return;
+    this.stage = opts.stage || stageById('1-1');
     this.on = true;
     const t = +(new URLSearchParams(location.search).get('pzt'));
     this.moveTime = t >= 2 && t <= 30 ? t : PZ_CFG.moveTime;
@@ -113,30 +92,66 @@ const Puzzle = {
     this.reset();
     this.build();
     this.layout();
+    this.spawn(0);
     this._rs = () => this.layout(); addEventListener('resize', this._rs);
     this.last = performance.now();
     const loop = (now) => { if (!this.on) return; const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now; this.frame(dt); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
   },
-  close() {
+  // toMap：回章節地圖（預設）；next：回地圖後打開下一關說明
+  close(toMap = true, next) {
     this.held = null; this.state = 'idle'; this.dropLift();   // 拖曳中直接關閉：不結算
     this.on = false; cancelAnimationFrame(this.raf); removeEventListener('resize', this._rs);
     (this._win || []).forEach(([t, f, o]) => removeEventListener(t, f, o)); document.removeEventListener('visibilitychange', this._vis);
     this.root.remove(); document.body.classList.remove('pz-on');
     if (typeof Audio2 !== 'undefined') Audio2.setMood(Audio2.mood);   // 切回目前場景的音樂
     if (typeof FX !== 'undefined') requestAnimationFrame(() => FX.resize());
+    if (toMap) Stage.back(next);
   },
 
   reset() {
-    this.team = pzTeam().map((m) => ({ ...m, cd: Math.ceil(m.sk.cd / 2) }));   // 開場技能冷卻一半
-    this.hpMax = this.team.reduce((a, m) => a + m.hp, 0); this.hp = this.hpMax;
-    this.rcv = this.team.reduce((a, m) => a + m.rcv, 0);
-    const P = PZ_BOSS.phases;
-    this.boss = { hp: PZ_BOSS.hp, max: PZ_BOSS.hp, atk: PZ_BOSS.atk, def: PZ_BOSS.def, phase: 0, ph: P[0], el: P[0].el, cd: P[0].cd, hits: 0, dr: 0, leech: 0 };
+    this.team = pzTeam().map((m) => ({ ...m, cd: PZ_CFG.skillStartHalf ? Math.ceil(m.sk.cd / 2) : m.sk.cd }));
+    // 隊長技：隊長與副隊長各自生效
+    this.leads = [this.team[0], this.team[1]].filter((m) => m.lead).map((m) => ({ ...m.lead, el: m.lead.el || m.el }));
+    const mul = (t) => this.leads.filter((L) => L.t === t).reduce((a, L) => a * L.mult, 1);
+    this.hpMax = Math.round(this.team.reduce((a, m) => a + m.hp, 0) * mul('hp')); this.hp = this.hpMax;
+    this.rcv = Math.round(this.team.reduce((a, m) => a + m.rcv, 0) * mul('rcv'));
     this.buff = { pierce: false, combo: 0 };
-    this.turn = 0; this.maxCombo = 0; this.state = 'idle'; this.held = null;
+    this.turn = 0; this.maxCombo = 0; this.state = 'idle'; this.held = null; this.wave = 0; this.foes = []; this.tg = 0;
     this.grid = this.newBoard();
   },
+  // 依怪物表建一隻敵人（k＝關卡倍率）
+  mkFoe(id, k) {
+    const M = PZ_MONS[id], P = M.phases || [{}], p0 = P[0] || {};
+    const hp = Math.round(M.hp * k), atk = Math.round(M.atk * k);
+    return { id, M, name: M.name, boss: !!M.boss, hp, max: hp, atk0: atk, atk: Math.round(atk * (p0.atk || 1)), def: M.def || 0,
+      el: p0.el || M.el, cd: p0.cd || M.cd, phase: 0, ph: p0, hits: 0, dr: p0.dr || 0, leech: p0.leech || 0 };
+  },
+  // 第 i 波上場
+  spawn(i) {
+    const st = this.stage, ids = st.waves[i], last = i === st.waves.length - 1;
+    this.wave = i; this.tg = 0;
+    this.foes = ids.map((id) => this.mkFoe(id, st.k || 1));
+    const bgs = st.ch.bg, top = this.root.querySelector('.pz-top');
+    top.style.backgroundImage = `url(${bgs[Math.min(bgs.length - 1, last ? 2 : i ? 1 : 0)] || bgs[0]})`;
+    const box = this.root.querySelector('#pzFoes');
+    box.className = 'pz-foes n' + this.foes.length;
+    box.innerHTML = this.foes.map((f, j) => `<div class="pz-foe${f.boss ? ' boss' : ''}" data-f="${j}">
+        <div class="pz-fcd"><small>倒數</small><b></b></div>
+        <div class="pz-fimg">${f.M.img ? `<img src="${f.M.img}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'pz-fph',textContent:'${f.name.slice(0, 2)}'}))">` : `<i class="pz-fph">${f.name.slice(0, 2)}</i>`}</div>
+        <div class="pz-fname"><i class="pz-el"></i><b>${f.name}</b><em></em></div>
+        <div class="pz-hp boss"><i></i><span></span></div></div>`).join('');
+    box.querySelectorAll('.pz-foe').forEach((el) => (el.onclick = () => this.pickTarget(+el.dataset.f)));
+    this.root.querySelector('#pzWave').textContent = `第 ${i + 1} / ${st.waves.length} 波${last ? '・首領' : ''}`;
+    this.hud();
+    if (last && this.foes.some((f) => f.boss)) { this.banner(this.foes.find((f) => f.boss).name, '首領現身'); if (typeof Audio2 !== 'undefined') Audio2.play('roar'); }
+    else if (i) this.banner(`第 ${i + 1} 波`, '');
+  },
+  alive() { return this.foes.filter((f) => f.hp > 0); },
+  // 攻擊目標：玩家點選的（還活著）優先，否則第一隻活著的
+  tgt() { const f = this.foes[this.tg]; return f && f.hp > 0 ? f : this.alive()[0]; },
+  pickTarget(j) { if (this.state !== 'idle' || !this.foes[j] || this.foes[j].hp <= 0) return; this.tg = j; this.hud(); },
+  foeEl(f) { return this.root.querySelector(`.pz-foe[data-f="${this.foes.indexOf(f)}"]`); },
 
   // ───────── 盤面資料 ─────────
   orb(c, r, col, y) { return { c, x: col, y: y ?? r, vy: 0, fall: false, die: 0 }; },
@@ -189,31 +204,27 @@ const Puzzle = {
 
   // ───────── 畫面 ─────────
   build() {
-    const T = this.team, B = this.boss;
+    const T = this.team, st = this.stage;
     this.root.innerHTML = `
-      <div class="pz-top" style="background-image:url(${PZ_ART.bg[0]});background-position:${PZ_ART.bgPos}">
-        <div class="pz-bar"><button class="pz-btn" id="pzExit">撤</button><span>轉珠試煉・原型</span><button class="pz-btn" id="pzHelp">？</button></div>
-        <div class="pz-bhud">
-          <div class="pz-bname"><b>${PZ_BOSS.name}</b><em id="pzPh"></em><i class="pz-el" id="pzBEl"></i></div>
-          <div class="pz-hp boss"><i id="pzBHp"></i><span id="pzBHpT"></span></div>
-          <div class="pz-warn" id="pzWarn"></div>
-        </div>
-        <div class="pz-boss" id="pzBoss"><img src="${PZ_ART.boss}" alt="" onerror="this.remove()"></div>
-        <div class="pz-cd" id="pzCd"><small>倒數</small><b></b></div>
+      <div class="pz-top" style="background-position:${PZ_ART.bgPos}">
+        <div class="pz-bar"><button class="pz-btn" id="pzExit">撤</button><span><b>${st.id} ${st.name}</b><small id="pzWave"></small></span><button class="pz-btn" id="pzHelp">？</button></div>
+        <div class="pz-warn" id="pzWarn"></div>
+        <div class="pz-foes" id="pzFoes"></div>
         <div class="pz-fl" id="pzFl"></div><div class="pz-combo" id="pzCombo"></div>
       </div>
       <div class="pz-team">${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
           <span class="pz-face"><img src="${m.img}" alt="" onerror="this.remove()"><i>${PZ_EL[m.el].ch}</i></span>
-          <span class="pz-sk"></span><small>${m.role === '兵器' ? m.name.replace('劍', '') : m.role}</small></button>`).join('')}</div>
+          <span class="pz-sk"></span><small>${m.role === '隊員' ? m.name.replace('劍', '') : m.role}</small></button>`).join('')}</div>
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
       <div class="pz-timer"><i id="pzTm"></i></div>
       <div class="pz-boardwrap"><canvas id="pzCv"></canvas><canvas class="pz-lift" id="pzLift"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.moveTime} 秒到就結算</div></div>
       <div class="pz-toast" id="pzToast"></div>${this.dbg ? '<div class="pz-dbg" id="pzDbg"></div><i class="pz-dot" id="pzDot"></i>' : ''}
+      <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-end hidden" id="pzEnd"></div>`;
     const $p = (s) => this.root.querySelector(s);
     ['board', 'card', 'paper'].forEach((k) => this.root.style.setProperty('--pz-' + k, PZ_ART[k] ? `url(${PZ_ART[k]})` : 'none'));
     this.cv = $p('#pzCv'); this.ctx = this.cv.getContext('2d');
-    $p('#pzExit').onclick = () => this.close();
+    $p('#pzExit').onclick = () => this.retreat();
     $p('#pzHelp').onclick = () => this.help();
     this.root.querySelectorAll('.pz-mem').forEach((b) => (b.onclick = () => this.skill(+b.dataset.m)));
     // 觸控：pointer capture＋touch-action:none，擋掉 iOS 下拉重整、捲動、長按選取
@@ -231,19 +242,18 @@ const Puzzle = {
     this.root.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     this.root.addEventListener('contextmenu', (e) => e.preventDefault());
     this.loadArt();
-    this.hud();
   },
-  // 盤面大小：寬度貼齊螢幕（最多 480），高度不超過可用高度的一半
+  // 盤面大小：寬度貼齊螢幕（最多 460），高度不超過視窗一半，且上方戰鬥區至少留 PZ_LAYOUT.topMin
   layout() {
     const { cols, rows } = PZ_CFG, W = Math.min(innerWidth - 32, 460);   // 左右各留 10px 給盤面底板框
-    // 可用高度＝視窗高 − 隊伍列、血條、計時條 − 上方首領區至少 110px
-    const q = (s) => this.root.querySelector(s), used = q('.pz-team').offsetHeight + q('.pz-hp.team').offsetHeight + q('.pz-timer').offsetHeight + 44;
-    const cell = Math.floor(Math.max(28, Math.min(W / cols, (innerHeight * 0.5) / rows, (innerHeight - used - 110) / (rows + 2 * PZ_DRAG.edgeBuf))));
+    const q = (s) => this.root.querySelector(s), used = q('.pz-team').offsetHeight + q('.pz-hp.team').offsetHeight + q('.pz-timer').offsetHeight + 30;
+    const cell = Math.floor(Math.max(28, Math.min(W / cols, (innerHeight * PZ_LAYOUT.boardMaxH) / rows, (innerHeight - used - PZ_LAYOUT.topMin) / (rows + 2 * PZ_DRAG.edgeBuf))));
     this.cell = cell; this.dpr = Math.min(2.5, devicePixelRatio || 1);
     this.cv.style.width = cols * cell + 'px'; this.cv.style.height = rows * cell + 'px';
     this.cv.width = Math.round(cols * cell * this.dpr); this.cv.height = Math.round(rows * cell * this.dpr);
     this.root.style.setProperty('--board', cols * cell + 'px');
     this.root.style.setProperty('--pzbuf', Math.round(cell * PZ_DRAG.edgeBuf) + 'px');
+    this.root.style.setProperty('--pztop', PZ_LAYOUT.topMin + 'px');
     this.sprites = {};
     PZ_COLORS.forEach((k) => (this.sprites[k] = this.orbSprite(k)));
   },
@@ -400,7 +410,7 @@ const Puzzle = {
     this.resolve();
   },
 
-  // ───────── 結算：消除、連鎖、傷害、首領回合 ─────────
+  // ───────── 結算：消除、連鎖、傷害、敵方回合、換波 ─────────
   async resolve() {
     this.state = 'resolve';
     const combos = [];
@@ -418,15 +428,30 @@ const Puzzle = {
       this.drop();
     }
     await this.waitSettle();
+    if (!this.on) return;
     this.turn++;
     if (combos.length) await this.attack(combos);
-    if (this.boss.hp <= 0) return this.win();
-    await this.bossTurn();
+    if (await this.waveCheck()) return;
+    await this.foesTurn();
     if (this.hp <= 0) return this.lose();
+    this.endTurn();
+  },
+  endTurn() {
     this.team.forEach((m) => (m.cd = Math.max(0, m.cd - 1)));
     this.buff = { pierce: false, combo: 0 };
     this.hud();
     this.state = 'idle';
+  },
+  // 這波打完：下一波上場（玩家接著轉珠，敵方不出手）或通關；回傳 true＝這回合到此為止
+  async waveCheck() {
+    if (this.alive().length) return false;
+    if (this.wave >= this.stage.waves.length - 1) { this.win(); return true; }
+    await U.wait(500);
+    if (!this.on) return true;
+    this.spawn(this.wave + 1);
+    await U.wait(900);
+    this.endTurn();
+    return true;
   },
   waitSettle() { return new Promise((res) => { const f = () => (!this.on ? res() : this.settled() ? res() : requestAnimationFrame(f)); f(); }); },
   comboPop(n, G) {
@@ -437,123 +462,162 @@ const Puzzle = {
     if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
   },
 
-  // 傷害公式：隊員攻擊 ×（該色每組 1＋多出顆數×25%）×（1＋(Combo−1)×25%）× 相剋 × 隊長加成，再扣防禦、減傷
+  // 傷害公式：隊員攻擊 ×（該色每組 1＋多出顆數×25%）×（1＋(Combo−1)×25%）× 隊長技，對目標再乘相剋、扣防禦與減傷
+  leadMult(m) { return this.leads.filter((L) => L.t === 'elAtk' && L.el === m.el).reduce((a, L) => a * L.mult, 1); },
+  dmgTo(f, raw, el) {
+    const d = raw * pzRel(el, f.el);
+    return Math.round(this.buff.pierce ? d : Math.max(1, (d - f.def) * (1 - f.dr)));
+  },
   calc(combos) {
     const pow = {}; combos.forEach((G) => (pow[G.c] = (pow[G.c] || 0) + 1 + (G.cells.length - 3) * PZ_CFG.extraOrb));
-    const n = combos.length + this.buff.combo, mult = 1 + (n - 1) * PZ_CFG.comboStep, B = this.boss, lead = this.team[0].el;
-    const hits = this.team.map((m, i) => {
-      if (!pow[m.el]) return null;
-      const rel = pzRel(m.el, B.el), lm = m.el === lead ? 1.5 : 1;   // 隊長技「靈根共鳴」：與隊長同屬性的隊員攻擊 ×1.5
-      let dmg = m.atk * pow[m.el] * mult * rel * lm;
-      dmg = this.buff.pierce ? dmg : Math.max(1, (dmg - B.def) * (1 - B.dr));
-      return { i, dmg: Math.round(dmg), rel };
-    }).filter(Boolean);
+    const n = combos.length + this.buff.combo, mult = 1 + (n - 1) * PZ_CFG.comboStep;
+    const hits = this.team.map((m, i) => (pow[m.el] ? { i, raw: m.atk * pow[m.el] * mult * this.leadMult(m) } : null)).filter(Boolean);
     return { n, mult, hits, heal: pow.heart ? Math.round(this.rcv * pow.heart * mult) : 0 };
   },
   async attack(combos) {
     const R = this.calc(combos);
     this.maxCombo = Math.max(this.maxCombo, R.n);
     if (this.buff.combo) this.float(`連擊 +${this.buff.combo}`, '#ffd76a', 'mid');
+    let total = 0;
     for (const h of R.hits) {
+      const f = this.tgt(); if (!f) break;   // 全倒了：剩下的攻擊不用打
+      const m = this.team[h.i], rel = pzRel(m.el, f.el), dmg = this.dmgTo(f, h.raw, m.el);
       const b = this.root.querySelector(`.pz-mem[data-m="${h.i}"]`); b.classList.remove('atk'); void b.offsetWidth; b.classList.add('atk');
       const el = document.createElement('span');
-      el.className = 'pz-mnum' + (h.rel > 1 ? ' beat' : h.rel < 1 ? ' weak' : '');
-      el.textContent = (h.rel > 1 ? '剋 ' : h.rel < 1 ? '抗 ' : '') + U.fmt(h.dmg);
-      if (h.rel === 1) el.style.color = PZ_EL[this.team[h.i].el].c;
+      el.className = 'pz-mnum' + (rel > 1 ? ' beat' : rel < 1 ? ' weak' : '');
+      el.textContent = (rel > 1 ? '剋 ' : rel < 1 ? '抗 ' : '') + U.fmt(dmg);
+      if (rel === 1) el.style.color = PZ_EL[m.el].c;
       b.appendChild(el); setTimeout(() => el.remove(), 1600);
-      this.sfx('pz_hit', { heavy: h.rel > 1 });
+      this.hitFoe(f, dmg, rel, PZ_EL[m.el].c);
+      total += dmg;
       await U.wait(160);
     }
-    const total = R.hits.reduce((s, h) => s + h.dmg, 0);
     if (R.heal) this.heal(R.heal);
     if (total) {
-      await U.wait(250); this.totalDmg(total, R); this.hitBoss(total, '', 1, true);
+      await U.wait(250); this.totalDmg(total, R);
       await U.wait(1350);                                  // 總傷害（滾動約 0.5 秒＋停留約 0.8 秒）播完才換相，兩者不重疊
-      if (this.phaseCheck()) { this.hud(); await U.wait(1300); }
+      for (const f of this.alive()) if (this.phaseCheck(f)) { this.hud(); await U.wait(1300); }
     }
     await U.wait(250);
   },
-  hitBoss(dmg, color, rel, quiet) {
-    const B = this.boss; B.hp = Math.max(0, B.hp - dmg);
-    if (!quiet) this.float((rel > 1 ? '剋 ' : rel < 1 ? '抗 ' : '') + U.fmt(dmg), rel > 1 ? '#ffe36a' : rel < 1 ? '#a8b4c0' : color, 'boss', rel > 1);
-    const bx = this.root.querySelector('#pzBoss'); bx.classList.remove('hit'); void bx.offsetWidth; bx.classList.add('hit');
+  // 單隻受傷：數字飄在那隻頭上；倒下就淡出
+  hitFoe(f, dmg, rel, color) {
+    f.hp = Math.max(0, f.hp - dmg);
+    const el = this.foeEl(f);
+    if (el) {
+      const n = document.createElement('span'); n.className = 'pz-fnum' + (rel > 1 ? ' beat' : rel < 1 ? ' weak' : '');
+      n.textContent = U.fmt(dmg); n.style.color = rel > 1 ? '#ffe36a' : rel < 1 ? '#a8b4c0' : color || '#fff';
+      n.style.setProperty('--dx', Math.round(U.rand(-16, 16)) + 'px');
+      el.appendChild(n); setTimeout(() => n.remove(), 900);
+      el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+      if (f.hp <= 0) el.classList.add('dead');
+    }
     this.sfx('pz_hit', { heavy: rel > 1 });
-    if (!quiet) this.phaseCheck(); this.hud();   // quiet＝連鎖總傷害：換相由 attack 等總傷害播完再處理
+    this.hud();
   },
   heal(n) {
     const real = Math.min(n, this.hpMax - this.hp); this.hp += real;
     this.float('+' + U.fmt(n), '#ff9ccc', 'team'); this.hud();
   },
-  phaseCheck() {
-    const B = this.boss, P = PZ_BOSS.phases, r = B.hp / B.max;
+  // 換相：血量低於門檻就套用該相的屬性、倒數、減傷、攻擊倍率、吸血
+  phaseCheck(f) {
+    const P = f.M.phases; if (!P || f.hp <= 0) return false;
+    const r = f.hp / f.max;
     let np = 0; P.forEach((p, i) => { if (i && r < p.at) np = i; });
-    if (np <= B.phase || B.hp <= 0) return;
-    B.phase = np; const ph = (B.ph = P[np]);
-    B.el = ph.el; B.dr = ph.dr || 0; B.leech = ph.leech || 0; if (ph.atk) B.atk = Math.round(PZ_BOSS.atk * ph.atk);
-    B.cd = Math.min(B.cd, ph.cd);
-    this.banner(ph.banner[0], ph.banner[1]);
+    if (np <= f.phase) return false;
+    f.phase = np; const ph = (f.ph = P[np]);
+    if (ph.el) f.el = ph.el; f.dr = ph.dr || 0; f.leech = ph.leech || 0; f.atk = Math.round(f.atk0 * (ph.atk || 1));
+    if (ph.cd) f.cd = Math.min(f.cd, ph.cd);
+    if (ph.banner) this.banner(ph.banner[0], ph.banner[1]);
     if (typeof Audio2 !== 'undefined') Audio2.play('roar');
-    this.root.querySelector('#pzBoss').classList.toggle('warded', B.dr > 0);
-    this.root.querySelector('#pzBoss').classList.toggle('enrage', np === P.length - 1);
-    this.root.querySelector('.pz-top').style.backgroundImage = `url(${PZ_ART.bg[np] || PZ_ART.bg[0]})`;
+    const el = this.foeEl(f);
+    if (el) { el.classList.toggle('warded', f.dr > 0); el.classList.toggle('enrage', np === P.length - 1 && np > 0 && !!(ph.atk || ph.leech)); }
+    if (f.boss) { const bgs = this.stage.ch.bg; this.root.querySelector('.pz-top').style.backgroundImage = `url(${bgs[Math.min(bgs.length - 1, np)] || bgs[0]})`; }
     return true;
   },
-  async bossTurn() {
-    const B = this.boss; B.cd--;
+  foeCd(f) { return (f.ph && f.ph.cd) || f.M.cd; },
+  heavyNext(f) { return f.M.heavy && (f.hits + 1) % f.M.heavy.every === 0; },
+  // 敵方回合：每隻倒數 −1，歸零的依序出手
+  async foesTurn() {
+    this.alive().forEach((f) => f.cd--);
     this.hud();
-    if (B.cd > 0) { await U.wait(150); return; }
+    const act = this.alive().filter((f) => f.cd <= 0);
+    if (!act.length) { await U.wait(150); return; }
     await U.wait(250);
-    B.hits++;
-    const heavy = B.hits % PZ_BOSS.heavyEvery === 0, dmg = Math.round(B.atk * (heavy ? B.ph.heavyMult : 1) * U.rand(0.92, 1.08));
-    const bx = this.root.querySelector('#pzBoss'); bx.classList.remove('lunge'); void bx.offsetWidth; bx.classList.add('lunge');
-    await U.wait(220);
-    this.hp = Math.max(0, this.hp - dmg);
-    this.float((heavy ? PZ_BOSS.heavyName + ' ' : '-') + U.fmt(dmg), '#ff6a6a', 'team', heavy);
-    this.root.classList.remove('hurt'); void this.root.offsetWidth; this.root.classList.add('hurt');
-    this.sfx('pz_hurt');
-    if (navigator.vibrate) try { navigator.vibrate(heavy ? [40, 40, 60] : 30); } catch (er) {}
-    if (B.leech) { const lh = Math.round(dmg * B.leech); B.hp = Math.min(B.max, B.hp + lh); this.float('吸血 +' + U.fmt(lh), '#ff6a7a', 'boss'); }
-    B.cd = B.ph.cd;
-    this.hud();
-    await U.wait(450);
+    for (const f of act) {
+      if (this.hp <= 0) break;
+      f.hits++;
+      const H = f.M.heavy, heavy = !!H && f.hits % H.every === 0, hm = heavy ? (f.ph && f.ph.heavyMult) || H.mult : 1;
+      const dmg = Math.round(f.atk * hm * U.rand(0.92, 1.08));
+      const el = this.foeEl(f); if (el) { el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); }
+      await U.wait(220);
+      this.hp = Math.max(0, this.hp - dmg);
+      this.float((heavy ? H.name + ' ' : '-') + U.fmt(dmg), '#ff6a6a', 'team', heavy);
+      this.root.classList.remove('hurt'); void this.root.offsetWidth; this.root.classList.add('hurt');
+      this.sfx('pz_hurt');
+      if (navigator.vibrate) try { navigator.vibrate(heavy ? [40, 40, 60] : 30); } catch (er) {}
+      if (f.leech) { const lh = Math.round(dmg * f.leech); f.hp = Math.min(f.max, f.hp + lh); this.float('吸血 +' + U.fmt(lh), '#ff6a7a', 'boss'); }
+      f.cd = this.foeCd(f);
+      this.hud();
+      await U.wait(act.length > 1 ? 380 : 450);
+    }
   },
 
-  // ───────── 隊員技能（冷卻以回合計，施放不結束回合） ─────────
+  // ───────── 隊員技能（冷卻以回合計，施放不結束回合；效果依 sk.t）─────────
   skill(i) {
-    const m = this.team[i];
+    const m = this.team[i], sk = m.sk;
     if (this.state !== 'idle') return;
-    if (m.cd > 0) { this.toast(`${m.name}「${m.sk.name}」：${m.sk.desc}（還要 ${m.cd} 回合）`); return; }
-    const B = this.boss;
-    m.cd = m.sk.cd;
-    this.banner(m.sk.name, m.name);
+    if (m.cd > 0) { this.toast(`${m.name}「${sk.name}」：${sk.desc}（還要 ${m.cd} 回合）`); return; }
+    m.cd = sk.cd;
+    this.banner(sk.name, m.name);
     this.sfx('pz_cast');
-    this.fx(m.id);
-    if (m.id === 'hero') {
-      const rel = pzRel(m.el, B.el), dmg = Math.round(Math.max(1, (m.atk * 12 * rel - B.def) * (1 - B.dr)));
-      setTimeout(() => { this.hitBoss(dmg, PZ_EL[m.el].c, rel); if (B.hp <= 0) { this.state = 'resolve'; setTimeout(() => this.win(), 600); } }, 350);
-    } else if (m.id === 'mate') {
+    this.fx(sk.t);
+    if (sk.t === 'nuke') {
+      const f = this.tgt(), lead = this.team[0];
+      if (f) {
+        this.state = 'resolve';   // 傷害落地前不能轉珠，避免和結算重疊
+        setTimeout(async () => {
+          if (!this.on) return;
+          const rel = pzRel(lead.el, f.el); this.hitFoe(f, this.dmgTo(f, m.atk * (sk.mult || 10), lead.el), rel, PZ_EL[lead.el].c);
+          this.phaseCheck(f);
+          if (this.alive().length) { this.state = 'idle'; this.hud(); return; }
+          // 技能打倒整波：直接換下一波或通關（不算回合、敵方不出手）
+          if (this.wave >= this.stage.waves.length - 1) return this.win();
+          await U.wait(500); if (!this.on) return;
+          this.spawn(this.wave + 1); this.state = 'idle'; this.hud();
+        }, 350);
+      }
+    } else if (sk.t === 'convert') {
       const to = this.team[0].el;
-      this.grid.forEach((row) => row.forEach((o) => { if (o && o.c === 'heart') { o.c = to; o.die = 0; } }));
-      this.heal(Math.round(this.hpMax * 0.2));
-    } else if (m.id === 'jinxia') { this.buff.pierce = true; this.float('破防', '#f3e7b0', 'mid'); }
-    else if (m.id === 'zichen') { B.cd = Math.min(9, B.cd + 1); this.float('霜寒・倒數 +1', '#9fd8ff', 'boss'); }
-    else if (m.id === 'chixiao') { this.buff.combo += 2; this.float('本回合 Combo +2', '#ffb08a', 'mid'); }
+      this.grid.forEach((row) => row.forEach((o) => { if (o && o.c === (sk.from || 'heart')) { o.c = to; o.die = 0; } }));
+      if (sk.heal) this.heal(Math.round(this.hpMax * sk.heal));
+    } else if (sk.t === 'pierce') { this.buff.pierce = true; this.float('破防', '#f3e7b0', 'mid'); }
+    else if (sk.t === 'delay') { this.alive().forEach((f) => (f.cd = Math.min(9, f.cd + (sk.n || 1)))); this.float(`${sk.name}・倒數 +${sk.n || 1}`, '#9fd8ff', 'boss'); }
+    else if (sk.t === 'combo') { this.buff.combo += sk.n || 2; this.float(`本回合 Combo +${sk.n || 2}`, '#ffb08a', 'mid'); }
     this.hud();
   },
 
   // ───────── 介面更新與提示 ─────────
   hud() {
-    const B = this.boss, q = (s) => this.root.querySelector(s);
-    q('#pzBHp').style.width = (100 * B.hp) / B.max + '%'; q('#pzBHpT').textContent = `${U.fmt(B.hp)} / ${U.fmt(B.max)}`;
+    const q = (s) => this.root.querySelector(s), T = this.tgt(), multi = this.alive().length > 1;
     q('#pzTHp').style.width = (100 * this.hp) / this.hpMax + '%'; q('#pzTHpT').textContent = `${U.fmt(this.hp)} / ${U.fmt(this.hpMax)}`;
-    q('#pzPh').textContent = B.ph.name + (B.dr ? `・減傷 ${Math.round(B.dr * 100)}%` : '') + (B.leech ? '・吸血' : '');
-    const E = PZ_EL[B.el], el = q('#pzBEl'); el.textContent = E.ch; el.style.setProperty('--c', E.c); el.style.setProperty('--d', E.d);
-    q('#pzCd b').textContent = Math.max(0, B.cd);
-    const heavyNext = (B.hits + 1) % PZ_BOSS.heavyEvery === 0;
-    q('#pzCd').classList.toggle('danger', B.cd <= 1);
-    // 提示剋制：哪個屬性打這隻有 1.5 倍
-    const weak = Object.keys(PZ_BEATS).find((k) => PZ_BEATS[k] === B.el);
-    q('#pzWarn').innerHTML = (heavyNext ? `<span class="hv">下次出手：${PZ_BOSS.heavyName}（約 ${U.fmt(B.atk * B.ph.heavyMult)}）</span>` : '') + `<span>弱點 <i style="color:${PZ_EL[weak].c}">${PZ_EL[weak].ch}</i>　抗 <i style="color:${PZ_EL[PZ_BEATS[B.el]].c}">${PZ_EL[PZ_BEATS[B.el]].ch}</i></span>`;
+    this.foes.forEach((f) => {
+      const el = this.foeEl(f); if (!el) return;
+      el.querySelector('.pz-hp i').style.width = (100 * f.hp) / f.max + '%';
+      el.querySelector('.pz-hp span').textContent = f.boss ? `${U.fmt(f.hp)} / ${U.fmt(f.max)}` : U.fmt(f.hp);
+      const E = PZ_EL[f.el], e = el.querySelector('.pz-el'); e.textContent = E.ch; e.style.setProperty('--c', E.c); e.style.setProperty('--d', E.d);
+      el.querySelector('.pz-fname em').textContent = f.boss && f.ph && f.ph.name ? f.ph.name + (f.dr ? `・減傷 ${Math.round(f.dr * 100)}%` : '') + (f.leech ? '・吸血' : '') : '';
+      el.querySelector('.pz-fcd b').textContent = Math.max(0, f.cd);
+      el.querySelector('.pz-fcd').classList.toggle('danger', f.cd <= 1);
+      el.querySelector('.pz-fcd').classList.toggle('heavy', !!this.heavyNext(f));
+      el.classList.toggle('tg', multi && f === T);
+    });
+    // 提示剋制（目前目標）、下次出手是大招的敵人
+    if (T) {
+      const weak = Object.keys(PZ_BEATS).find((k) => PZ_BEATS[k] === T.el), hv = this.alive().find((f) => this.heavyNext(f));
+      q('#pzWarn').innerHTML = `<span>${multi ? '目標 ' : ''}弱點 <i style="color:${PZ_EL[weak].c}">${PZ_EL[weak].ch}</i>　抗 <i style="color:${PZ_EL[PZ_BEATS[T.el]].c}">${PZ_EL[PZ_BEATS[T.el]].ch}</i></span>` +
+        (hv ? `<span class="hv">${hv.name}下次：${hv.M.heavy.name}（約 ${U.fmt(hv.atk * ((hv.ph && hv.ph.heavyMult) || hv.M.heavy.mult))}）</span>` : '');
+    }
     this.root.querySelectorAll('.pz-mem').forEach((b, i) => {
       const m = this.team[i]; b.classList.toggle('ready', m.cd === 0);
       b.querySelector('.pz-sk').textContent = m.cd === 0 ? m.sk.name : `${m.sk.name} ${m.cd}`;
@@ -591,9 +655,9 @@ const Puzzle = {
       wrap.appendChild(im);
     });
   },
-  fx(id) {
-    const src = PZ_ART.fx[id]; if (!src) return;
-    const im = new Image(); im.className = `pz-fx fx-${id}`; im.alt = ''; im.src = src;
+  fx(t) {
+    const src = PZ_ART.fx[t]; if (!src) return;
+    const im = new Image(); im.className = `pz-fx fx-${t}`; im.alt = ''; im.src = src;
     im.onerror = im.onanimationend = () => im.remove();
     this.root.querySelector('.pz-top').appendChild(im);   // 不放 #pzFl：它有 z-index，screen 混色會只混到透明底而露出黑框
   },
@@ -602,30 +666,55 @@ const Puzzle = {
     clearTimeout(this._tt); this._tt = setTimeout(() => t.classList.remove('show'), 2600);
   },
   help() {
-    this.endPanel(`<h3>轉珠試煉・原型</h3>
+    const L = this.leads.map((l) => `「${l.name}」${l.desc}`).join('；');
+    this.endPanel(`<h3>轉珠說明</h3>
       <p>按住任一顆珠子拖曳，經過的珠子會跟它換位（可斜走）。放開手指，或第一次換位後 ${this.moveTime} 秒到，就結算。</p>
       <p>橫或直 3 顆以上同色相連就消除，相連的同色算 1 個 Combo；消除後上方掉珠，可再連鎖。每多 1 Combo 傷害 +25%。</p>
       <p>每位隊員打自己顏色的珠。五行相剋：木剋土、土剋水、水剋火、火剋金、金剋木（剋 1.5 倍、被剋 0.5 倍）。心珠回血。</p>
-      <p>首領頭上數字是出手倒數。點隊員頭像施放技能（冷卻歸零才能用，不會結束回合）。</p>`, [['繼續', () => this.endClose()]]);
+      <p>敵人頭上數字是出手倒數；有多隻時點敵人可指定攻擊目標。點隊員頭像施放技能（冷卻歸零才能用，不會結束回合）。</p>
+      <p>隊長技：${L || '無'}</p>`, [['繼續', () => this.endClose()]]);
   },
   endPanel(html, btns) {
     const el = this.root.querySelector('#pzEnd');
-    el.innerHTML = `<div class="pz-panel">${html}<div class="pz-row">${btns.map((b, i) => `<button class="pz-btn wide" data-b="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    el.innerHTML = `<div class="pz-panel">${html}<div class="pz-row wrap">${btns.map((b, i) => `<button class="pz-btn wide${b[2] ? ' ' + b[2] : ''}" data-b="${i}">${b[0]}</button>`).join('')}</div></div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('[data-b]').forEach((b) => (b.onclick = btns[+b.dataset.b][1]));
   },
   endClose() { this.root.querySelector('#pzEnd').classList.add('hidden'); },
+  // 撤退＝失敗（體力不退）
+  retreat() {
+    if (this.state === 'end') return this.close();
+    if (this.state !== 'idle') return;
+    this.endPanel('<h3>撤退</h3><p class="c">撤退視同失敗，進場體力不退還</p>', [['撤退', () => this.close()], ['繼續', () => this.endClose()]]);
+  },
+  result() { return { turns: this.turn, maxCombo: this.maxCombo, hpRatio: this.hp / this.hpMax }; },
   win() {
+    if (this.state === 'end') return;
     this.state = 'end';
     if (typeof Audio2 !== 'undefined') Audio2.play('boom');
-    this.endPanel(`<h3>斬殺妖將</h3><p class="c">${this.turn} 回合・最高 ${this.maxCombo} Combo・剩餘氣血 ${Math.round((100 * this.hp) / this.hpMax)}%</p><p class="c note">原型不發獎勵、不寫存檔</p>`,
-      [['再戰', () => this.restart()], ['離開', () => this.close()]]);
+    const st = this.stage, r = this.result(), W = Stage.onWin(st.id, r);
+    const stars = st.stars.map((c, i) => `<li class="${W.all & (1 << i) ? 'on' : ''}${W.newStars & (1 << i) ? ' pzm-new' : ''}"><i>★</i>${Stage.starText(c)}</li>`).join('');
+    const i = PZ_STAGES.indexOf(st), next = PZ_STAGES[i + 1];
+    const btns = [];
+    if (next) btns.push(['下一關', () => this.close(true, st.id), 'go']);
+    btns.push([`再戰（${st.cost}）`, () => this.again()], ['返回地圖', () => this.close()]);
+    this.endPanel(`<h3>通關</h3><p class="c">${r.turns} 回合・最高 ${r.maxCombo} Combo・剩餘氣血 ${Math.round(r.hpRatio * 100)}%</p>
+      <ul class="pzm-starlist">${stars}</ul>
+      <p class="c">${W.firstClear ? '<b class="pz-first">首次通關</b><br>' : ''}獲得 ${Stage.rwText(W.rw)}${W.rw.expFull ? '<br><small class="note">修為已滿，多的部分未計入，請先突破</small>' : ''}</p>`, btns);
   },
   lose() {
     this.state = 'end';
-    this.endPanel(`<h3>道消身殞</h3><p class="c">撐了 ${this.turn} 回合・首領剩 ${Math.round((100 * this.boss.hp) / this.boss.max)}%</p>`, [['再戰', () => this.restart()], ['離開', () => this.close()]]);
+    const st = this.stage, alive = this.alive(), left = alive.reduce((a, f) => a + f.hp, 0), max = this.foes.reduce((a, f) => a + f.max, 0);
+    this.endPanel(`<h3>道消身殞</h3><p class="c">撐了 ${this.turn} 回合・第 ${this.wave + 1} / ${st.waves.length} 波・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">進場體力不退還</p>`,
+      [[`重試（${st.cost}）`, () => this.again(), 'go'], ['返回地圖', () => this.close()]]);
   },
-  restart() { this.reset(); this.root.querySelector('.pz-top').style.backgroundImage = `url(${PZ_ART.bg[0]})`; const fl = this.root.querySelector('#pzFl'); this.root.querySelector('#pzBoss').className = 'pz-boss'; fl.innerHTML = ''; this.endClose(); this.hud(); },
+  // 再戰／重試：再扣一次體力，不夠就提示
+  again() {
+    const st = this.stage;
+    if (!Stage.spend(st.cost)) { this.endPanel(Stage.noSta(st.cost), [['返回地圖', () => this.close()]]); return; }
+    this.reset(); this.root.querySelector('#pzFl').innerHTML = ''; this.endClose();
+    this.spawn(0); this.hud();
+  },
 
   // 合成短音（Audio2 的音訊環境與音效音量）
   // 音效一律走 Audio2.play(key)：目前是合成音，之後在 audio.js 的 SFX_MAP 掛上音檔就自動換
@@ -634,7 +723,7 @@ const Puzzle = {
 
 // ───────── 開發模式入口 ─────────
 if (typeof DEV !== 'undefined' && DEV) {
-  // 歷練頁最上方加「轉珠試煉」
+  // 歷練頁最上方加「轉珠關卡」
   const _map = UI.map;
   UI.map = function () {
     _map.apply(this, arguments);
@@ -642,18 +731,18 @@ if (typeof DEV !== 'undefined' && DEV) {
     if (!t) return;
     const b = document.createElement('button');
     b.className = 'region'; b.id = 'pzEntry';
-    b.style.cssText = `background-image:url(${PZ_ART.bg[0]});background-position:${PZ_ART.bgPos}`;
-    b.innerHTML = '<h4>轉珠試煉</h4><p>原型・血甲妖將</p><span class="prog">測試・不寫存檔</span>';
-    b.onclick = () => Puzzle.open();
+    b.style.cssText = `background-image:url(${PZ_CHAPTERS[0].bg[0]});background-position:${PZ_ART.bgPos}`;
+    b.innerHTML = `<h4>轉珠關卡</h4><p>${PZ_CHAPTERS[0].name}</p><span class="prog">測試・體力 ${Stage.sta()} / ${STA_CFG.max}</span>`;
+    b.onclick = () => Stage.showMap(1);
     t.after(b);
   };
   // 標題畫面也放一顆入口（沒有存檔也能測）
   const _title = Game.title;
   Game.title = function () {
     _title.apply(this, arguments);
-    const b = document.createElement('button'); b.className = 't-imp t-pz'; b.textContent = '轉珠原型'; b.onclick = () => Puzzle.open();
+    const b = document.createElement('button'); b.className = 't-imp t-pz'; b.textContent = '轉珠關卡'; b.onclick = () => Stage.showMap(1);
     const s = $('#sceneContent'); if (s) s.appendChild(b);
   };
-  // 網址帶 &pz 直接開啟
-  if (/[?&]pz(=|&|$)/.test(location.search)) addEventListener('load', () => setTimeout(() => Puzzle.open(), 50));
+  // 網址帶 &pz 直接開章節地圖
+  if (/[?&]pz(=|&|$)/.test(location.search)) addEventListener('load', () => setTimeout(() => Stage.showMap(1), 50));
 }
