@@ -21,7 +21,7 @@ const PZ_ART = {
   // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應隊員 id，沒填的技能不放圖
   // 消除特效：黑底圖，依消除珠子屬性選圖疊在盤面；沒填或載入失敗就用程式效果（珠子放大淡出）
   clear: { wood: 'assets/fx/pz_clr_wood.webp', fire: 'assets/fx/pz_clr_fire.webp', earth: 'assets/fx/pz_clr_earth.webp',
-    metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: null },
+    metal: 'assets/fx/pz_clr_metal.webp', water: 'assets/fx/pz_clr_water.webp', heart: 'assets/fx/pz_heal.webp' },   // 心珠借用回血圖
   fx: { hero: 'assets/fx/pz_slash.webp', mate: 'assets/fx/pz_heal.webp', jinxia: 'assets/fx/pz_break.webp', zichen: 'assets/fx/pz_ice.webp' },
 };
 
@@ -499,12 +499,14 @@ const Puzzle = {
   },
   clearFx(G) {
     const src = this.clr[G.c]; if (!src) return;
-    const rs = G.cells.map(([r]) => r), cs = G.cells.map(([, c]) => c), cell = this.cell;
-    const size = cell * Math.max(2.4, (Math.max(Math.max(...rs) - Math.min(...rs), Math.max(...cs) - Math.min(...cs)) + 1) * 1.5);
-    const im = new Image(); im.className = 'pz-clr'; im.alt = ''; im.src = src;
-    im.style.cssText = `--m:url(${src});width:${size}px;height:${size}px;left:${this.cv.offsetLeft + (cs.reduce((a, b) => a + b) / cs.length + 0.5) * cell}px;top:${this.cv.offsetTop + (rs.reduce((a, b) => a + b) / rs.length + 0.5) * cell}px`;
-    im.onerror = im.onanimationend = () => im.remove();
-    this.root.querySelector('.pz-boardwrap').appendChild(im);
+    // 每顆被消除的珠子各放一張，固定珠子 1.5 倍大，五行一致、不會蓋到隔壁太多
+    const cell = this.cell, size = cell * 1.5, wrap = this.root.querySelector('.pz-boardwrap');
+    G.cells.forEach(([r, c]) => {
+      const im = new Image(); im.className = 'pz-clr'; im.alt = ''; im.src = src;
+      im.style.cssText = `--m:url(${src});width:${size}px;height:${size}px;left:${this.cv.offsetLeft + (c + 0.5) * cell}px;top:${this.cv.offsetTop + (r + 0.5) * cell}px`;
+      im.onerror = im.onanimationend = () => im.remove();
+      wrap.appendChild(im);
+    });
   },
   fx(id) {
     const src = PZ_ART.fx[id]; if (!src) return;
