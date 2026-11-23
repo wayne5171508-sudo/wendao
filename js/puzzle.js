@@ -821,8 +821,8 @@ const Puzzle = {
   },
   lose() {
     this.state = 'end';
-    const st = this.stage, alive = this.alive(), left = alive.reduce((a, f) => a + f.hp, 0), max = this.foes.reduce((a, f) => a + f.max, 0);
-    this.endPanel(`<h3 class="pz-res lose">道消身殞</h3><p class="c">撐了 ${this.turn} 回合・第 ${this.wave + 1} / ${st.waves.length} 波・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">進場體力不退還</p>`,
+    const st = this.stage, back = Stage.refund(st), alive = this.alive(), left = alive.reduce((a, f) => a + f.hp, 0), max = this.foes.reduce((a, f) => a + f.max, 0);
+    this.endPanel(`<h3 class="pz-res lose">道消身殞</h3><p class="c">撐了 ${this.turn} 回合・<span class="nw">第 ${this.wave + 1} / ${st.waves.length} 波</span>・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">${back ? `退還 ${back} 體力` : '進場體力不退還'}</p>`,
       [[`重試（${st.cost}）`, () => this.again(), 'go'], ['返回地圖', () => this.close()]]);
   },
   // 再戰／重試：再扣一次體力，不夠就提示

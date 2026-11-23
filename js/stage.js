@@ -55,6 +55,12 @@ const Stage = {
     if (before >= STA_CFG.max) this.d.staAt = Date.now();   // 從滿的狀態扣：從現在開始計時
     S.save(); return true;
   },
+  // 戰敗退還（stage-cfg 的 loseRefund）：回傳實際退了幾點
+  refund(st) {
+    const n = Math.floor(st.cost * (st.loseRefund || 0)); if (n <= 0) return 0;
+    const before = this.sta(), after = Math.min(STA_CFG.max, before + n);
+    this.d.sta = after; if (after >= STA_CFG.max) this.d.staAt = Date.now(); S.save(); return after - before;
+  },
   refill() { this.d.sta = Math.max(this.sta(), STA_CFG.max); this.d.staAt = Date.now(); S.save(); },
 
   // ───────── 關卡狀態 ─────────
@@ -238,7 +244,7 @@ const Stage = {
       ${typeof Roster !== 'undefined' ? Roster.summary() : ''}
       <p class="pzm-rw"><b>獎勵</b>${this.rwPreview(st)}</p>
       ${st.first ? `<p class="pzm-rw${rec.c ? ' done' : ''}"><b>${rec.c ? '首通・已領' : '首通'}</b>${this.rwPreview(st.first)}</p>` : ''}
-      <p class="c note">進場體力 ${st.cost}・失敗不退・目前 ${this.sta()} / ${STA_CFG.max}${can ? `<br>掃蕩每次 ${cost} 體力${left === Infinity ? '' : `・今日剩 ${left} 次`}` : `<br>${SWEEP_CFG.needStars} 星通關後可掃蕩`}</p>`;
+      <p class="c note">進場體力 ${st.cost}・${st.loseRefund ? `失敗退 ${Math.floor(st.cost * st.loseRefund)}` : '失敗不退'}・目前 ${this.sta()} / ${STA_CFG.max}${can ? `<br>掃蕩每次 ${cost} 體力${left === Infinity ? '' : `・今日剩 ${left} 次`}` : `<br>${SWEEP_CFG.needStars} 星通關後可掃蕩`}</p>`;
     const btns = [[`出戰（${st.cost}）`, () => { this.closePanel(); this.play(id); }, 'go']];
     if (typeof Roster !== 'undefined') btns.push(['編隊', () => Roster.editor(() => this.detail(id))]);
     if (can) {

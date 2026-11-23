@@ -13,3 +13,6 @@ node_modules/
 # 截圖與測試截圖（本機保留，不進 repo、不進部署包；deploy.sh／deploy-staging.sh 會檢查）
 截圖/
 測試截圖*/
+# 試玩／測試報告（本機保留，不進 repo、不進部署包）
+試玩報告-*.md
+測試報告-*.md
