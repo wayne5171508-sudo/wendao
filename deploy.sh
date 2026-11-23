@@ -10,8 +10,8 @@ cd "$(dirname "$0")"
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "請先切到 main 分支"; exit 1; }
 git diff --quiet && git diff --cached --quiet || { echo "有未提交的改動，請先提交"; exit 1; }
 for f in $(grep -oE "'assets/[^']+'" js/asset-list.js | tr -d "'"); do [ -f "$f" ] || { echo "找不到素材：$f"; exit 1; }; done
-# 截圖目錄不可進 main（Pages 直接發佈 main，會變成公開檔案）
-[ -z "$(git -c core.quotePath=false ls-files | grep -E '^(截圖|測試截圖)' | head -1)" ] || { echo "截圖目錄被 git 追蹤了，請先 git rm -r --cached 再部署"; exit 1; }
+# 截圖目錄與報告不可進 main（Pages 直接發佈 main，會變成公開檔案）
+[ -z "$(git -c core.quotePath=false ls-files | grep -E '(^|/)(截圖|測試截圖-[^/]*)/|報告-[^/]*\.md$' | head -1)" ] || { echo "截圖或報告被 git 追蹤了（Pages 會公開），請先 git rm -r --cached 再部署"; exit 1; }
 VER=$(date +%Y%m%d%H%M%S)
 sed -i '' "s/^const CACHE = 'wendao-[0-9]*';/const CACHE = 'wendao-$VER';/" sw.js
 sed -i '' "s/^const ASSET_VER = '[0-9]*';/const ASSET_VER = '$VER';/" js/asset-list.js

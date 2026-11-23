@@ -1539,11 +1539,14 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pa-gacha_frame_r .ga-face.r-R, .pa-gacha_frame_sr .ga-face.r-SR, .pa-gacha_frame_ssr .ga-face.r-SSR { border: none; border-radius: 0; background: var(--fr) center / 100% 100% no-repeat;
   box-shadow: none; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 55%, transparent)); }   /* 卡框圖左右有 1～4% 透明邊：光暈跟著圖形走 */
 .ga-face.r-R { --fr: url(assets/gacha/gacha_frame_r.webp); }
+/* R 卡框（1123 重生版）內部鏤空：底下補紙色，框改疊在立繪上面 */
+.pa-gacha_frame_r .ga-face.r-R { background: linear-gradient(#e3e5e2, #b3babb) center / 94% 90% no-repeat; }
+.pa-gacha_frame_r .ga-face.r-R::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--fr) center / 100% 100% no-repeat; }
 .ga-face.r-SR { --fr: url(assets/gacha/gacha_frame_sr.webp); }
 .ga-face.r-SSR { --fr: url(assets/gacha/gacha_frame_ssr.webp); }
 .ga-art { position: absolute; inset: 6% 7% 7%; width: 86%; height: 87%; object-fit: cover; object-position: 50% 8%; }
-.ga-rare { position: absolute; left: 8%; top: 5%; font: 900 16px/1 var(--serif); color: var(--c); text-shadow: 0 0 4px #000, 0 1px 2px #000; }
-.ga-nm { position: absolute; left: 7%; right: 7%; bottom: 7%; display: flex; flex-direction: column; align-items: center; padding: 3px 2px; background: linear-gradient(transparent, rgba(0,0,0,.8)); }
+.ga-rare { position: absolute; z-index: 2; left: 8%; top: 5%; font: 900 16px/1 var(--serif); color: var(--c); text-shadow: 0 0 4px #000, 0 1px 2px #000; }
+.ga-nm { position: absolute; z-index: 2; left: 7%; right: 7%; bottom: 7%; display: flex; flex-direction: column; align-items: center; padding: 3px 2px; background: linear-gradient(transparent, rgba(0,0,0,.8)); }
 .ga-nm b { font-size: 16px; color: #fff6dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .ga-nm i { font-style: normal; font-size: 12px; color: #ffd36a; letter-spacing: -1px; }
 .ga-tag { position: absolute; right: 4%; top: 3%; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 1px; min-width: 40px; height: 26px; padding: 0 4px; box-sizing: border-box; font: 700 12px/1 var(--serif); font-style: normal; color: #fff; text-shadow: 0 1px 2px #000; border-radius: 4px; }
