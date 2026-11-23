@@ -1,7 +1,7 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
 const ASSET_VER = '20261117213934';
-// 轉珠專用素材：不進全遊戲預載，進轉珠地圖時才在背景下載（js/stage.js 的 Stage.preloadPz）
-const PZ_ASSET = /^assets\/(orb|pz|char)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/bgm_pz_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king)\.|^assets\/map\/|^assets\/ui\/(banner|bar|btn|card|cd|chapter|el|entry|fac|hp|icon|panel|rare|result|sk|st|star|tag|timer|toast)_/;
+// 轉珠與抽卡專用素材：不進全遊戲預載，進轉珠地圖時才在背景下載（js/stage.js 的 Stage.preloadPz）
+const PZ_ASSET = /^assets\/(orb|pz|char|gacha)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/bgm_pz_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king)\.|^assets\/map\/|^assets\/ui\/(banner|bar|btn|card|cd|chapter|el|entry|fac|hp|icon|panel|rare|result|sk|st|star|tag|timer|toast)_/;
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -145,6 +145,21 @@ const ASSET_LIST = [
   'assets/halo/sit_inner.webp',
   'assets/halo/sit_outer.webp',
   'assets/halo/sit_ribbon.webp',
+  'assets/gacha/fx_gacha_circle.webp',
+  'assets/gacha/fx_gacha_r.webp',
+  'assets/gacha/fx_gacha_sr.webp',
+  'assets/gacha/fx_gacha_ssr.webp',
+  'assets/gacha/fx_gacha_ssr_full.webp',
+  'assets/gacha/gacha_banner.webp',
+  'assets/gacha/gacha_bg.webp',
+  'assets/gacha/gacha_card_back.webp',
+  'assets/gacha/gacha_frame_r.webp',
+  'assets/gacha/gacha_frame_sr.webp',
+  'assets/gacha/gacha_frame_ssr.webp',
+  'assets/gacha/gacha_pity_fill.webp',
+  'assets/gacha/gacha_pity_frame.webp',
+  'assets/gacha/gacha_tag_new.webp',
+  'assets/gacha/gacha_tag_upstar.webp',
   'assets/hero/back_sword.webp',
   'assets/hero/battle_hold.webp',
   'assets/hero/battle_lean.webp',
@@ -271,6 +286,9 @@ const ASSET_LIST = [
   'assets/stage/stage_village_2.webp',
   'assets/stage/stage_village_3.webp',
   'assets/stage/stage_village_4.webp',
+  'assets/ui/icon_gacha_entry.webp',
+  'assets/ui/icon_stardust.webp',
+  'assets/ui/icon_ticket.webp',
   'assets/ui/alch_seal.webp',
   'assets/ui/bag.webp',
   'assets/ui/banner_skill.webp',

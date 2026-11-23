@@ -29,7 +29,7 @@ const PZ_ART = {
     leech: 'assets/fx/pz_leech.webp', bleed: 'assets/fx/pz_cost.webp' },
 };
 // 轉珠 UI 圖（assets/ui、assets/map）：在素材清單裡的圖，<html> 加 pa-<檔名> class，style.css 依此換圖；不在清單就維持原本的 CSS 外觀
-if (typeof ASSET_LIST !== 'undefined') ASSET_LIST.forEach((s) => { const m = /^assets\/(?:ui|map)\/(\w+)\.webp$/.exec(s); if (m && (/^tab_/.test(m[1]) || (typeof PZ_ASSET !== 'undefined' && PZ_ASSET.test(s)))) document.documentElement.classList.add('pa-' + m[1]); });
+if (typeof ASSET_LIST !== 'undefined') ASSET_LIST.forEach((s) => { const m = /^assets\/(?:ui|map|gacha)\/(\w+)\.webp$/.exec(s); if (m && (/^tab_/.test(m[1]) || (typeof PZ_ASSET !== 'undefined' && PZ_ASSET.test(s)))) document.documentElement.classList.add('pa-' + m[1]); });
 const pzHas = (name) => document.documentElement.classList.contains('pa-' + name);
 // 五行徽章（隊員卡、敵人名牌、編隊、詳情）：data-el 對到 el_<五行> 圖；沒圖就是原本的漸層圓＋字
 const pzElI = (el, cls) => `<i class="${cls}" data-el="${el}" style="--c:${PZ_EL[el].c};--d:${PZ_EL[el].d}">${PZ_EL[el].ch}</i>`;

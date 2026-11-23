@@ -193,10 +193,12 @@ const Stage = {
         <div class="pzm-sta" id="pzmSta"></div></div>
       <div class="pzm-scroll" id="pzmScroll" style="background-image:${C.id === 1 && pzHas('ch1_bg') ? 'linear-gradient(rgba(8,10,14,.15),rgba(8,10,14,.3)),url(assets/map/ch1_bg.webp)' : `linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})`}"><div class="pzm-path">${nodes.join('')}</div></div>
       ${DEV && STA_CFG.devRefill ? '<button class="pzm-dev" id="pzmDev">補滿體力（測試）</button>' : ''}
+      ${typeof Gacha !== 'undefined' ? '<button class="pzm-gacha" id="pzmGacha" aria-label="抽卡"><i></i><b>抽卡</b></button>' : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-toast" id="pzmToast"></div><div class="pz-end hidden" id="pzmPanel"></div>`;
     this.el.querySelector('#pzmBack').onclick = () => this.closeMap();
     const bk = this.el.querySelector('#pzmBreak'); if (bk) bk.onclick = () => this.breakEntry();
+    const ga = this.el.querySelector('#pzmGacha'); if (ga) ga.onclick = () => Gacha.open();
     const dev = this.el.querySelector('#pzmDev'); if (dev) dev.onclick = () => { this.refill(); this.staHud(); this.toast('體力已補滿'); };
     this.el.querySelectorAll('.pzm-node').forEach((b) => (b.onclick = () => this.detail(b.dataset.st)));
     this.staHud();
