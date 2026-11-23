@@ -1126,8 +1126,11 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-bar > span b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pz-bar > span small { font-size: 11px; color: var(--paper); }
 .pz-bar .pz-btn { min-height: 30px; padding: 2px 8px; }
-.pz-warn { position: relative; z-index: 3; flex: none; display: flex; justify-content: space-between; gap: 8px; min-height: 16px; padding: 1px 10px 0; font-size: 11px; line-height: 15px; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; }
-.pz-warn .hv { overflow: hidden; text-overflow: ellipsis; }
+.pz-warn { position: relative; z-index: 3; flex: none; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-height: 16px; padding: 1px 10px 0; font-size: 11px; line-height: 15px; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; }
+.pz-warn > span:first-child { flex: none; }
+/* 預告可換行，最多兩行（窄螢幕不再被切掉） */
+.pz-warn .hv { min-width: 0; white-space: normal; text-align: right; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+@media (max-width: 359px) { .pz-warn { font-size: 10px; line-height: 14px; gap: 6px; padding: 1px 8px 0; } }
 .pz-foes { position: relative; z-index: 1; flex: 1 1 auto; min-height: 118px; display: flex; justify-content: center; align-items: stretch; gap: 6px; padding: 2px 10px 6px; }
 .pz-foe { position: relative; flex: 1 1 0; min-width: 0; max-width: 44%; display: flex; flex-direction: column; align-items: center; transition: opacity .5s, filter .5s; cursor: pointer; }
 .pz-foes.n1 .pz-foe { max-width: 72%; }
@@ -1409,7 +1412,10 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pa-cd_ring .pz-fcd { border: 0; background: url(assets/ui/cd_ring.webp) center / 100% 100% no-repeat, radial-gradient(circle, rgba(10,10,14,.82) 58%, transparent 61%); }
 .pa-cd_ring_danger .pz-fcd.danger { background: url(assets/ui/cd_ring_danger.webp) center / 100% 100% no-repeat, radial-gradient(circle, rgba(30,6,6,.85) 58%, transparent 61%); box-shadow: none; filter: drop-shadow(0 0 6px rgba(255,60,60,.8)); }
 .pz-st { display: inline-flex; gap: 1px; flex: none; }
-.pz-fname b { flex: none; max-width: 60%; }   /* 名字優先，階段說明再省略 */
+/* 名字優先，階段說明先省略（原本 max-width: 60% 會以內容寬回推，單隻小怪「妖化靈狼」也被切成「妖化…」） */
+.pz-fname b { flex: 0 1 auto; min-width: 0; }
+.pz-fname em { flex: 0 100 auto; min-width: 0; }
+@media (max-width: 359px) { .pz-foe.boss .pz-fname { font-size: 14px; } }
 .pz-st i { display: none; width: 16px; height: 16px; background: var(--simg) center / 118% no-repeat; }
 .pa-st_ward .pz-st .st-ward, .pa-st_rage .pz-st .st-rage, .pa-st_leech .pz-st .st-leech { display: block; }
 .pz-foe.boss .pz-st i { width: 20px; height: 20px; }

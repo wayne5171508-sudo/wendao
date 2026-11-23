@@ -59,8 +59,9 @@ const PZ_MONS = {
     heavy: { every: 3, mult: 2.2, name: '裂風嘯' } },
   jing_old: { name: '千年山精', el: 'earth', hp: 11000, atk: 2240, def: 80, cd: 3, img: 'assets/mon/jing_old.webp', boss: true,
     phases: [{ name: '' }, { at: 0.5, name: '石膚', dr: 0.3, banner: ['山石護體', '受傷減三成'] }] },
+  // 平衡 1123 驗收：1-5～1-9 的 k 調高、首領血 50400→56000、攻擊 1520→2100（平均 3 Combo 自動玩家 20 輪：1-5～1-9 約 85～100%、首領約 50%）
   // 第一章首領：沿用血甲妖將三相（減傷、暴怒吸血），每第 3 次出手為「血刃斬」
-  xuejia: { name: '血甲妖將・厲蒼', el: 'fire', hp: 50400, atk: 1520, def: 60, cd: 3, img: 'assets/mon/xuejia.webp', boss: true,
+  xuejia: { name: '血甲妖將・厲蒼', el: 'fire', hp: 56000, atk: 2100, def: 60, cd: 3, img: 'assets/mon/xuejia.webp', boss: true,
     heavy: { every: 3, mult: 2.8, name: '血刃斬' },
     aoe: { every: 3, mult: 1.5, name: '血煞橫掃' },   // 範圍攻擊：每 3 回合一次，不佔出手倒數
     phases: [
@@ -98,15 +99,15 @@ const PZ_CHAPTERS = [
         first: { stone: 80, items: { p_qi: 1 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 7 }, { t: 'hp', n: 0.6 }] },
       { id: '1-4', name: '古道夜行', cost: 5, k: 0.95, waves: [['hun', 'hun', 'hun'], ['kui_elite']], stone: 45, expSec: 90,
         first: { stone: 80, items: { herb_q: 3 } } },
-      { id: '1-5', big: true, name: '狼王巢穴', cost: 6, k: 1.9, waves: [['lang', 'lang'], ['jing', 'lang'], ['lang_king']], stone: 60, expSec: 120,
+      { id: '1-5', big: true, name: '狼王巢穴', cost: 6, k: 2.8, waves: [['lang', 'lang'], ['jing', 'lang'], ['lang_king']], stone: 60, expSec: 120,
         first: { stone: 150, items: { scroll: 3 } } },
-      { id: '1-6', name: '魔修伏擊', cost: 6, k: 2.3, waves: [['mo'], ['mo', 'hun'], ['mo_elite']], stone: 55, expSec: 110,
+      { id: '1-6', name: '魔修伏擊', cost: 6, k: 3.0, waves: [['mo'], ['mo', 'hun'], ['mo_elite']], stone: 55, expSec: 110,
         first: { stone: 100, items: { herb_c: 3 } } },
-      { id: '1-7', name: '落霞嶺', cost: 6, k: 2.5, waves: [['kui', 'jing'], ['mo', 'mo'], ['mo', 'kui_elite']], stone: 60, expSec: 120,
+      { id: '1-7', name: '落霞嶺', cost: 6, k: 2.9, waves: [['kui', 'jing'], ['mo', 'mo'], ['mo', 'kui_elite']], stone: 60, expSec: 120,
         first: { stone: 100, items: { ore: 5 } } },
-      { id: '1-8', big: true, name: '魔修頭目', cost: 7, k: 2.4, waves: [['mo', 'hun'], ['mo', 'kui'], ['mo_boss']], stone: 80, expSec: 160,
+      { id: '1-8', big: true, name: '魔修頭目', cost: 7, k: 2.5, waves: [['mo', 'hun'], ['mo', 'kui'], ['mo_boss']], stone: 80, expSec: 160,
         first: { stone: 200, items: { p_qi: 2 } } },
-      { id: '1-9', name: '千年山精', cost: 7, k: 2.7, waves: [['jing', 'jing'], ['kui', 'lang', 'hun'], ['jing_old']], stone: 85, expSec: 170,
+      { id: '1-9', name: '千年山精', cost: 7, k: 3.3, waves: [['jing', 'jing'], ['kui', 'lang', 'hun'], ['jing_old']], stone: 85, expSec: 170,
         first: { stone: 200, items: { ore: 8 } } },
       { id: '1-10', big: true, name: '血甲妖將', cost: 10, k: 1, waves: [['mo', 'kui'], ['mo', 'mo', 'jing'], ['xuejia']], stone: 150, expSec: 300,
         first: { stone: 500, items: { p_break: 1, scroll: 5 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 14 }, { t: 'hp', n: 0.3 }] },
