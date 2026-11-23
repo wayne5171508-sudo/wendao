@@ -1306,10 +1306,10 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 
 /* ════════ 轉珠 UI 圖（1123）════════
    js/puzzle.js 依素材清單在 <html> 加 pa-<檔名>；沒有這個 class（圖不在清單）就維持上面原本的 CSS 外觀
-   圖是「內容等比置中＋透明邊」的固定畫布，長條類用 background-size 把內容撐滿元素（例 timer_fill 內容只佔畫布寬 25%） */
+   圖是「內容等比置中＋透明邊」的固定畫布；長條類（血條框與填色、倒數條、toast、通關底板）已裁到內容 bbox 填滿畫布 */
 /* ── 章節地圖 ── */
 .pa-ch1_bg .pzm-scroll { background-size: 100% auto; background-repeat: no-repeat; background-position: 50% 100%; background-color: #1c2a26; }
-.pa-path_seg .pzm-path { background: url(assets/map/path_seg.webp) 50% 0 / 40px auto repeat-y; }
+.pa-path_seg .pzm-path { background: url(assets/map/path_seg.webp) 50% 0 / 64px 256px repeat-y; }
 .pa-node_open .pzm-node.open b, .pa-node_clear .pzm-node.clear b, .pa-node_lock .pzm-node.lock b, .pa-node_boss .pzm-node.boss b { width: 64px; height: 64px; border: 0; border-radius: 0; background: var(--nimg) center / contain no-repeat; box-shadow: none; color: #fff; text-shadow: 0 0 3px #000, 0 0 6px #000, 0 1px 2px #000; }
 .pa-node_open .pzm-node.open b { --nimg: url(assets/map/node_open.webp); }
 .pa-node_clear .pzm-node.clear b { --nimg: url(assets/map/node_clear.webp); }
@@ -1346,7 +1346,8 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pa-sk_pill .pz-sk:not(:empty) { padding: 2px 9px; color: #2a2010; background: url(assets/ui/sk_pill.webp) 50% 50% / 165% 117% no-repeat; border-radius: 0; text-shadow: 0 0 2px rgba(255,250,235,.9); }
 .pa-sk_pill .pz-mem.ready .pz-sk { color: #1a0d05; background: url(assets/ui/sk_pill.webp) 50% 50% / 165% 117% no-repeat; box-shadow: none; filter: drop-shadow(0 0 4px var(--c)); }
 @media (max-width: 359px) { .pa-sk_pill .pz-sk:not(:empty) { padding: 2px 5px; } }
-.pa-sk_ready_glow .pz-mem.ready::before { content: ''; position: absolute; left: 50%; top: -4px; z-index: 4; width: 100%; aspect-ratio: 1; filter: brightness(1.6); transform: translateX(-50%); background: url(assets/ui/sk_ready_glow.webp) center / contain no-repeat; mix-blend-mode: screen; pointer-events: none; animation: pzBlink 1.4s infinite; }
+.pa-sk_ready_glow .pz-mem.ready::before { content: ''; position: absolute; left: 50%; top: -4px; z-index: 4; width: 100%; aspect-ratio: 1; transform: translateX(-50%); background: url(assets/ui/sk_ready_glow.webp) center / contain no-repeat; mix-blend-mode: screen; pointer-events: none; animation: pzGlowBreath 1.6s ease-in-out infinite; }
+@keyframes pzGlowBreath { 0%, 100% { opacity: .65; filter: brightness(1.8); transform: translateX(-50%) scale(.94); } 50% { opacity: 1; filter: brightness(2.6); transform: translateX(-50%) scale(1.06); } }
 /* ── 主遊戲底部分頁：tab_* 圖示，文字留在下方 ── */
 :is(.pa-tab_home #nav [data-tab=home], .pa-tab_map #nav [data-tab=map], .pa-tab_alch #nav [data-tab=alch], .pa-tab_arts #nav [data-tab=arts], .pa-tab_gear #nav [data-tab=gear], .pa-tab_draw #nav [data-tab=draw]) b { width: 40px; height: 40px; border: 0; border-radius: 50%; font-size: 0; background: var(--timg) center / contain no-repeat; box-shadow: none; filter: grayscale(.35) brightness(.85); }
 :is(.pa-tab_home #nav [data-tab=home], .pa-tab_map #nav [data-tab=map], .pa-tab_alch #nav [data-tab=alch], .pa-tab_arts #nav [data-tab=arts], .pa-tab_gear #nav [data-tab=gear], .pa-tab_draw #nav [data-tab=draw]).on b { background: var(--timg) center / contain no-repeat; box-shadow: 0 0 0 2px var(--cinnabar), 0 0 10px rgba(216,68,58,.7); filter: none; transform: none; }
@@ -1375,7 +1376,7 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pzr-info.art small, .pzr-info.art .pzr-star { color: #6a4a20; }
 .pzr-info.art p em { color: #8a3a10; }
 .pzr-info.art .pzr-tag { background: rgba(28,20,12,.82); }
-.pa-toast_bg .pz-toast { border: 0; background: url(assets/ui/toast_bg.webp) 50% 50% / 100% 100% no-repeat, radial-gradient(closest-side, rgba(8,10,16,.8) 55%, transparent); padding: 14px 22px; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
+.pa-toast_bg .pz-toast { border: 0; background: url(assets/ui/toast_bg.webp) 50% 50% / 100% 100% no-repeat; padding: 14px 22px; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
 .pa-banner_skill .pz-banner { padding: 18px 0 16px; background: url(assets/ui/banner_skill.webp) 50% 50% / min(100%, 420px) 100% no-repeat; }
 .pa-banner_skill .pz-banner b { color: #5a1808; text-shadow: 0 0 4px rgba(255,245,220,.9); }
 .pa-banner_skill .pz-banner span { color: #3a2410; text-shadow: none; }
@@ -1384,7 +1385,7 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pa-result_win .pz-res.win, .pa-result_lose .pz-res.lose { display: grid; place-items: center; height: 84px; margin: -4px -8px 4px; font-size: 34px; letter-spacing: 8px; background: var(--rsimg) 50% 50% / contain no-repeat; }
 .pa-result_win .pz-res.win { --rsimg: url(assets/ui/result_win.webp); color: #5a1e06; text-shadow: 0 0 6px #fff6d8, 0 0 2px #fff6d8; }
 .pa-result_lose .pz-res.lose { --rsimg: url(assets/ui/result_lose.webp); color: #f0e8ff; text-shadow: 0 0 4px #000, 0 2px 4px #000; }
-.pa-tag_first .pz-first { display: inline-grid; place-items: center; width: 116px; height: 34px; padding-left: 26px; box-sizing: border-box; font-size: 13px; color: #fff3d6; text-shadow: 0 0 3px #3a1a04, 0 1px 2px #000; background: url(assets/ui/tag_first.webp) 50% 50% / 155% 115% no-repeat; }
+.pa-tag_first .pz-first { display: inline-grid; place-items: center; width: 116px; height: 34px; box-sizing: border-box; font-size: 13px; color: #fff3d6; text-shadow: 0 0 3px #3a1a04, 0 1px 2px #000; background: url(assets/ui/tag_first.webp) center / 100% 100% no-repeat; }
 .pa-tag_five :is(.pz-combo, .pz-total) em { padding: 3px 10px 3px 18px; color: #fff3d6; background: url(assets/ui/tag_five.webp) 50% 50% / 242% 117% no-repeat; box-shadow: none; border-radius: 0; text-shadow: 0 1px 2px #3a0a04; }
 .pz-chap { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 150px; margin: -6px -10px 0; }
 .pz-chap b { font-size: clamp(18px, 6vw, 24px); letter-spacing: 2px; color: var(--gold2); }
@@ -1395,13 +1396,13 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-chap-st { font-size: 20px !important; color: #ffd76a; letter-spacing: 2px; }
 /* ── 血條、轉珠倒數、敵人出手倒數、首領狀態 ── */
 .pz-hp i { width: 100%; transition: clip-path .25s; }
-.pa-hp_frame .pz-foe > .pz-hp { overflow: visible; border: 0; border-radius: 0; background: url(assets/ui/hp_frame.webp) 50% 50% / 101.4% 174% no-repeat; }
-.pa-hp_frame .pz-foe > .pz-hp i { inset: 2px 4px; }
-.pa-hp_fill_red .pz-foe > .pz-hp i { background: url(assets/ui/hp_fill_red.webp) 50% 50% / 200% 125% no-repeat; border-radius: 3px; }
-.pa-hp_fill_green .pz-hp.team i { background: url(assets/ui/hp_fill_green.webp) 50% 50% / 199.5% 125% no-repeat; }
+.pa-hp_frame .pz-foe > .pz-hp { overflow: visible; border: 0; border-radius: 0; background: url(assets/ui/hp_frame.webp) center / 100% 100% no-repeat, rgba(0,0,0,.55); background-clip: border-box; }
+.pa-hp_frame .pz-foe > .pz-hp i { inset: 16% 1.2%; }
+.pa-hp_fill_red .pz-foe > .pz-hp i { background: url(assets/ui/hp_fill_red.webp) center / 100% 100% no-repeat; border-radius: 0; }
+.pa-hp_fill_green .pz-hp.team i { background: url(assets/ui/hp_fill_green.webp) center / 100% 100% no-repeat; }
 .pz-tmi { display: none; }
 .pa-timer_fill .pz-timer { position: relative; height: 8px; margin-top: 4px; border-radius: 4px; overflow: visible; }
-.pa-timer_fill .pz-timer i { border-radius: 4px; background: url(assets/ui/timer_fill.webp) 50% 50% / 394% 150% no-repeat; }
+.pa-timer_fill .pz-timer i { border-radius: 4px; background: url(assets/ui/timer_fill.webp) center / 100% 100% no-repeat; }
 .pa-icon_timer .pz-timer { padding-left: 16px; }
 .pa-icon_timer .pz-tmi { display: block; position: absolute; left: 0; top: 50%; width: 16px; height: 20px; transform: translateY(-50%); background: url(assets/ui/icon_timer.webp) center / contain no-repeat; }
 .pa-cd_ring .pz-fcd { border: 0; background: url(assets/ui/cd_ring.webp) center / 100% 100% no-repeat, radial-gradient(circle, rgba(10,10,14,.82) 58%, transparent 61%); }
