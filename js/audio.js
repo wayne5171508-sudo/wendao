@@ -10,7 +10,7 @@
 // ════════════════════════════════════════════
 
 const AUDIO_KEY = 'wendao_audio';
-const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', gacha: 'assets/audio/bgm_gacha.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3' };
+const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', gacha: 'assets/audio/bgm_gacha.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3', pz_battle: 'assets/audio/bgm_pz_battle.mp3' };
 // 短音效：assets/audio/sfx_<key>.mp3
 const SFX_SRC = { slash: 'slash', crit: 'crit', hurt: 'hurt', cast: 'cast', thunder: 'thunder', gather: 'gather', divine: 'divine', meditate: 'meditate',
   reveal_fan: 'reveal_fan', reveal_ling: 'reveal_ling', reveal_xuan: 'reveal_xuan', reveal_xian: 'reveal_xian', reveal_shen: 'reveal_shen' };
@@ -20,6 +20,11 @@ const REVEAL_SFX = ['reveal_fan', 'reveal_ling', 'reveal_xuan', 'reveal_xian', '
 const MOOD_BGM = { title: 'home', village: 'home', sect: 'home', wild: 'home', dungeon: 'battle', battle: 'battle', boss: 'boss', gacha: 'gacha', trib: 'trib' };
 // 遊戲內音效名稱 → 素材（含音量、音高隨機）；沒有列在這裡的只用合成
 const SFX_MAP = { swing1: ['slash', 0.8, 0.06], swing2: ['slash', 0.8, 0.06], swing3: ['slash', 0.9, 0.04], hitHeavy: ['crit', 0.9, 0.04], hurt: ['hurt', 0.9, 0.05], thunder: ['thunder', 0.85, 0.04], cast: ['cast', 0.7, 0.03], gather: ['gather', 0.8, 0], divine: ['divine', 1, 0], meditate: ['meditate', 0.3, 0] };
+// 個別 BGM 音量（相對其他曲，1＝原音量）：轉珠戰鬥曲偏大聲，壓到 45%
+const BGM_VOL = { pz_battle: 0.45 };
+// 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
+// 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
+const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_tick: 0.9, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
 const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
 
 const Audio2 = {
@@ -66,7 +71,7 @@ const Audio2 = {
   },
   makeTrack(key) {
     const el = new Audio(); el.preload = 'auto'; el.loop = key !== 'tribIntro'; el.crossOrigin = 'anonymous';
-    const tr = { el, gain: this.ctx.createGain(), ready: null };
+    const tr = { el, gain: this.ctx.createGain(), ready: null, vol: BGM_VOL[key] ?? 1 };
     tr.gain.gain.value = 0;
     try { this.ctx.createMediaElementSource(el).connect(tr.gain); } catch (e) { tr.broken = true; }
     tr.gain.connect(this.bgmBus);
@@ -109,6 +114,7 @@ const Audio2 = {
   setMood(m) {
     this.mood = m;
     if (this.drone) this.retuneDrone();
+    if (typeof Puzzle !== 'undefined' && Puzzle.on) return;   // 轉珠開著時只記場景，關閉時再照 mood 切回
     this.bgm(MOOD_BGM[m] || 'home');
   },
   async bgm(key) {
@@ -126,7 +132,7 @@ const Audio2 = {
   },
   fadeIn(tr) {
     const t = this.ctx.currentTime, g = tr.gain.gain, from = g.value, delay = from > 0.05 ? 0 : FADE_IN_DELAY;
-    g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.setValueAtTime(from, t + delay); g.linearRampToValueAtTime(1, t + delay + FADE);
+    g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.setValueAtTime(from, t + delay); g.linearRampToValueAtTime(tr.vol ?? 1, t + delay + FADE);
     clearTimeout(tr.stopT);
     if (tr.el && tr.el.paused && !document.hidden) tr.el.play().catch(() => {});
   },
@@ -171,9 +177,10 @@ const Audio2 = {
   // 有素材播素材，否則用合成；同一音效最多同時 SFX_MAX 個，超過就停掉最舊的
   play(name, opt = {}) {
     if (!this.ctx) return;
-    const m = SFX_MAP[name];
-    if (!m || !this.buffers[m[0]]) return this.synth(name);
-    this.playBuf(m[0], m[1] * (opt.vol ?? 1), m[2]);
+    const m = SFX_MAP[name], V = PZ_SFX_VOL;
+    const pv = name in V ? V.master * V[name] * (name === 'pz_clear' ? Math.min(V.clearMax, 1 + ((opt.combo || 1) - 1) * V.clearStep) : 1) : 1;
+    if (!m || !this.buffers[m[0]]) { this.sfxMul = pv; this.synth(name, opt); this.sfxMul = 1; return; }   // 合成音也套同一張音量表
+    this.playBuf(m[0], m[1] * (opt.vol ?? 1) * pv, m[2]);
   },
   playBuf(key, vol, jitter) {
     const buf = this.buffers[key]; if (!buf) return;
@@ -221,7 +228,7 @@ const Audio2 = {
     const t = this.ctx.currentTime + delay, o = this.ctx.createOscillator(), g = this.ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), t + dur);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    vol *= this.sfxMul || 1; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(this.sfxBus); o.start(t); o.stop(t + dur + 0.05);
   },
   noise(dur, vol = 0.3, freq = 1200, q = 1, delay = 0, type = 'bandpass') {
@@ -231,12 +238,20 @@ const Audio2 = {
     for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
     const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
     src.buffer = buf; f.type = type; f.frequency.value = freq; f.Q.value = q;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    vol *= this.sfxMul || 1; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f); f.connect(g); g.connect(this.sfxBus); src.start(t);
   },
-  synth(name) {
+  synth(name, opt = {}) {
     if (!this.ctx) return;
     switch (name) {
+      // 轉珠臨時合成音：之後有音檔時，在 SFX_SRC 加檔名、SFX_MAP 加 pz_xxx: ['檔名', 音量, 音高隨機] 即自動改播音檔
+      case 'pz_pick': this.tone(660, 0.09, 'sine', 0.12, 220); break;
+      case 'pz_tick': this.tone(1300 + Math.random() * 120, 0.03, 'square', 0.035); break;
+      case 'pz_clear': { const f = 440 * Math.pow(2, Math.min((opt.combo || 1) - 1, 14) / 12); this.tone(f, 0.28, 'triangle', 0.14); this.tone(f * 1.5, 0.22, 'sine', 0.06, 0, 0.03); this.noise(0.08, 0.08, 4000, 1); break; }
+      case 'pz_five': { const f = 330 * Math.pow(2, Math.min((opt.combo || 1) - 1, 12) / 12); this.tone(f / 4, 0.6, 'sawtooth', 0.16, -40); this.tone(f, 0.5, 'triangle', 0.16); this.tone(f * 1.26, 0.45, 'triangle', 0.1, 0, 0.04); this.tone(f * 1.5, 0.45, 'sine', 0.1, 0, 0.08); this.tone(f * 2, 0.35, 'sine', 0.06, 200, 0.1); this.noise(0.5, 0.3, 1800, 0.8); break; }
+      case 'pz_cast': this.tone(440, 0.45, 'sine', 0.12, 660); this.tone(880, 0.35, 'triangle', 0.05, 440, 0.05); this.noise(0.3, 0.1, 3000, 1); break;
+      case 'pz_hit': if (opt.heavy) { this.noise(0.14, 0.4, 600, 1); this.tone(110, 0.16, 'square', 0.09, -50); } else { this.noise(0.07, 0.28, 1300, 1.2); this.tone(200, 0.08, 'square', 0.06, -90); } break;
+      case 'pz_hurt': this.tone(220, 0.3, 'sawtooth', 0.14, -130); this.noise(0.16, 0.24, 500); break;
       case 'swing1': this.noise(0.13, 0.22, 3200, 0.7); break;
       case 'swing2': this.noise(0.13, 0.22, 2600, 0.7); break;
       case 'swing3': this.noise(0.22, 0.3, 1800, 0.6); this.tone(700, 0.25, 'triangle', 0.08, 500); break;
