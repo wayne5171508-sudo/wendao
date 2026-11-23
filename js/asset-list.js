@@ -1,5 +1,7 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
 const ASSET_VER = '20261117213934';
+// 轉珠專用素材：不進全遊戲預載，進轉珠地圖時才在背景下載（js/stage.js 的 Stage.preloadPz）
+const PZ_ASSET = /^assets\/(orb|pz|char)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/bgm_pz_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king)\./;
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',

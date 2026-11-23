@@ -60,7 +60,7 @@ const Game = {
   async preload() {
     const all = typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : [], first = /\/(bg|npc|hero)\/(?!gacha_)|\/ui\/stone|wuxing|pillar_/;
     const list = all.filter((s) => first.test(s)), bar = $('#ldBar'), txt = $('#ldTxt'), box = $('#loader');
-    const later = all.filter((s) => !first.test(s) && !s.startsWith('assets/dual/'));
+    const later = all.filter((s) => !first.test(s) && !s.startsWith('assets/dual/') && !(typeof PZ_ASSET !== 'undefined' && PZ_ASSET.test(s)));   // 轉珠素材進轉珠時才載
     let done = 0;
     const tick = () => { done++; const p = Math.round((100 * done) / list.length); bar.style.width = p + '%'; txt.textContent = `載入中 ${p}%`; };
     const one = (src) => new Promise((res) => { const i = new Image(); i.onload = i.onerror = () => { tick(); res(); }; i.src = src; });

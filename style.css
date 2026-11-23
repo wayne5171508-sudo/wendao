@@ -1277,8 +1277,8 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-combo em, .pz-total em { margin-right: 6px; padding: 1px 6px; border-radius: 3px; font-style: normal; font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(#e0473a, #8a1e10); text-shadow: none; box-shadow: 0 0 8px rgba(255,120,80,.8); }
 .pz-combo em { flex-basis: 100%; max-width: max-content; margin: 2px auto 0; }
 .pz-mnum.all { font-size: 14px; }
-.pz-mem:first-child .pz-mnum { margin-left: 18px; }
-.pz-mem:last-child .pz-mnum { margin-left: -18px; }
+.pz-mem:first-of-type .pz-mnum { margin-left: 18px; }
+.pz-mem:last-of-type .pz-mnum { margin-left: -18px; }
 #pz > .pz-five-img { position: absolute; z-index: 7; transform: translate(-50%, -50%) scale(.25); pointer-events: none; mix-blend-mode: screen; filter: brightness(1.25) saturate(1.2); animation: pzFive .85s cubic-bezier(.15,.8,.3,1) forwards; }
 #pz > .pz-five-dim { position: absolute; z-index: 7; transform: translate(-50%, -50%) scale(.25); border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(10,8,14,.8) 0 35%, rgba(10,8,14,.5) 50%, transparent 68%); animation: pzFive .85s cubic-bezier(.15,.8,.3,1) forwards; }
 .pzr-art { flex: none; align-self: flex-start; width: 92px; aspect-ratio: 9 / 16; object-fit: contain; border-radius: 6px; background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,.12), transparent 70%); }
@@ -1286,3 +1286,20 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pzr-card { position: relative; }
 .pzr-wild { position: absolute; top: 2px; left: 2px; z-index: 3; padding: 0 3px; border-radius: 3px; font-size: 9px; line-height: 1.4; color: #fff; background: #7a4fc9; }
 .pz-fx.fx-combo, .pz-fx.fx-comboUp, .pz-fx.fx-time, .pz-fx.fx-convert { height: 95%; }   /* 正方形特效圖 */
+.pzm-break { flex: none; display: flex; flex-direction: column; align-items: center; line-height: 1.1; min-width: 44px; padding: 3px 8px !important; font-size: 14px; }
+.pzm-break small { font-size: 9px; color: #ffd76a; }
+.pzm-break.ready { color: #fff3d6; border-color: var(--gold); background: linear-gradient(#8a3a1e, #5a1e10); animation: pzmPulse 1.4s infinite; }
+/* Combo 字放在隊員卡列（盤面上緣與敵人區之間），不蓋敵人名字與血條 */
+.pz-team { position: relative; }
+.pz-team > .pz-combo { top: 50%; bottom: auto; margin-top: -26px; z-index: 8; }
+.pz-bar-r { flex: none; display: flex; gap: 4px; }
+.pz-set { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-size: 15px; }
+.pz-set span { flex: none; width: 3em; color: var(--gold2); }
+.pz-set input { flex: 1; min-width: 0; accent-color: #d8a23a; }
+.pz-set b { flex: none; width: 2.2em; text-align: right; font-size: 13px; }
+.pz-tut { position: absolute !important; inset: 0; width: 100% !important; z-index: 35; }
+.pz-tut-hole { position: absolute; border-radius: 8px; box-shadow: 0 0 0 200vmax rgba(0,0,0,.66), 0 0 0 2px #ffd76a, 0 0 14px 4px rgba(255,215,106,.6); pointer-events: none; }
+.pz-tut-box { position: absolute; left: 12px; right: 12px; padding: 12px 14px; background: linear-gradient(#162030, #0b121c); border: 1px solid var(--goldline); border-radius: 8px; }
+.pz-tut-box b { color: var(--gold2); font-size: 16px; }
+.pz-tut-box p { margin: 6px 0 2px; font: 14px/1.6 var(--serif); }
+.pz-tut-box .pz-row { margin-top: 8px; justify-content: flex-end; }

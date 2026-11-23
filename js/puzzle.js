@@ -88,6 +88,28 @@ const Puzzle = {
     this.last = performance.now();
     const loop = (now) => { if (!this.on) return; const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now; this.frame(dt); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
+    if (this.stage.id === '1-1' && S.d.pz && !S.d.pz.tut) setTimeout(() => this.on && this.tutorial(), 900);
+  },
+  // 新手教學：第一次進 1-1 時 4 步高亮提示，可跳過，看完或跳過都只出現一次
+  tutorial(i = 0) {
+    const T = [
+      ['.pz-boardwrap', '拖珠換位', '按住任一顆珠子拖曳，經過的珠子會跟著換位。放開後，橫或直 3 顆以上同色相連就消除；一次消越多組 Combo 越高。'],
+      ['.pz-foes', '五行相剋', '木剋土、土剋水、水剋火、火剋金、金剋木。剋敵人傷害 1.5 倍、被剋 0.5 倍；左上角會提示目前目標的弱點。'],
+      ['.pz-hp.team', '心珠回血', '粉紅色的心珠不攻擊，消除後回復隊伍氣血（綠色血條）。'],
+      ['.pz-mem[data-m="0"]', '點技能', '頭像下的技能名亮起時，點頭像就能施放，不會結束回合。數字是還要幾回合。'],
+    ];
+    let el = this.root.querySelector('#pzTut');
+    const done = () => { if (el) el.remove(); S.d.pz.tut = 1; S.save(); };
+    if (i >= T.length) return done();
+    const [sel, title, txt] = T[i], tg = this.root.querySelector(sel); if (!tg) return this.tutorial(i + 1);
+    if (!el) { el = document.createElement('div'); el.id = 'pzTut'; el.className = 'pz-tut'; this.root.appendChild(el); }
+    const r = tg.getBoundingClientRect(), R = this.root.getBoundingClientRect(), pad = 4, below = r.top - R.top < R.height / 2;
+    el.innerHTML = `<i class="pz-tut-hole" style="left:${r.left - R.left - pad}px;top:${r.top - R.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px"></i>
+      <div class="pz-tut-box" style="${below ? `top:${Math.min(R.height - 170, r.bottom - R.top + 12)}px` : `bottom:${Math.min(R.height - 170, R.bottom - r.top + 12)}px`}">
+        <b>${i + 1} / ${T.length}　${title}</b><p>${txt}</p>
+        <div class="pz-row"><button class="pz-btn" data-t="skip">跳過</button><button class="pz-btn go" data-t="next">${i === T.length - 1 ? '開始' : '下一步'}</button></div></div>`;
+    el.querySelector('[data-t="skip"]').onclick = done;
+    el.querySelector('[data-t="next"]').onclick = () => this.tutorial(i + 1);
   },
   // toMap：回章節地圖（預設）；next：回地圖後打開下一關說明
   close(toMap = true, next) {
@@ -199,12 +221,12 @@ const Puzzle = {
     const T = this.team, st = this.stage;
     this.root.innerHTML = `
       <div class="pz-top" style="background-position:${PZ_ART.bgPos}">
-        <div class="pz-bar"><button class="pz-btn" id="pzExit">撤</button><span><b>${st.id} ${st.name}</b><small id="pzWave"></small></span><button class="pz-btn" id="pzHelp">？</button></div>
+        <div class="pz-bar"><button class="pz-btn" id="pzExit">撤</button><span><b>${st.id} ${st.name}</b><small id="pzWave"></small></span><div class="pz-bar-r"><button class="pz-btn" id="pzHelp">？</button><button class="pz-btn" id="pzSet" aria-label="設定">設</button></div></div>
         <div class="pz-warn" id="pzWarn"></div>
         <div class="pz-foes" id="pzFoes"></div>
-        <div class="pz-fl" id="pzFl"></div><div class="pz-combo" id="pzCombo"></div>
+        <div class="pz-fl" id="pzFl"></div>
       </div>
-      <div class="pz-team">${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
+      <div class="pz-team"><div class="pz-combo" id="pzCombo"></div>${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
           <span class="pz-face">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em><i>${PZ_EL[m.el].ch}</i></span>
           <span class="pz-sk"></span><small>${m.pos === '隊員' ? m.short.slice(0, 4) : m.pos}</small></button>`).join('')}</div>
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
@@ -218,6 +240,7 @@ const Puzzle = {
     this.cv = $p('#pzCv'); this.ctx = this.cv.getContext('2d');
     $p('#pzExit').onclick = () => this.retreat();
     $p('#pzHelp').onclick = () => this.help();
+    $p('#pzSet').onclick = () => this.settings();
     this.root.querySelectorAll('.pz-mem').forEach((b) => (b.onclick = () => this.skill(+b.dataset.m)));
     // 觸控：pointer capture＋touch-action:none，擋掉 iOS 下拉重整、捲動、長按選取
     const cv = this.cv;
@@ -253,6 +276,8 @@ const Puzzle = {
     this.art = {}; this.clr = {}; this.five = {};
     Object.entries(PZ_ART.clear).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.clr[k] = src); im.src = src; });
     Object.entries(PZ_ART.five || {}).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.five[k] = src); im.src = src; });
+    // 特效圖先解碼並留著參照：第一次 5 連珠、消除、技能特效不會因為解碼卡一幀
+    this._dec = [...Object.values(PZ_ART.five || {}), ...Object.values(PZ_ART.clear), ...Object.values(PZ_ART.fx)].filter(Boolean).map((src) => { const im = new Image(); im.src = src; if (im.decode) im.decode().catch(() => {}); return im; });
     Object.entries(PZ_ART.orbs).forEach(([k, src]) => {
       if (!src) return;
       const im = new Image(); im.onload = () => { this.art[k] = im; this.sprites[k] = this.orbSprite(k); }; im.src = src;
@@ -463,7 +488,7 @@ const Puzzle = {
     el.innerHTML = `<b>${n}</b><span>Combo</span>${five ? '<em>5連珠</em>' : ''}`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');   // 動畫自己淡出
     el.style.setProperty('--c', PZ_EL[G.c].c);
     this.sfx(five ? 'pz_five' : 'pz_clear', { combo: n });
-    if (navigator.vibrate) try { navigator.vibrate(five ? [30, 30, 50] : 12); } catch (er) {}
+    this.vib(five ? [30, 30, 50] : 12);
   },
 
   // 傷害公式：隊員攻擊 ×（該色每組 1＋多出顆數×25%）×（1＋(Combo−1)×25%）× 隊長技，對目標再乘相剋、扣防禦與減傷
@@ -556,10 +581,10 @@ const Puzzle = {
   heavyNext(f) { return f.M.heavy && (f.hits + 1) % f.M.heavy.every === 0; },
   // 敵方回合：每隻倒數 −1，歸零的依序出手
   async foesTurn() {
-    this.alive().forEach((f) => f.cd--);
+    this.alive().forEach((f) => { f.cd--; f.age = (f.age || 0) + 1; });
     this.hud();
-    const act = this.alive().filter((f) => f.cd <= 0);
-    if (!act.length) { await this.sleep(150); return; }
+    const act = this.alive().filter((f) => f.cd <= 0), aoe = this.alive().filter((f) => this.aoeNow(f));
+    if (!act.length && !aoe.length) { await this.sleep(150); return; }
     await this.sleep(250);
     for (const f of act) {
       if (this.hp <= 0) break;
@@ -572,13 +597,28 @@ const Puzzle = {
       this.float((heavy ? H.name + ' ' : '-') + U.fmt(dmg), '#ff6a6a', 'team', heavy);
       this.root.classList.remove('hurt'); void this.root.offsetWidth; this.root.classList.add('hurt');
       this.sfx('pz_hurt');
-      if (navigator.vibrate) try { navigator.vibrate(heavy ? [40, 40, 60] : 30); } catch (er) {}
+      this.vib(heavy ? [40, 40, 60] : 30);
       if (f.leech) { const lh = Math.round(dmg * f.leech); f.hp = Math.min(f.max, f.hp + lh); this.float('吸血 +' + U.fmt(lh), '#ff6a7a', 'boss'); }
       f.cd = this.foeCd(f);
       this.hud();
       await this.sleep(act.length > 1 ? 380 : 450);
     }
+    // 範圍攻擊（PZ_MONS 的 aoe）：每 every 回合一次，不佔出手倒數，打全隊
+    for (const f of aoe) {
+      if (this.hp <= 0) break;
+      const A = f.M.aoe, dmg = Math.round(f.atk * A.mult * U.rand(0.95, 1.05));
+      this.banner(A.name, f.name + '・範圍攻擊');
+      const el = this.foeEl(f); if (el) { el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); }
+      await this.sleep(500);
+      this.hp = Math.max(0, this.hp - dmg);
+      this.float(A.name + ' ' + U.fmt(dmg), '#ff4a4a', 'team', true);
+      this.root.querySelectorAll('.pz-mem').forEach((b) => { b.classList.remove('atk'); void b.offsetWidth; b.classList.add('atk'); });
+      this.root.classList.remove('hurt'); void this.root.offsetWidth; this.root.classList.add('hurt');
+      this.sfx('pz_hurt'); this.vib([60, 40, 80]);
+      this.hud(); await this.sleep(600);
+    }
   },
+  aoeNow(f) { return !!f.M.aoe && f.age > 0 && f.age % f.M.aoe.every === 0; },
 
   // ───────── 隊員技能（冷卻以回合計，施放不結束回合；效果依 roster-cfg.js 的效果庫逐一套用）─────────
   skill(i) {
@@ -642,9 +682,9 @@ const Puzzle = {
     });
     // 提示剋制（目前目標）、下次出手是大招的敵人
     if (T) {
-      const weak = Object.keys(PZ_BEATS).find((k) => PZ_BEATS[k] === T.el), hv = this.alive().find((f) => this.heavyNext(f));
+      const weak = Object.keys(PZ_BEATS).find((k) => PZ_BEATS[k] === T.el), hv = this.alive().find((f) => this.heavyNext(f)), aw = this.alive().find((f) => f.M.aoe && ((f.age || 0) + 1) % f.M.aoe.every === 0);
       q('#pzWarn').innerHTML = `<span>${multi ? '目標 ' : ''}弱點 <i style="color:${PZ_EL[weak].c}">${PZ_EL[weak].ch}</i>　抗 <i style="color:${PZ_EL[PZ_BEATS[T.el]].c}">${PZ_EL[PZ_BEATS[T.el]].ch}</i></span>` +
-        (hv ? `<span class="hv">${hv.name}下次：${hv.M.heavy.name}（約 ${U.fmt(hv.atk * ((hv.ph && hv.ph.heavyMult) || hv.M.heavy.mult))}）</span>` : '');
+        (aw ? `<span class="hv">${aw.name}下回合：${aw.M.aoe.name}（範圍約 ${U.fmt(aw.atk * aw.M.aoe.mult)}）</span>` : hv ? `<span class="hv">${hv.name}下次：${hv.M.heavy.name}（約 ${U.fmt(hv.atk * ((hv.ph && hv.ph.heavyMult) || hv.M.heavy.mult))}）</span>` : '');
     }
     this.root.querySelectorAll('.pz-mem').forEach((b, i) => {
       const m = this.team[i]; b.classList.toggle('ready', m.cd === 0);
@@ -724,6 +764,20 @@ const Puzzle = {
     el.classList.remove('hidden');
     el.querySelectorAll('[data-b]').forEach((b) => (b.onclick = btns[+b.dataset.b][1]));
   },
+  // 震動（設定可關，存在 S.d.settings.vib）
+  vib(p) { if (S.d && S.d.settings && S.d.settings.vib === false) return; if (navigator.vibrate) try { navigator.vibrate(p); } catch (er) {} },
+  // 戰鬥設定：配樂、音效音量、震動、說明、撤退（開著時不算時間：只在 idle 可開，轉珠中按不到）
+  settings() {
+    if (this.state === 'drag') return;
+    const A = typeof Audio2 !== 'undefined' ? Audio2 : null, st = S.d.settings || (S.d.settings = {}), vibOn = st.vib !== false;
+    const sl = (id, k, lab) => `<label class="pz-set"><span>${lab}</span><input type="range" min="0" max="100" id="${id}" value="${A ? Math.round(A.set[k] * 100) : 0}" aria-label="${lab}"><b id="${id}N">${A ? Math.round(A.set[k] * 100) : 0}</b></label>`;
+    this.endPanel(`<h3>設定</h3>${sl('pzVb', 'bgm', '配樂')}${sl('pzVs', 'sfx', '音效')}
+      <label class="pz-set"><span>震動</span><button class="pz-btn" id="pzVib">${vibOn ? '開' : '關'}</button></label>`,
+      [['說明', () => this.help()], ['撤退', () => this.retreat(true)], ['繼續', () => this.endClose(), 'go']]);
+    const q = (s) => this.root.querySelector(s);
+    [['#pzVb', 'bgm'], ['#pzVs', 'sfx']].forEach(([id, k]) => (q(id).oninput = (e) => { if (A) { A.unlock(); A.setVol(k, e.target.value / 100); } q(id + 'N').textContent = e.target.value; }));
+    q('#pzVib').onclick = (e) => { st.vib = st.vib === false; S.save(); e.target.textContent = st.vib !== false ? '開' : '關'; this.vib(20); };
+  },
   endClose() { this.root.querySelector('#pzEnd').classList.add('hidden'); },
   // 撤退＝失敗（體力不退）
   retreat() {
@@ -744,7 +798,7 @@ const Puzzle = {
     btns.push([`再戰（${st.cost}）`, () => this.again()], ['返回地圖', () => this.close()]);
     this.endPanel(`<h3>通關</h3><p class="c">${r.turns} 回合・最高 ${r.maxCombo} Combo・剩餘氣血 ${Math.round(r.hpRatio * 100)}%</p>
       <ul class="pzm-starlist">${stars}</ul>
-      <p class="c">${W.firstClear ? '<b class="pz-first">首次通關</b><br>' : ''}獲得 ${Stage.rwText(W.rw)}${W.rw.expFull ? '<br><small class="note">修為已滿，多的部分未計入，請先突破</small>' : ''}</p>`, btns);
+      <p class="c">${W.firstClear ? '<b class="pz-first">首次通關</b><br>' : ''}獲得 ${Stage.rwText(W.rw)}${W.rw.ovf ? `<br><small class="note">${Stage.ovfText(W.rw.ovf)}</small>` : ''}</p>`, btns);
   },
   lose() {
     this.state = 'end';

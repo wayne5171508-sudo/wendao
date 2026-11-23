@@ -6,6 +6,8 @@
 //    sta 目前體力、staAt 上次結算回復的時間（毫秒）
 //    st  { 關卡 id: { s 星星位元（1、2、4）, c 通關次數 } }
 //    sw  { date 日期, n: { 關卡 id: 今日掃蕩次數 } }
+//    tut 新手教學已看過（1）
+//    ovf 溢出修為：修為已滿時轉珠獎勵的修為先存這裡，突破成功時補入
 // ════════════════════════════════════════════
 
 const PZ_STAGES = PZ_CHAPTERS.flatMap((C) => C.stages.map((s, i) => ({ ...s, ch: C, idx: i, stars: s.stars || STAR_DEFAULT })));
@@ -13,12 +15,12 @@ const stageById = (id) => PZ_STAGES.find((s) => s.id === id);
 
 const Stage = {
   // ───────── 存檔 ─────────
-  fresh() { return { v: 1, sta: STA_CFG.start, staAt: Date.now(), st: {}, sw: { date: '', n: {} } }; },
+  fresh() { return { v: 1, sta: STA_CFG.start, staAt: Date.now(), st: {}, sw: { date: '', n: {} }, ovf: 0, tut: 0 }; },
   // 補欄位、修正異常值；舊存檔（沒有 pz）＝新的一份
   fix(d) {
     const f = this.fresh(), p = d.pz && typeof d.pz === 'object' && !Array.isArray(d.pz) ? d.pz : {};
     const num = (v, def) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : def);
-    const g = { v: 1, sta: num(p.sta, f.sta), staAt: num(p.staAt, f.staAt), st: {}, sw: { date: '', n: {} } };
+    const g = { v: 1, sta: num(p.sta, f.sta), staAt: num(p.staAt, f.staAt), st: {}, sw: { date: '', n: {} }, ovf: Math.max(0, Math.floor(num(p.ovf, 0))), tut: p.tut ? 1 : 0 };
     g.sta = U.clamp(Math.floor(g.sta), 0, 9999);
     if (g.staAt > Date.now() || g.staAt < 0) g.staAt = Date.now();   // 時間被調過：從現在重算
     if (p.st && typeof p.st === 'object') for (const [k, v] of Object.entries(p.st)) {
@@ -74,11 +76,11 @@ const Stage = {
   give(rw) {
     const out = { stone: 0, exp: 0, items: {} };
     if (rw.stone) { S.add('stone', rw.stone); out.stone += rw.stone; }
-    if (rw.expSec) { const n = this.expOf(rw.expSec), b = S.d.exp; S.addExp(n); out.exp += S.d.exp - b; out.expFull = S.d.exp - b < n; }
+    if (rw.expSec) { const n = this.expOf(rw.expSec), b = S.d.exp; S.addExp(n); const got = S.d.exp - b; out.exp += got; if (got < n) { out.ovf = (out.ovf || 0) + (n - got); this.d.ovf += n - got; } }
     for (const [k, n] of Object.entries(rw.items || {})) { S.add(k, n); out.items[k] = (out.items[k] || 0) + n; }
     return out;
   },
-  merge(a, b) { const o = { stone: a.stone + b.stone, exp: a.exp + b.exp, items: { ...a.items }, expFull: a.expFull || b.expFull }; for (const [k, n] of Object.entries(b.items)) o.items[k] = (o.items[k] || 0) + n; return o; },
+  merge(a, b) { const o = { stone: a.stone + b.stone, exp: a.exp + b.exp, items: { ...a.items }, ovf: (a.ovf || 0) + (b.ovf || 0) }; for (const [k, n] of Object.entries(b.items)) o.items[k] = (o.items[k] || 0) + n; return o; },
   rwText(o) {
     const p = [];
     if (o.stone) p.push(`靈石 ${U.fmt(o.stone)}`);
@@ -86,6 +88,7 @@ const Stage = {
     for (const [k, n] of Object.entries(o.items || {})) p.push(`${(ITEMS[k] && ITEMS[k].name) || k} ×${n}`);
     return p.join('、') || '無';
   },
+  ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入（共 ${U.fmt(this.d.ovf)}）`; },
   // 預覽用（還沒發）：修為以目前速度估
   rwPreview(rw) { return this.rwText({ stone: rw.stone || 0, exp: rw.expSec ? this.expOf(rw.expSec) : 0, items: rw.items }); },
 
@@ -142,8 +145,23 @@ const Stage = {
     this.el = el; el.classList.remove('hidden'); this.mapOn = true;
     document.body.classList.add('pz-on');
     if (typeof Audio2 !== 'undefined') Audio2.setMood(Audio2.mood);
-    this.renderMap();
+    this.renderMap(); this.preloadPz();
     clearInterval(this._ti); this._ti = setInterval(() => this.mapOn && this.staHud(), 1000);
+  },
+  // 地圖上的「突破」：開現有的突破面板。突破演出在洞府場景播，地圖先讓開，演出結束或按「稍後」就自動回到地圖
+  breakEntry() {
+    if (!S.full()) { this.toast(`修為未滿（${U.fmt(S.d.exp)} / ${U.fmt(S.need())}），滿了才能突破`); return; }
+    if (S.d.lv >= MAX_LV) { this.toast('已臻此界之巔'); return; }
+    const ch = this.ch.id, back = () => { if (!this.mapOn && !Puzzle.on) this.showMap(ch); };
+    this.closeMap(); if (UI.go) UI.go('home'); UI.breakModal();
+    const s0 = Story.breakShow; let started = false;
+    Story.breakShow = (u) => { started = true; Story.breakShow = s0; return s0.call(Story, u).finally(back); };
+    const t = setInterval(() => { if (started) return clearInterval(t); if ($('#modal').classList.contains('hidden')) { clearInterval(t); Story.breakShow = s0; back(); } }, 300);
+  },
+  // 轉珠素材：第一次進轉珠地圖才在背景下載（音檔交給 Audio2 自己載）；之後由離線快取提供
+  preloadPz() {
+    if (this._pre || typeof PZ_ASSET === 'undefined') return; this._pre = true;
+    ASSET_LIST.filter((s) => PZ_ASSET.test(s) && !s.endsWith('.mp3')).forEach((s, i) => setTimeout(() => { const im = new Image(); im.src = s; }, i * 60));
   },
   hideMap() { this.mapOn = false; clearInterval(this._ti); if (this.el) this.el.classList.add('hidden'); },
   closeMap() {
@@ -164,12 +182,14 @@ const Stage = {
     const total = list.reduce((a, st) => a + this.stars(st.id), 0);
     this.el.innerHTML = `<div class="pzm-top"><button class="pz-btn" id="pzmBack">返</button>
         <div class="pzm-title"><b>${C.name}</b><small>★ ${total} / ${list.length * 3}</small></div>
+        ${S.d.root ? `<button class="pz-btn pzm-break${S.full() ? ' ready' : ''}" id="pzmBreak">突破${this.d.ovf ? `<small>溢 ${U.fmt(this.d.ovf)}</small>` : ''}</button>` : ''}
         <div class="pzm-sta" id="pzmSta"></div></div>
       <div class="pzm-scroll" id="pzmScroll" style="background-image:linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})"><div class="pzm-path">${nodes.join('')}</div></div>
       ${DEV && STA_CFG.devRefill ? '<button class="pzm-dev" id="pzmDev">補滿體力（測試）</button>' : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-toast" id="pzmToast"></div><div class="pz-end hidden" id="pzmPanel"></div>`;
     this.el.querySelector('#pzmBack').onclick = () => this.closeMap();
+    const bk = this.el.querySelector('#pzmBreak'); if (bk) bk.onclick = () => this.breakEntry();
     const dev = this.el.querySelector('#pzmDev'); if (dev) dev.onclick = () => { this.refill(); this.staHud(); this.toast('體力已補滿'); };
     this.el.querySelectorAll('.pzm-node').forEach((b) => (b.onclick = () => this.detail(b.dataset.st)));
     this.staHud();
@@ -180,9 +200,12 @@ const Stage = {
   staHud() {
     const el = this.el && this.el.querySelector('#pzmSta'); if (!el) return;
     const s = this.sta(), nx = this.staNext();
-    el.innerHTML = `<b>體力 ${s} / ${STA_CFG.max}</b><small>${nx ? `${this.mmss(nx)} 後 +1` : '已滿'}</small>`;
+    el.innerHTML = `<b>體力 ${s} / ${STA_CFG.max}</b><small>${nx ? `${this.mmss(nx)}後 +1` : '已滿'}</small>`;
   },
-  mmss(ms) { const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`; },
+  // 倒數文字：「4 分 48 秒」「1 小時 5 分」（不用 4:48 這種寫法，會被看成時鐘時間）
+  mmss(ms) { const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60; return h ? `${h} 小時 ${m} 分` : m ? `${m} 分 ${s} 秒` : `${s} 秒`; },
+  // 大約多久：「約 20 分鐘」「約 1 小時 5 分鐘」
+  about(ms) { const m = Math.ceil(ms / 60000), h = Math.floor(m / 60); return h ? `${h} 小時${m % 60 ? ` ${m % 60} 分鐘` : ''}` : `${m} 分鐘`; },
   toast(msg) {
     const t = this.el && this.el.querySelector('#pzmToast'); if (!t) return;
     t.textContent = msg; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
@@ -197,7 +220,7 @@ const Stage = {
   },
   closePanel() { const el = this.el && this.el.querySelector('#pzmPanel'); if (el) el.classList.add('hidden'); },
   noSta(need) {
-    const s = this.sta(), w = this.staWait(need), html = `<h3>體力不足</h3><p class="c">需要 ${need} 點，目前 ${s} 點</p><p class="c note">每 ${STA_CFG.regenMin} 分鐘回復 1 點，約 ${this.mmss(w)} 後足夠</p>`;
+    const s = this.sta(), w = this.staWait(need), html = `<h3>體力不足</h3><p class="c">需要 ${need} 點，目前 ${s} 點</p><p class="c note">每 ${STA_CFG.regenMin} 分鐘回復 1 點，約 ${this.about(w)}後足夠</p>`;
     if (this.mapOn) this.panel(html, [['知道了', () => this.closePanel()]]);
     return html;
   },
@@ -228,7 +251,7 @@ const Stage = {
     const r = this.sweep(id, n);
     if (!r.ok) { if (r.why === 'sta') this.noSta(r.need); else this.toast(r.why); return; }
     if (typeof Audio2 !== 'undefined') Audio2.play('pickup');
-    this.panel(`<h3>掃蕩完成</h3><p class="c">${stageById(id).name} ×${r.n}${r.n < n ? `（體力或次數只夠 ${r.n} 次）` : ''}</p><p class="c">${this.rwText(r.rw)}</p><p class="c note">消耗體力 ${r.cost}・剩 ${this.sta()}</p>`,
+    this.panel(`<h3>掃蕩完成</h3><p class="c">${stageById(id).name} ×${r.n}${r.n < n ? `（體力或次數只夠 ${r.n} 次）` : ''}</p><p class="c">${this.rwText(r.rw)}${r.rw.ovf ? `<br><small class="note">${this.ovfText(r.rw.ovf)}</small>` : ''}</p><p class="c note">消耗體力 ${r.cost}・剩 ${this.sta()}</p>`,
       [['繼續', () => this.detail(id)], ['關閉', () => this.closePanel()]]);
     this.staHud();
   },
@@ -238,6 +261,16 @@ const Stage = {
     if (next) { const i = PZ_STAGES.findIndex((s) => s.id === next); if (i >= 0 && i + 1 < PZ_STAGES.length && this.open(PZ_STAGES[i + 1])) this.detail(PZ_STAGES[i + 1].id); }
   },
 };
+
+// ════════ 突破成功：補入溢出修為（補到這層修為上限，多的繼續留著）════════
+(() => {
+  const bt0 = S.breakthrough.bind(S);
+  S.breakthrough = (use, bonus) => {
+    const r = bt0(use, bonus), g = S.d.pz;
+    if (r && r.ok && g && g.ovf > 0) { const b = S.d.exp; S.addExp(g.ovf); g.ovf -= Math.round(S.d.exp - b); r.ovfIn = Math.round(S.d.exp - b); S.save(); }
+    return r;
+  };
+})();
 
 // ════════ 接到存檔：新存檔、讀檔、匯入（含雲端套用）都會補上 pz 欄位 ════════
 (() => {
