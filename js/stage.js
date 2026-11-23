@@ -55,6 +55,12 @@ const Stage = {
     if (before >= STA_CFG.max) this.d.staAt = Date.now();   // 從滿的狀態扣：從現在開始計時
     S.save(); return true;
   },
+  // 戰敗退還（stage-cfg 的 loseRefund）：回傳實際退了幾點
+  refund(st) {
+    const n = Math.floor(st.cost * (st.loseRefund || 0)); if (n <= 0) return 0;
+    const before = this.sta(), after = Math.min(STA_CFG.max, before + n);
+    this.d.sta = after; if (after >= STA_CFG.max) this.d.staAt = Date.now(); S.save(); return after - before;
+  },
   refill() { this.d.sta = Math.max(this.sta(), STA_CFG.max); this.d.staAt = Date.now(); S.save(); },
 
   // ───────── 關卡狀態 ─────────
@@ -83,12 +89,13 @@ const Stage = {
   merge(a, b) { const o = { stone: a.stone + b.stone, exp: a.exp + b.exp, items: { ...a.items }, ovf: (a.ovf || 0) + (b.ovf || 0) }; for (const [k, n] of Object.entries(b.items)) o.items[k] = (o.items[k] || 0) + n; return o; },
   rwText(o) {
     const p = [];
-    if (o.stone) p.push(`靈石 ${U.fmt(o.stone)}`);
-    if (o.exp) p.push(`修為 ${U.fmt(o.exp)}`);
-    for (const [k, n] of Object.entries(o.items || {})) p.push(`${(ITEMS[k] && ITEMS[k].name) || k} ×${n}`);
+    const ic = (id) => `<span class="pz-rw">${gIco('item', id)}`;   // 獎勵列：靈石、修為、道具前面放物品圖示
+    if (o.stone) p.push(`${ic('stone')}靈石 ${U.fmt(o.stone)}</span>`);
+    if (o.exp) p.push(`${ic('exp')}修為 ${U.fmt(o.exp)}</span>`);
+    for (const [k, n] of Object.entries(o.items || {})) p.push(`${ic(k)}${(ITEMS[k] && ITEMS[k].name) || k} ×${n}</span>`);
     return p.join('、') || '無';
   },
-  ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入（共 ${U.fmt(this.d.ovf)}）`; },
+  ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入<span class="nw">（共 ${U.fmt(this.d.ovf)}）</span>`; },
   // 預覽用（還沒發）：修為以目前速度估
   rwPreview(rw) { return this.rwText({ stone: rw.stone || 0, exp: rw.expSec ? this.expOf(rw.expSec) : 0, items: rw.items }); },
 
@@ -176,20 +183,22 @@ const Stage = {
       const state = this.state(st), n = this.stars(st.id), boss = !!st.big;
       const x = [50, 74, 62, 32, 24, 46, 72, 70, 40, 50][i % 10];
       return `<button class="pzm-node ${state}${boss ? ' boss' : ''}" data-st="${st.id}" style="--x:${x}%">
-        <b>${state === 'lock' ? '鎖' : st.id.split('-')[1]}</b><span class="pzm-stars">${[0, 1, 2].map((k) => `<i class="${k < n ? 'on' : ''}">★</i>`).join('')}</span>
+        <b>${state === 'lock' ? '<i class="pzm-lock">鎖</i>' : st.id.split('-')[1]}</b><span class="pzm-stars">${[0, 1, 2].map((k) => `<i class="${k < n ? 'on' : ''}">★</i>`).join('')}</span>
         <small>${st.name}</small></button>`;
     }).reverse();
     const total = list.reduce((a, st) => a + this.stars(st.id), 0);
-    this.el.innerHTML = `<div class="pzm-top"><button class="pz-btn" id="pzmBack">返</button>
-        <div class="pzm-title"><b>${C.name}</b><small>★ ${total} / ${list.length * 3}</small></div>
+    this.el.innerHTML = `<div class="pzm-top"><button class="pz-btn" id="pzmBack" aria-label="返回">返</button>
+        <div class="pzm-title"><b>${C.name.split('・').map((t) => `<span>${t}</span>`).join('<i>・</i>')}</b><small>★ ${total} / ${list.length * 3}</small></div>
         ${S.d.root ? `<button class="pz-btn pzm-break${S.full() ? ' ready' : ''}" id="pzmBreak">突破${this.d.ovf ? `<small>溢 ${U.fmt(this.d.ovf)}</small>` : ''}</button>` : ''}
         <div class="pzm-sta" id="pzmSta"></div></div>
-      <div class="pzm-scroll" id="pzmScroll" style="background-image:linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})"><div class="pzm-path">${nodes.join('')}</div></div>
+      <div class="pzm-scroll" id="pzmScroll" style="background-image:${C.id === 1 && pzHas('ch1_bg') ? 'linear-gradient(rgba(8,10,14,.15),rgba(8,10,14,.3)),url(assets/map/ch1_bg.webp)' : `linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})`}"><div class="pzm-path">${nodes.join('')}</div></div>
       ${DEV && STA_CFG.devRefill ? '<button class="pzm-dev" id="pzmDev">補滿體力（測試）</button>' : ''}
+      ${typeof Gacha !== 'undefined' ? '<button class="pzm-gacha" id="pzmGacha" aria-label="抽卡"><i></i><b>抽卡</b></button>' : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-toast" id="pzmToast"></div><div class="pz-end hidden" id="pzmPanel"></div>`;
     this.el.querySelector('#pzmBack').onclick = () => this.closeMap();
     const bk = this.el.querySelector('#pzmBreak'); if (bk) bk.onclick = () => this.breakEntry();
+    const ga = this.el.querySelector('#pzmGacha'); if (ga) ga.onclick = () => Gacha.open();
     const dev = this.el.querySelector('#pzmDev'); if (dev) dev.onclick = () => { this.refill(); this.staHud(); this.toast('體力已補滿'); };
     this.el.querySelectorAll('.pzm-node').forEach((b) => (b.onclick = () => this.detail(b.dataset.st)));
     this.staHud();
@@ -200,7 +209,7 @@ const Stage = {
   staHud() {
     const el = this.el && this.el.querySelector('#pzmSta'); if (!el) return;
     const s = this.sta(), nx = this.staNext();
-    el.innerHTML = `<b>體力 ${s} / ${STA_CFG.max}</b><small>${nx ? `${this.mmss(nx)}後 +1` : '已滿'}</small>`;
+    el.innerHTML = `<b><i class="pzm-staico"></i>體力 ${s} / ${STA_CFG.max}</b><small>${nx ? `${this.mmss(nx)}後 +1` : '已滿'}</small>`;
   },
   // 倒數文字：「4 分 48 秒」「1 小時 5 分」（不用 4:48 這種寫法，會被看成時鐘時間）
   mmss(ms) { const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60; return h ? `${h} 小時 ${m} 分` : m ? `${m} 分 ${s} 秒` : `${s} 秒`; },
@@ -213,7 +222,7 @@ const Stage = {
   },
   panel(html, btns) {
     const el = this.el.querySelector('#pzmPanel');
-    el.innerHTML = `<div class="pz-panel">${html}<div class="pz-row wrap">${btns.map((b, i) => `<button class="pz-btn wide${b[2] ? ' ' + b[2] : ''}" data-b="${i}"${b[3] ? ' disabled' : ''}>${b[0]}</button>`).join('')}</div></div>`;
+    el.innerHTML = `<div class="pz-panel"><div class="pz-pbody">${html}</div><div class="pz-row wrap">${btns.map((b, i) => `<button class="pz-btn wide${b[2] ? ' ' + b[2] : ''}" data-b="${i}"${b[3] ? ' disabled' : ''}>${b[0]}</button>`).join('')}</div></div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('[data-b]').forEach((b) => (b.onclick = () => btns[+b.dataset.b][1]()));
     el.onclick = (e) => { if (e.target === el) this.closePanel(); };
@@ -228,7 +237,7 @@ const Stage = {
   detail(id) {
     const st = stageById(id), state = this.state(st);
     if (state === 'lock') { this.toast('先通關前一關才能挑戰'); return; }
-    const rec = this.rec(id), mons = st.waves.map((w, i) => `<li><em>${i === st.waves.length - 1 ? '首領' : `第 ${i + 1} 波`}</em>${w.map((m) => { const M = PZ_MONS[m]; return `<span style="--c:${PZ_EL[M.el].c}">${PZ_EL[M.el].ch}・${M.name}</span>`; }).join('')}</li>`).join('');
+    const rec = this.rec(id), mons = st.waves.map((w, i) => `<li><em>${i === st.waves.length - 1 ? '首領' : `第 ${i + 1} 波`}</em>${w.map((m) => { const M = PZ_MONS[m]; return `<span style="--c:${PZ_EL[M.el].c}">${pzElI(M.el, 'pz-el')}${M.name}</span>`; }).join('')}</li>`).join('');
     const stars = st.stars.map((c, i) => `<li class="${rec.s & (1 << i) ? 'on' : ''}"><i>★</i>${this.starText(c)}</li>`).join('');
     const can = this.canSweep(st), left = this.swLeft(id), cost = this.swCost(st), B = SWEEP_CFG.batch;
     const html = `<h3>${st.id}　${st.name}</h3>
@@ -236,8 +245,8 @@ const Stage = {
       <ul class="pzm-starlist">${stars}</ul>
       ${typeof Roster !== 'undefined' ? Roster.summary() : ''}
       <p class="pzm-rw"><b>獎勵</b>${this.rwPreview(st)}</p>
-      ${st.first ? `<p class="pzm-rw${rec.c ? ' done' : ''}"><b>首通</b>${this.rwPreview(st.first)}${rec.c ? '（已領）' : ''}</p>` : ''}
-      <p class="c note">進場體力 ${st.cost}・失敗不退・目前 ${this.sta()} / ${STA_CFG.max}${can ? `<br>掃蕩每次 ${cost} 體力${left === Infinity ? '' : `・今日剩 ${left} 次`}` : `<br>${SWEEP_CFG.needStars} 星通關後可掃蕩`}</p>`;
+      ${st.first ? `<p class="pzm-rw${rec.c ? ' done' : ''}"><b>${rec.c ? '首通・已領' : '首通'}</b>${this.rwPreview(st.first)}</p>` : ''}
+      <p class="c note">進場體力 ${st.cost}・${st.loseRefund ? `失敗退 ${Math.floor(st.cost * st.loseRefund)}` : '失敗不退'}・目前 ${this.sta()} / ${STA_CFG.max}${can ? `<br>掃蕩每次 ${cost} 體力${left === Infinity ? '' : `・今日剩 ${left} 次`}` : `<br>${SWEEP_CFG.needStars} 星通關後可掃蕩`}</p>`;
     const btns = [[`出戰（${st.cost}）`, () => { this.closePanel(); this.play(id); }, 'go']];
     if (typeof Roster !== 'undefined') btns.push(['編隊', () => Roster.editor(() => this.detail(id))]);
     if (can) {

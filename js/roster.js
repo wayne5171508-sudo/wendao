@@ -39,7 +39,9 @@ const Roster = {
     const el = PZ_ROOT[s.el] || (PZ_EL[s.el] && s.el !== 'heart' ? s.el : null);
     const o = { name: escHtml(String(s.name || '').slice(0, 8)), char: /^[a-z]{1,16}$/.test(s.char) ? s.char : 'yunxi', el,
       lv: num(s.lv, 0, 99), atk: num(s.atk, 1, 99999), hp: num(s.hp, 1, 999999), rcv: num(s.rcv, 0, 99999),
-      wpn: WEAPONS.some((w) => w.id === s.wpn) ? s.wpn : null, sk: pzSk(s.sk) ? s.sk : PZ_HERO.sk, sub: pzSk(s.sub) ? s.sub : PZ_HERO.sub, at: num(s.at, 0, 1e13) || 0 };
+      wpn: WEAPONS.some((w) => w.id === s.wpn) ? s.wpn : null, sk: pzSk(s.sk) ? s.sk : PZ_HERO.sk, sub: pzSk(s.sub) ? s.sub : PZ_HERO.sub, at: num(s.at, 0, 1e13) || 0, st: {} };
+    // 抽卡角色星級（只收認得的角色，夾到該稀有度上限）
+    if (s.st && typeof s.st === 'object') for (const [id, v] of Object.entries(s.st)) { const C = pzChar(id); if (C) o.st[id] = num(v, 1, PZ_RARITY[C.rare].maxStar) || 1; }
     return o.name && o.el && o.lv !== null && o.atk && o.hp && o.rcv !== null ? o : null;
   },
 
@@ -49,7 +51,8 @@ const Roster = {
     const d = S.d, k = 1 + (d.lv || 0) * PZ_HERO.lvStep, w = S.wMain(), ws = w ? S.wStat(w.id) : null;
     return { name: (typeof HERO_NAME !== 'undefined' && HERO_NAME) || '林清遠', char: (d.dao && d.dao.char) || 'qingyuan', el: PZ_ROOT[d.root] || 'wood', lv: d.lv || 0,
       atk: Math.round(PZ_HERO.atk * k + (ws ? ws.atk * PZ_HERO.wpnAtk : 0)), hp: Math.round(PZ_HERO.hp * k), rcv: Math.round(PZ_HERO.rcv * k),
-      wpn: w ? w.id : null, sk: (w && PZ_HERO.wpnSk[w.id]) || PZ_HERO.sk, sub: PZ_HERO.sub, at: Date.now() };
+      wpn: w ? w.id : null, sk: (w && PZ_HERO.wpnSk[w.id]) || PZ_HERO.sk, sub: PZ_HERO.sub, at: Date.now(),
+      st: Object.fromEntries(Object.entries(this.d.own).map(([id, o]) => [id, o.star])) };   // 角色星級：抽卡升星後跟著同步到雲端
   },
   // 道侶主角：有快照用快照；綁了道侶但還沒同步過＝預設數值配道侶名字；沒綁＝預設補位
   mateSnap() {
@@ -117,13 +120,13 @@ const Roster = {
   // ───────── 顯示 ─────────
   face(m, cls = '') {
     const E = PZ_EL[m.el];
-    return `<span class="pzr-face ${cls}" style="--c:${E.c};--d:${E.d}">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em><i>${E.ch}</i></span>`;
+    return `<span class="pzr-face ${cls}" style="--c:${E.c};--d:${E.d}">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em>${pzElI(m.el, 'pzr-eli')}</span>`;
   },
   skText(S1) { return S1 ? `「${S1.name}」${S1.desc}${S1.cd ? `（冷卻 ${S1.cd}）` : ''}` : '無'; },
   info(m) {
     const F = PZ_FACS[m.fac], R = PZ_RARITY[m.rare];
-    return `<div class="pzr-info">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
-      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}">${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
+    return `<div class="pzr-info${pzHas('card_detail') ? ' art' : ''}">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" data-r="${m.rare}" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
+      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${pzElI(m.el, 'pz-el')}${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}"><i class="pzr-fac" data-fac="${m.wild ? 'wild' : m.fac}"></i>${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
       <p><em>${m.id === 'mate' ? '副隊長技' : '隊長技'}</em>${this.skText(m.lead)}</p><p><em>主動技</em>${this.skText(m.sk)}</p></div></div>`;
   },
   // 地圖關卡說明裡的一行隊伍摘要
@@ -139,27 +142,27 @@ const Roster = {
     sel = sel || 'hero';
     const slots = [0, 1, 2].map((i) => g.team[i]);
     const card = (m, key, lab) => `<button class="pzr-card${sel === key ? ' sel' : ''}${m && m.pos === '隊長' ? ' cap' : ''}" data-k="${key}">${m ? this.face(m) : '<span class="pzr-face empty">＋</span>'}${m && m.wild ? '<b class="pzr-wild">萬用</b>' : ''}<small>${lab}</small></button>`;
-    const free = PZ_CHARS.filter((c) => g.own[c.id] && !slots.includes(c.id));
-    const pick = sel.startsWith('slot') ? null : byId[sel] || (g.own[sel] ? this.fromChar(sel, '') : null);
+    const pick = sel.startsWith('slot') ? null : byId[sel] || (pzChar(sel) ? this.fromChar(sel, '') : null);   // 圖鑑：未擁有的也能點開看技能
     const inTeam = pick && (pick.id === 'hero' || slots.includes(pick.id));
     const emptySlot = slots.indexOf(null);
     const facTxt = C.facs.length ? C.facs.map((f) => `${PZ_FACS[f.fac].name} ${f.n} 人（角色 ${f.own}＋萬用 ${f.wild}）：攻 ×${f.atk}、血 ×${f.hp}`).join('') : '同陣營 3 人以上有加成（主角、副隊長是萬用，可補任一陣營）';
     const acts = [];
     if (pick && inTeam && pick.pos !== '隊長') acts.push(['cap', '設為隊長']);
     if (pick && inTeam && pick.id !== 'hero') acts.push(['out', '移出隊伍']);
-    if (pick && !inTeam && pick.id !== 'mate') acts.push(['in', emptySlot >= 0 ? '編入隊伍' : '換下選取的隊員']);
+    if (pick && !inTeam && g.own[pick.id]) acts.push(['in', emptySlot >= 0 ? '編入隊伍' : '換下選取的隊員']);
     const html = `<div class="pzr"><h3>隊伍編組</h3>
       <div class="pzr-row">${card(byId.hero, 'hero', byId.hero.pos)}${card(byId.mate, 'mate', '副隊長')}${slots.map((id, i) => card(id && byId[id], id || 'slot' + i, id ? (byId[id].pos === '隊長' ? '隊長' : '隊員') : '空位')).join('')}</div>
       <div class="pzr-sum"><span>氣血 <b>${U.fmt(C.hp)}</b></span><span>攻擊 <b>${U.fmt(C.atk)}</b></span><span>回復 <b>${U.fmt(C.rcv)}</b></span></div>
       <p class="pzr-lead">${C.leads.map((L) => `<em>${L.pos}</em>${L.who}「${L.name}」${L.desc}`).join('<br>')}<br><em>陣營</em>${facTxt}</p>
       ${pick ? this.info(pick) : `<p class="c note">點下方角色編入這個空位</p>`}
+      ${pick && pick.src === 'char' && !g.own[pick.id] ? '<p class="c note">尚未擁有・可從抽卡取得</p>' : ''}
       ${acts.length ? `<div class="pz-row">${acts.map(([k, t]) => `<button class="pz-btn" data-a="${k}">${t}</button>`).join('')}</div>` : ''}
       ${pick && pick.id === 'mate' ? `<p class="c note">${{ none: '尚未締結道侶：由預設道友補位', bond: '道侶尚未同步主角資料：先用預設數值', cloud: '道侶上次同步的主角資料', sim: '測試用模擬道侶' }[pick.mateSrc]}</p>` : ''}
-      <h4>已擁有（${Object.keys(g.own).length}）</h4>
-      <div class="pzr-list">${free.length ? free.map((c) => { const m = this.fromChar(c.id, ''); return `<button class="pzr-card${sel === c.id ? ' sel' : ''}" data-k="${c.id}">${this.face(m)}<small>${m.short}</small></button>`; }).join('') : '<p class="note">沒有其他角色（之後由抽卡取得）</p>'}</div>
+      <h4>圖鑑（已擁有 ${Object.keys(g.own).length} / ${PZ_CHARS.length}）</h4>
+      <div class="pzr-list">${PZ_CHARS.map((c) => { const m = this.fromChar(c.id, ''), has = g.own[c.id]; return `<button class="pzr-card${sel === c.id ? ' sel' : ''}${has ? '' : ' lock'}${slots.includes(c.id) ? ' in' : ''}" data-k="${c.id}" style="--r:${PZ_RARITY[c.rare].c}">${this.face(m)}<small>${m.short}</small></button>`; }).join('')}</div>
       ${DEV ? '<div class="pz-row wrap"><button class="pz-btn" data-dev="all">發放全部角色（測試）</button><button class="pz-btn" data-dev="mate">' + (g.mate && g.mate.sim ? '清除模擬道侶' : '模擬道侶（測試）') + '</button></div>' : ''}</div>`;
     const re = (s) => this.editor(back, s);
-    Stage.panel(html, [['完成', () => (back ? back() : Stage.closePanel()), 'go']]);
+    Stage.panel(html, [['完成', () => (back ? back() : Stage.closePanel()), 'go'], ...(typeof Gacha !== 'undefined' ? [['抽卡', () => Gacha.open(() => this.editor(back, sel)), 'ga-entry']] : [])]);
     const el = Stage.el.querySelector('#pzmPanel');
     el.querySelectorAll('[data-k]').forEach((b) => (b.onclick = () => {
       const k = b.dataset.k;
