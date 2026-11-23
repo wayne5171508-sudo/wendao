@@ -102,7 +102,7 @@ const Puzzle = {
       ['.pz-boardwrap', '拖珠換位', '按住任一顆珠子拖曳，經過的珠子會跟著換位。放開後，橫或直 3 顆以上同色相連就消除；一次消越多組 Combo 越高。'],
       ['.pz-foes', '五行相剋', '木剋土、土剋水、水剋火、火剋金、金剋木。剋敵人傷害 1.5 倍、被剋 0.5 倍；左上角會提示目前目標的弱點。'],
       ['.pz-hp.team', '心珠回血', '粉紅色的心珠不攻擊，消除後回復隊伍氣血（綠色血條）。'],
-      ['.pz-mem[data-m="0"]', '點技能', '頭像下的技能名亮起時，點頭像就能施放，不會結束回合。數字是還要幾回合。'],
+      ['.pz-mem[data-m="0"]', '點技能', '頭像下的技能名亮起時，點頭像就能施放，不會結束回合。頭像左上角的數字是還要幾回合。'],
     ];
     let el = this.root.querySelector('#pzTut');
     const done = () => { if (el) el.remove(); S.d.pz.tut = 1; S.save(); };
@@ -691,11 +691,12 @@ const Puzzle = {
     if (T) {
       const weak = Object.keys(PZ_BEATS).find((k) => PZ_BEATS[k] === T.el), hv = this.alive().find((f) => this.heavyNext(f)), aw = this.alive().find((f) => f.M.aoe && ((f.age || 0) + 1) % f.M.aoe.every === 0);
       q('#pzWarn').innerHTML = `<span>${multi ? '目標 ' : ''}弱點 <i style="color:${PZ_EL[weak].c}">${PZ_EL[weak].ch}</i>　抗 <i style="color:${PZ_EL[PZ_BEATS[T.el]].c}">${PZ_EL[PZ_BEATS[T.el]].ch}</i></span>` +
-        (aw ? `<span class="hv">${aw.name}下回合：${aw.M.aoe.name}（範圍約 ${U.fmt(aw.atk * aw.M.aoe.mult)}）</span>` : hv ? `<span class="hv">${hv.name}下次：${hv.M.heavy.name}（約 ${U.fmt(hv.atk * ((hv.ph && hv.ph.heavyMult) || hv.M.heavy.mult))}）</span>` : '');
+        (aw ? `<span class="hv">${aw.name}下回合：${aw.M.aoe.name}<span class="nw">（範圍約 ${U.fmt(aw.atk * aw.M.aoe.mult)}）</span></span>` : hv ? `<span class="hv">${hv.name}下次：${hv.M.heavy.name}<span class="nw">（約 ${U.fmt(hv.atk * ((hv.ph && hv.ph.heavyMult) || hv.M.heavy.mult))}）</span></span>` : '');
     }
     this.root.querySelectorAll('.pz-mem').forEach((b, i) => {
       const m = this.team[i]; b.classList.toggle('ready', m.cd === 0);
-      b.querySelector('.pz-sk').textContent = !m.sk ? '' : m.cd === 0 ? m.sk.name : `${m.sk.name} ${m.cd}`;
+      b.querySelector('.pz-sk').textContent = m.sk ? m.sk.name : '';   // 冷卻數字改放頭像左上角（data-cd），膠囊只放名字，4 字技能名不會被切
+      if (m.sk && m.cd > 0) b.dataset.cd = m.cd; else delete b.dataset.cd;
     });
   },
   // 總傷害：數字從 0 滾到總數，下方標 Combo 倍率
@@ -767,7 +768,7 @@ const Puzzle = {
   },
   endPanel(html, btns) {
     const el = this.root.querySelector('#pzEnd');
-    el.innerHTML = `<div class="pz-panel">${html}<div class="pz-row wrap">${btns.map((b, i) => `<button class="pz-btn wide${b[2] ? ' ' + b[2] : ''}" data-b="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    el.innerHTML = `<div class="pz-panel"><div class="pz-pbody">${html}</div><div class="pz-row wrap">${btns.map((b, i) => `<button class="pz-btn wide${b[2] ? ' ' + b[2] : ''}" data-b="${i}">${b[0]}</button>`).join('')}</div></div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('[data-b]').forEach((b) => (b.onclick = btns[+b.dataset.b][1]));
   },

@@ -24,6 +24,7 @@ OUT=$(mktemp -d)
 git archive HEAD | tar -x -C "$OUT"
 cd "$OUT"
 rm -f deploy.sh deploy-staging.sh firebase.json database.rules.json   # 部署工具與資料庫規則不放上測試站
+rm -rf 截圖 測試截圖*   # 截圖不進部署包（.gitignore 已排除，這裡再保險一次）
 
 # 快取名稱與版本號
 sed -i '' "s/^const CACHE = 'wendao-[0-9]*';/const CACHE = 'staging-wendao-$VER';/" sw.js

@@ -89,7 +89,7 @@ const Stage = {
     for (const [k, n] of Object.entries(o.items || {})) p.push(`${ic(k)}${(ITEMS[k] && ITEMS[k].name) || k} ×${n}</span>`);
     return p.join('、') || '無';
   },
-  ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入（共 ${U.fmt(this.d.ovf)}）`; },
+  ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入<span class="nw">（共 ${U.fmt(this.d.ovf)}）</span>`; },
   // 預覽用（還沒發）：修為以目前速度估
   rwPreview(rw) { return this.rwText({ stone: rw.stone || 0, exp: rw.expSec ? this.expOf(rw.expSec) : 0, items: rw.items }); },
 
@@ -182,7 +182,7 @@ const Stage = {
     }).reverse();
     const total = list.reduce((a, st) => a + this.stars(st.id), 0);
     this.el.innerHTML = `<div class="pzm-top"><button class="pz-btn" id="pzmBack" aria-label="返回">返</button>
-        <div class="pzm-title"><b>${C.name}</b><small>★ ${total} / ${list.length * 3}</small></div>
+        <div class="pzm-title"><b>${C.name.split('・').map((t) => `<span>${t}</span>`).join('<i>・</i>')}</b><small>★ ${total} / ${list.length * 3}</small></div>
         ${S.d.root ? `<button class="pz-btn pzm-break${S.full() ? ' ready' : ''}" id="pzmBreak">突破${this.d.ovf ? `<small>溢 ${U.fmt(this.d.ovf)}</small>` : ''}</button>` : ''}
         <div class="pzm-sta" id="pzmSta"></div></div>
       <div class="pzm-scroll" id="pzmScroll" style="background-image:${C.id === 1 && pzHas('ch1_bg') ? 'linear-gradient(rgba(8,10,14,.15),rgba(8,10,14,.3)),url(assets/map/ch1_bg.webp)' : `linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})`}"><div class="pzm-path">${nodes.join('')}</div></div>
@@ -214,7 +214,7 @@ const Stage = {
   },
   panel(html, btns) {
     const el = this.el.querySelector('#pzmPanel');
-    el.innerHTML = `<div class="pz-panel">${html}<div class="pz-row wrap">${btns.map((b, i) => `<button class="pz-btn wide${b[2] ? ' ' + b[2] : ''}" data-b="${i}"${b[3] ? ' disabled' : ''}>${b[0]}</button>`).join('')}</div></div>`;
+    el.innerHTML = `<div class="pz-panel"><div class="pz-pbody">${html}</div><div class="pz-row wrap">${btns.map((b, i) => `<button class="pz-btn wide${b[2] ? ' ' + b[2] : ''}" data-b="${i}"${b[3] ? ' disabled' : ''}>${b[0]}</button>`).join('')}</div></div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('[data-b]').forEach((b) => (b.onclick = () => btns[+b.dataset.b][1]()));
     el.onclick = (e) => { if (e.target === el) this.closePanel(); };
@@ -237,7 +237,7 @@ const Stage = {
       <ul class="pzm-starlist">${stars}</ul>
       ${typeof Roster !== 'undefined' ? Roster.summary() : ''}
       <p class="pzm-rw"><b>獎勵</b>${this.rwPreview(st)}</p>
-      ${st.first ? `<p class="pzm-rw${rec.c ? ' done' : ''}"><b>首通</b>${this.rwPreview(st.first)}${rec.c ? '（已領）' : ''}</p>` : ''}
+      ${st.first ? `<p class="pzm-rw${rec.c ? ' done' : ''}"><b>${rec.c ? '首通・已領' : '首通'}</b>${this.rwPreview(st.first)}</p>` : ''}
       <p class="c note">進場體力 ${st.cost}・失敗不退・目前 ${this.sta()} / ${STA_CFG.max}${can ? `<br>掃蕩每次 ${cost} 體力${left === Infinity ? '' : `・今日剩 ${left} 次`}` : `<br>${SWEEP_CFG.needStars} 星通關後可掃蕩`}</p>`;
     const btns = [[`出戰（${st.cost}）`, () => { this.closePanel(); this.play(id); }, 'go']];
     if (typeof Roster !== 'undefined') btns.push(['編隊', () => Roster.editor(() => this.detail(id))]);

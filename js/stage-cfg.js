@@ -88,16 +88,17 @@ const SWEEP_CFG = {
 // waves：每波 1～3 隻（怪物 id），最後一波要有首領（boss: true 的怪，可帶小怪）；k 這關怪物血量與攻擊倍率
 // big 地圖上畫成大節點（章節重點關）；cost 進場體力；stone 靈石；expSec 修為（＝當下修煉速度幾秒的修為，跟著境界成長）
 // first 首次通關額外獎勵（stone、expSec、items: { 物品 id: 數量 }）
+// 體力 1123 驗收：1-1～1-4 每關 4／4／5／5 → 3（第一章一輪 60 → 54 點）
 const PZ_CHAPTERS = [
   { id: 1, name: '第一章・青石山道', bg: ['assets/bg/pz_day.webp', 'assets/bg/pz_dusk.webp', 'assets/bg/pz_night.webp'],
     stages: [
-      { id: '1-1', name: '村口狼嚎', cost: 4, k: 0.7, waves: [['lang'], ['lang', 'lang_alpha']], stone: 30, expSec: 60,
+      { id: '1-1', name: '村口狼嚎', cost: 3, k: 0.7, waves: [['lang'], ['lang', 'lang_alpha']], stone: 30, expSec: 60,
         first: { stone: 60, items: { herb_q: 2 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 6 }, { t: 'combo', n: 3 }] },
-      { id: '1-2', name: '山徑遊魂', cost: 4, k: 0.75, waves: [['hun', 'hun'], ['hun_elite']], stone: 35, expSec: 70,
+      { id: '1-2', name: '山徑遊魂', cost: 3, k: 0.75, waves: [['hun', 'hun'], ['hun_elite']], stone: 35, expSec: 70,
         first: { stone: 60, items: { herb_c: 2 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 6 }, { t: 'combo', n: 4 }] },
-      { id: '1-3', name: '山精出沒', cost: 5, k: 0.85, waves: [['lang', 'hun'], ['jing_elite']], stone: 40, expSec: 80,
+      { id: '1-3', name: '山精出沒', cost: 3, k: 0.85, waves: [['lang', 'hun'], ['jing_elite']], stone: 40, expSec: 80,
         first: { stone: 80, items: { p_qi: 1 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 7 }, { t: 'hp', n: 0.6 }] },
-      { id: '1-4', name: '古道夜行', cost: 5, k: 0.95, waves: [['hun', 'hun', 'hun'], ['kui_elite']], stone: 45, expSec: 90,
+      { id: '1-4', name: '古道夜行', cost: 3, k: 0.95, waves: [['hun', 'hun', 'hun'], ['kui_elite']], stone: 45, expSec: 90,
         first: { stone: 80, items: { herb_q: 3 } } },
       { id: '1-5', big: true, name: '狼王巢穴', cost: 6, k: 2.8, waves: [['lang', 'lang'], ['jing', 'lang'], ['lang_king']], stone: 60, expSec: 120,
         first: { stone: 150, items: { scroll: 3 } } },
