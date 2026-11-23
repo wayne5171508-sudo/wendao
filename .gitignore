@@ -12,5 +12,5 @@ node_modules/
 問道青冥存檔-*.json
 # 截圖、測試截圖、各種報告（本機保留，不進 repo、不進部署包；deploy.sh／deploy-staging.sh 會檢查）
 截圖/
-測試截圖-*/
+測試截圖*/
 *報告-*.md

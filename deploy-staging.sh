@@ -25,7 +25,7 @@ git archive HEAD | tar -x -C "$OUT"
 cd "$OUT"
 rm -f deploy.sh deploy-staging.sh firebase.json database.rules.json   # 部署工具與資料庫規則不放上測試站
 # 截圖與報告不進部署包（.gitignore 已排除，這裡再保險一次；任何層的都刪）
-find . \( -name '截圖' -o -name '測試截圖-*' \) -type d -prune -exec rm -rf {} +
+find . \( -name '截圖' -o -name '測試截圖*' \) -type d -prune -exec rm -rf {} +
 find . -name '*報告-*.md' -type f -delete
 [ -z "$(find . \( -name '*截圖*' -o -name '*報告-*.md' \) | head -1)" ] || { echo "部署包裡還有截圖或報告，停止部署"; exit 1; }
 
