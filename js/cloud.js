@@ -20,6 +20,7 @@ const FIREBASE_CFG = {
   appId: '1:121159419424:web:14f29de6da9a941290de45',
 };
 const FB_VER = '10.12.2';
+const WIPE_KEY = 'wendao_wipe_at';   // 上次「重新修行」的時間（測試站部署時會加 staging_ 前綴）
 
 // ───────── Firebase 接口（測試時可用 window.__CLOUD_ADAPTER 取代）─────────
 const FirebaseAdapter = {
@@ -73,7 +74,17 @@ const Cloud = {
     // 雲端存檔：本機沒進度就直接用雲端；兩邊都有、且雲端不是本機上次同步的那份（別台裝置或新手機）時一律讓玩家選
     const cs = await this.A.get(`saves/${u.uid}`);
     let cd = null; if (cs && cs.data) try { cd = JSON.parse(cs.data); } catch (e) { console.warn('[雲端] 雲端存檔損毀，略過'); }
-    if (cd && cd.root && (!S.d || !S.d.root)) { if (this.adopt(cs.data)) return; }   // 本機還沒入道（新手機）：直接用雲端
+    let ptUid = null; try { ptUid = localStorage.getItem(WIPE_KEY + '_pt'); } catch (e) {}
+    if (ptUid) this.unbondPartner({ uid: ptUid });   // 上次重修時沒通知到道侶：補送解除
+    const wipeAt = this.wipeAt();
+    if (cd && cd.root && (!S.d || !S.d.root) && wipeAt && (cs.at || 0) < wipeAt) {
+      // 本機重新修行過，但雲端還留著重修前的存檔（重修時沒登入或還沒連上雲端）：不自動抓回，先問玩家
+      const pick = await new Promise((res) => UI.modal('雲端存檔', `<p class="big">雲端還有一份重修前的存檔</p><p class="note" style="text-align:center">${escHtml(lvName(cd.lv))}・${ROOTS[cd.root] ? ROOTS[cd.root].name : '?'}<br>${new Date(cs.at).toLocaleString()}<br><br>你在這台裝置重新修行過，要刪掉雲端這份，還是取回？</p>
+        <div class="row center"><button class="seal" id="cW">刪除雲端存檔</button><button class="seal ghost sm" id="cR">取回</button></div>`, { '#cW': () => { UI.close(); res('w'); }, '#cR': () => { UI.close(); res('r'); } }));
+      if (pick === 'r') { this.clearWipe(); if (this.adopt(cs.data)) return; }
+      else { const r = await this.wipeSave(); if (r === true) UI.toast('雲端舊存檔已刪除', '#9fe8d8'); else UI.toast(`${r}，下次登入會再詢問`, '#ff9a9a'); }
+    }
+    else if (cd && cd.root && (!S.d || !S.d.root)) { if (this.adopt(cs.data)) return; }   // 本機還沒入道（新手機）：直接用雲端
     else if (cd && cd.root && S.d.cloudAt !== `${u.uid}:${cs.at}`) {
       const info = (d, t) => `${escHtml(lvName(d.lv))}・${ROOTS[d.root] ? ROOTS[d.root].name : '?'}<br>${new Date(t).toLocaleString()}`;
       const pick = await new Promise((res) => UI.modal('雲端存檔', `<p class="big">雲端與本機各有一份存檔</p><p class="note" style="text-align:center">雲端：${info(cd, cs.at)}<br><br>本機：${info(S.d, S.d.last)}</p>
@@ -138,7 +149,37 @@ const Cloud = {
   },
   refresh() { if (UI.tab === 'dao' && !Battle.on && $('#dBack')) UI.dao(); UI.cloudBadge && UI.cloudBadge(); },
   // 存檔上傳（S.save 後 10 秒合併一次；切到背景時立即）
-  async upload() { if (!this.user || !S.d || !S.d.root) return; clearTimeout(this.saveT); this.saveT = 0; const at = S.d.last || Date.now(); S.d.cloudAt = `${this.user.uid}:${at}`; try { await this.A.set(`saves/${this.user.uid}`, { at, data: JSON.stringify(S.d) }); } catch (e) { console.warn('[雲端] 存檔上傳失敗', e); } },
+  async upload() { if (!this.user || !S.d || !S.d.root || S.wiped || this.wiping) return; clearTimeout(this.saveT); this.saveT = 0; const at = S.d.last || Date.now(); S.d.cloudAt = `${this.user.uid}:${at}`; try { await this.A.set(`saves/${this.user.uid}`, { at, data: JSON.stringify(S.d) }); } catch (e) { console.warn('[雲端] 存檔上傳失敗', e); } },
+  // 重新修行：刪掉自己的雲端存檔 saves/<uid>（不動公開資料、道侶編號、收件匣、道侶的任何資料）
+  // 成功（或沒登入雲端）回傳 true；離線或失敗回傳原因，呼叫端這時不能刪本機存檔
+  // 離線時 Firebase 會把刪除排隊、不會回報失敗，所以先確認在線，並加逾時
+  async wipeSave() {
+    if (!this.user) return true;
+    const uid = this.user.uid;
+    let online = false; try { online = await Promise.race([this.A.connected(), U.wait(5000).then(() => false)]); } catch (e) {}
+    if (!online) return '目前連不到雲端';
+    this.wiping = true; clearTimeout(this.saveT); this.saveT = 0;   // 刪除期間不上傳，免得把存檔又寫回去
+    try {
+      await Promise.race([this.A.remove(`saves/${uid}`), U.wait(10000).then(() => { throw new Error('timeout'); })]);
+      await this.unbondPartner();
+      return true;
+    } catch (e) { console.warn('[雲端] 雲端存檔刪除失敗', e); return '雲端存檔刪除失敗'; }
+    finally { this.wiping = false; }
+  },
+  // 重修時通知道侶解除締結（對方收到 unbond 會清掉自己存檔裡的道侶）。送不出去不擋重修，記下來下次登入再送
+  async unbondPartner(pt) {
+    const P = pt || (S.d && S.d.dao && S.d.dao.partner); if (!P || !P.uid) return true;
+    if (!this.user) { try { localStorage.setItem(WIPE_KEY + '_pt', P.uid); } catch (e) {} return false; }
+    try {
+      await Promise.race([this.A.push(`inbox/${P.uid}`, { type: 'unbond', from: this.user.uid, fromName: HERO_NAME, at: Date.now() }), U.wait(5000).then(() => { throw new Error('timeout'); })]);
+      try { localStorage.removeItem(WIPE_KEY + '_pt'); } catch (e) {}
+      return true;
+    } catch (e) { console.warn('[雲端] 解除道侶通知送出失敗', e); try { localStorage.setItem(WIPE_KEY + '_pt', P.uid); } catch (e2) {} return false; }
+  },
+  // 重修時間記號：重修當下沒登入雲端時，下次登入看到比這更早的雲端存檔就先詢問，不自動抓回
+  wipeAt() { try { return Number(localStorage.getItem(WIPE_KEY)) || 0; } catch (e) { return 0; } },
+  markWipe() { try { localStorage.setItem(WIPE_KEY, String(Date.now())); } catch (e) {} },
+  clearWipe() { try { localStorage.removeItem(WIPE_KEY); } catch (e) {} },
   queueUpload() { if (this.user && !this.saveT) this.saveT = setTimeout(() => this.upload(), 10000); },
 
   // ───────── 傳訊 ─────────

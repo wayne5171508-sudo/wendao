@@ -206,6 +206,25 @@ const UI = {
     for (const [sel, fn] of Object.entries(binds)) document.querySelectorAll('#mBody ' + sel).forEach((el) => (el.onclick = () => fn(el)));
   },
   close() { $('#modal').classList.add('hidden'); },
+  // 重新修行第二次確認：登入雲端時本機與雲端存檔一起刪；雲端刪不掉就整個取消，本機也不動（不會留下「本機清了、雲端還在、重開又被抓回」）
+  resetConfirm() {
+    const cloud = Cloud.on, P = S.d.dao && S.d.dao.partner, bond = P ? `<br>會同時與道侶${escHtml(P.name || '')}解除締結。` : '';
+    this.modal('重新修行', `<p class="big" style="color:#ff8a8a">${cloud ? '本機與雲端存檔都會被刪除，無法復原' : '本機存檔會被刪除，無法復原'}</p>
+      <p class="note" style="text-align:center">${cloud ? `雲端帳號：${escHtml(Cloud.user.email || Cloud.user.name || '')}${bond}<br>對方的存檔不受影響。` : `目前沒有登入雲端。之後登入時若雲端還有重修前的存檔，會先問你要刪除還是取回。${bond}${P && P.uid ? '<br>解除通知會在下次登入時送給對方。' : ''}`}</p>
+      <div class="row center"><button class="seal" id="rY2">確定刪除</button><button class="seal ghost sm" id="rN2">取消</button></div>`, {
+      '#rY2': async (el) => {
+        if (el.disabled) return; el.disabled = true; el.textContent = '刪除中…'; $('#rN2').disabled = true;
+        const r = await Cloud.wipeSave();
+        if (r !== true) {
+          this.modal('重新修行', `<p class="big">刪除失敗，沒有重新修行</p><p class="note" style="text-align:center">${escHtml(r)}。本機與雲端存檔都保留原樣，請確認網路後再試一次。</p><div class="row center"><button class="seal" id="rF">知道了</button></div>`, { '#rF': () => this.settings() });
+          return;
+        }
+        if (!Cloud.on && P && P.uid) await Cloud.unbondPartner(P);   // 沒登入：記下來，下次登入補送
+        S.wiped = true; S.reset(); Cloud.markWipe(); location.reload();
+      },
+      '#rN2': () => this.settings(),
+    });
+  },
   fade(on) { $('#fade').classList.toggle('on', on); return U.wait(460); },
 
   hud() {
@@ -686,7 +705,7 @@ const UI = {
       '#sTitle': () => this.modal('回標題畫面', '<p class="big">回到標題畫面？</p><p class="note" style="text-align:center">進度會先存檔，之後按「續緣」即可接著修行。</p><div class="row center"><button class="seal" id="tY">回標題</button><button class="seal ghost sm" id="tN">取消</button></div>', { '#tY': () => { S.save(); this.close(); Game.title(true); }, '#tN': () => this.settings() }),
       '#sExp': () => this.exportSave(),
       '#sImp': () => this.importSave(),
-      '#sReset': () => this.modal('重新修行', '<p class="big">確定刪除存檔？</p><div class="row center"><button class="seal" id="rY">刪除</button><button class="seal ghost sm" id="rN">取消</button></div>', { '#rY': () => { S.reset(); location.reload(); }, '#rN': () => this.settings() }),
+      '#sReset': () => this.modal('重新修行', '<p class="big">確定刪除存檔？</p><div class="row center"><button class="seal" id="rY">刪除</button><button class="seal ghost sm" id="rN">取消</button></div>', { '#rY': () => this.resetConfirm(), '#rN': () => this.settings() }),
     });
     const vol = (id, n, kind) => { const el = $(id); if (el) el.oninput = () => { Audio2.unlock(); Audio2.setVol(kind, el.value / 100); $(n).textContent = el.value; if (kind === 'sfx') Audio2.play('swing1'); }; };
     vol('#sBgm', '#sBgmN', 'bgm'); vol('#sSfxV', '#sSfxN', 'sfx');

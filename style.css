@@ -465,6 +465,14 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .bt-stats b { font-family: var(--brush); font-weight: 400; font-size: 17px; text-align: right; }
 .bt-stats b.up { color: #b8f0c8; text-align: left; }
 .bt-stats i { font-style: normal; color: var(--gold); }
+/* 矮螢幕（320×568 等）：上半部場景只有約 240px，結果面板縮小，不讓標題被切到畫面外 */
+@media (orientation: portrait) and (max-height: 700px) {
+  .bt-panel { padding: 8px 14px 8px; bottom: 3%; max-height: 94%; }
+  .bt-panel h3 { font-size: 21px; letter-spacing: 4px; margin-bottom: 2px; }
+  .bt-stats { gap: 0; }
+  .bt-stats div { font-size: 13px; } .bt-stats b { font-size: 15px; }
+  .bt-panel .seal { min-height: 46px; padding: 6px 16px; font-size: 20px; }
+}
 /* 直式畫面窄：石碑場景縮到 72% 高，左右才看得到走位與按碑的主角；頂端漸隱接夜空 */
 @media (orientation: portrait) {
   .stele { height: 72%; transform: translateX(-46%); }
@@ -473,6 +481,8 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 }
 /* 跳過劇情／演出 */
 #skipBtn { position: absolute; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 4px); z-index: 9; min-width: 64px; }
+/* HUD 還在畫面上時（例如突破演出）跳過鈕放到 HUD 下方，不蓋住「聲」「閣」 */
+#app:not(.title-mode):not(.story-mode):not(.fighting):not(.gacha-show) #skipBtn { top: calc(max(10px, env(safe-area-inset-top)) + 62px); }
 /* 機緣 */
 .gacha-ring { position: absolute; left: 50%; top: 58%; width: min(72%, 340px); aspect-ratio: 1; transform: translate(-50%, -50%); mix-blend-mode: screen; transition: transform .6s, filter .4s; }
 .gacha-ring img { width: 100%; height: 100%; animation: swirl 24s linear infinite; opacity: .8; }
