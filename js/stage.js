@@ -83,9 +83,10 @@ const Stage = {
   merge(a, b) { const o = { stone: a.stone + b.stone, exp: a.exp + b.exp, items: { ...a.items }, ovf: (a.ovf || 0) + (b.ovf || 0) }; for (const [k, n] of Object.entries(b.items)) o.items[k] = (o.items[k] || 0) + n; return o; },
   rwText(o) {
     const p = [];
-    if (o.stone) p.push(`靈石 ${U.fmt(o.stone)}`);
-    if (o.exp) p.push(`修為 ${U.fmt(o.exp)}`);
-    for (const [k, n] of Object.entries(o.items || {})) p.push(`${(ITEMS[k] && ITEMS[k].name) || k} ×${n}`);
+    const ic = (id) => `<span class="pz-rw">${gIco('item', id)}`;   // 獎勵列：靈石、修為、道具前面放物品圖示
+    if (o.stone) p.push(`${ic('stone')}靈石 ${U.fmt(o.stone)}</span>`);
+    if (o.exp) p.push(`${ic('exp')}修為 ${U.fmt(o.exp)}</span>`);
+    for (const [k, n] of Object.entries(o.items || {})) p.push(`${ic(k)}${(ITEMS[k] && ITEMS[k].name) || k} ×${n}</span>`);
     return p.join('、') || '無';
   },
   ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入（共 ${U.fmt(this.d.ovf)}）`; },
@@ -176,15 +177,15 @@ const Stage = {
       const state = this.state(st), n = this.stars(st.id), boss = !!st.big;
       const x = [50, 74, 62, 32, 24, 46, 72, 70, 40, 50][i % 10];
       return `<button class="pzm-node ${state}${boss ? ' boss' : ''}" data-st="${st.id}" style="--x:${x}%">
-        <b>${state === 'lock' ? '鎖' : st.id.split('-')[1]}</b><span class="pzm-stars">${[0, 1, 2].map((k) => `<i class="${k < n ? 'on' : ''}">★</i>`).join('')}</span>
+        <b>${state === 'lock' ? '<i class="pzm-lock">鎖</i>' : st.id.split('-')[1]}</b><span class="pzm-stars">${[0, 1, 2].map((k) => `<i class="${k < n ? 'on' : ''}">★</i>`).join('')}</span>
         <small>${st.name}</small></button>`;
     }).reverse();
     const total = list.reduce((a, st) => a + this.stars(st.id), 0);
-    this.el.innerHTML = `<div class="pzm-top"><button class="pz-btn" id="pzmBack">返</button>
+    this.el.innerHTML = `<div class="pzm-top"><button class="pz-btn" id="pzmBack" aria-label="返回">返</button>
         <div class="pzm-title"><b>${C.name}</b><small>★ ${total} / ${list.length * 3}</small></div>
         ${S.d.root ? `<button class="pz-btn pzm-break${S.full() ? ' ready' : ''}" id="pzmBreak">突破${this.d.ovf ? `<small>溢 ${U.fmt(this.d.ovf)}</small>` : ''}</button>` : ''}
         <div class="pzm-sta" id="pzmSta"></div></div>
-      <div class="pzm-scroll" id="pzmScroll" style="background-image:linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})"><div class="pzm-path">${nodes.join('')}</div></div>
+      <div class="pzm-scroll" id="pzmScroll" style="background-image:${C.id === 1 && pzHas('ch1_bg') ? 'linear-gradient(rgba(8,10,14,.15),rgba(8,10,14,.3)),url(assets/map/ch1_bg.webp)' : `linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})`}"><div class="pzm-path">${nodes.join('')}</div></div>
       ${DEV && STA_CFG.devRefill ? '<button class="pzm-dev" id="pzmDev">補滿體力（測試）</button>' : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-toast" id="pzmToast"></div><div class="pz-end hidden" id="pzmPanel"></div>`;
@@ -200,7 +201,7 @@ const Stage = {
   staHud() {
     const el = this.el && this.el.querySelector('#pzmSta'); if (!el) return;
     const s = this.sta(), nx = this.staNext();
-    el.innerHTML = `<b>體力 ${s} / ${STA_CFG.max}</b><small>${nx ? `${this.mmss(nx)}後 +1` : '已滿'}</small>`;
+    el.innerHTML = `<b><i class="pzm-staico"></i>體力 ${s} / ${STA_CFG.max}</b><small>${nx ? `${this.mmss(nx)}後 +1` : '已滿'}</small>`;
   },
   // 倒數文字：「4 分 48 秒」「1 小時 5 分」（不用 4:48 這種寫法，會被看成時鐘時間）
   mmss(ms) { const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60; return h ? `${h} 小時 ${m} 分` : m ? `${m} 分 ${s} 秒` : `${s} 秒`; },
@@ -228,7 +229,7 @@ const Stage = {
   detail(id) {
     const st = stageById(id), state = this.state(st);
     if (state === 'lock') { this.toast('先通關前一關才能挑戰'); return; }
-    const rec = this.rec(id), mons = st.waves.map((w, i) => `<li><em>${i === st.waves.length - 1 ? '首領' : `第 ${i + 1} 波`}</em>${w.map((m) => { const M = PZ_MONS[m]; return `<span style="--c:${PZ_EL[M.el].c}">${PZ_EL[M.el].ch}・${M.name}</span>`; }).join('')}</li>`).join('');
+    const rec = this.rec(id), mons = st.waves.map((w, i) => `<li><em>${i === st.waves.length - 1 ? '首領' : `第 ${i + 1} 波`}</em>${w.map((m) => { const M = PZ_MONS[m]; return `<span style="--c:${PZ_EL[M.el].c}">${pzElI(M.el, 'pz-el')}${M.name}</span>`; }).join('')}</li>`).join('');
     const stars = st.stars.map((c, i) => `<li class="${rec.s & (1 << i) ? 'on' : ''}"><i>★</i>${this.starText(c)}</li>`).join('');
     const can = this.canSweep(st), left = this.swLeft(id), cost = this.swCost(st), B = SWEEP_CFG.batch;
     const html = `<h3>${st.id}　${st.name}</h3>

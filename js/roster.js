@@ -117,13 +117,13 @@ const Roster = {
   // ───────── 顯示 ─────────
   face(m, cls = '') {
     const E = PZ_EL[m.el];
-    return `<span class="pzr-face ${cls}" style="--c:${E.c};--d:${E.d}">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em><i>${E.ch}</i></span>`;
+    return `<span class="pzr-face ${cls}" style="--c:${E.c};--d:${E.d}">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em>${pzElI(m.el, 'pzr-eli')}</span>`;
   },
   skText(S1) { return S1 ? `「${S1.name}」${S1.desc}${S1.cd ? `（冷卻 ${S1.cd}）` : ''}` : '無'; },
   info(m) {
     const F = PZ_FACS[m.fac], R = PZ_RARITY[m.rare];
-    return `<div class="pzr-info">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
-      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}">${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
+    return `<div class="pzr-info${pzHas('card_detail') ? ' art' : ''}">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" data-r="${m.rare}" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
+      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${pzElI(m.el, 'pz-el')}${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}"><i class="pzr-fac" data-fac="${m.wild ? 'wild' : m.fac}"></i>${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
       <p><em>${m.id === 'mate' ? '副隊長技' : '隊長技'}</em>${this.skText(m.lead)}</p><p><em>主動技</em>${this.skText(m.sk)}</p></div></div>`;
   },
   // 地圖關卡說明裡的一行隊伍摘要

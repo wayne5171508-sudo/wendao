@@ -25,8 +25,14 @@ const PZ_ART = {
     metal: 'assets/fx/pz_five_metal.webp', water: 'assets/fx/pz_five_water.webp', heart: 'assets/fx/pz_five_heart.webp' },
   // 技能特效：黑底圖，用 mix-blend-mode:screen 疊在戰鬥區；key 對應效果種類（roster-cfg.js 效果庫的 t），技能放第一個有圖的效果
   fx: { nuke: 'assets/fx/pz_slash.webp', heal: 'assets/fx/pz_heal.webp', pierce: 'assets/fx/pz_break.webp', delay: 'assets/fx/pz_ice.webp',
-    combo: 'assets/fx/pz_sk_combo.webp', comboUp: 'assets/fx/pz_sk_combo.webp', time: 'assets/fx/pz_sk_time.webp', convert: 'assets/fx/pz_sk_convert.webp' },
+    combo: 'assets/fx/pz_sk_combo.webp', comboUp: 'assets/fx/pz_sk_combo.webp', time: 'assets/fx/pz_sk_time.webp', convert: 'assets/fx/pz_sk_convert.webp',
+    leech: 'assets/fx/pz_leech.webp', bleed: 'assets/fx/pz_cost.webp' },
 };
+// 轉珠 UI 圖（assets/ui、assets/map）：在素材清單裡的圖，<html> 加 pa-<檔名> class，style.css 依此換圖；不在清單就維持原本的 CSS 外觀
+if (typeof ASSET_LIST !== 'undefined') ASSET_LIST.forEach((s) => { const m = /^assets\/(?:ui|map)\/(\w+)\.webp$/.exec(s); if (m && (/^tab_/.test(m[1]) || (typeof PZ_ASSET !== 'undefined' && PZ_ASSET.test(s)))) document.documentElement.classList.add('pa-' + m[1]); });
+const pzHas = (name) => document.documentElement.classList.contains('pa-' + name);
+// 五行徽章（隊員卡、敵人名牌、編隊、詳情）：data-el 對到 el_<五行> 圖；沒圖就是原本的漸層圓＋字
+const pzElI = (el, cls) => `<i class="${cls}" data-el="${el}" style="--c:${PZ_EL[el].c};--d:${PZ_EL[el].d}">${PZ_EL[el].ch}</i>`;
 
 // ───────── 拖曳手感（之後只改這裡）─────────
 const PZ_DRAG = {
@@ -153,7 +159,7 @@ const Puzzle = {
     box.innerHTML = this.foes.map((f, j) => `<div class="pz-foe${f.boss ? ' boss' : ''}" data-f="${j}">
         <div class="pz-fcd"><small>倒數</small><b></b></div>
         <div class="pz-fimg">${f.M.img ? `<img src="${f.M.img}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'pz-fph',textContent:'${f.name.slice(0, 2)}'}))">` : `<i class="pz-fph">${f.name.slice(0, 2)}</i>`}</div>
-        <div class="pz-fname"><i class="pz-el"></i><b>${f.name}</b><em></em></div>
+        <div class="pz-fname"><i class="pz-el"></i><b>${f.name}</b><span class="pz-st"></span><em></em></div>
         <div class="pz-hp boss"><i></i><span></span></div></div>`).join('');
     box.querySelectorAll('.pz-foe').forEach((el) => (el.onclick = () => this.pickTarget(+el.dataset.f)));
     this.root.querySelector('#pzWave').textContent = `第 ${i + 1} / ${st.waves.length} 波${last ? '・首領' : ''}`;
@@ -221,16 +227,16 @@ const Puzzle = {
     const T = this.team, st = this.stage;
     this.root.innerHTML = `
       <div class="pz-top" style="background-position:${PZ_ART.bgPos}">
-        <div class="pz-bar"><button class="pz-btn" id="pzExit">撤</button><span><b>${st.id} ${st.name}</b><small id="pzWave"></small></span><div class="pz-bar-r"><button class="pz-btn" id="pzHelp">？</button><button class="pz-btn" id="pzSet" aria-label="設定">設</button></div></div>
+        <div class="pz-bar"><button class="pz-btn" id="pzExit" aria-label="撤退">撤</button><span><b>${st.id} ${st.name}</b><small id="pzWave"></small></span><div class="pz-bar-r"><button class="pz-btn" id="pzHelp" aria-label="說明">？</button><button class="pz-btn" id="pzSet" aria-label="設定">設</button></div></div>
         <div class="pz-warn" id="pzWarn"></div>
         <div class="pz-foes" id="pzFoes"></div>
         <div class="pz-fl" id="pzFl"></div>
       </div>
       <div class="pz-team"><div class="pz-combo" id="pzCombo"></div>${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
-          <span class="pz-face">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em><i>${PZ_EL[m.el].ch}</i></span>
+          <span class="pz-face">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em>${pzElI(m.el, 'pz-eli')}</span>
           <span class="pz-sk"></span><small>${m.pos === '隊員' ? m.short.slice(0, 4) : m.pos}</small></button>`).join('')}</div>
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
-      <div class="pz-timer"><i id="pzTm"></i></div>
+      <div class="pz-timer"><b class="pz-tmi"></b><i id="pzTm"></i></div>
       <div class="pz-boardwrap"><canvas id="pzCv"></canvas><canvas class="pz-lift" id="pzLift"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.mt()} 秒到就結算</div></div>
       <div class="pz-toast" id="pzToast"></div>${this.dbg ? '<div class="pz-dbg" id="pzDbg"></div><i class="pz-dot" id="pzDot"></i>' : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
@@ -668,13 +674,14 @@ const Puzzle = {
   // ───────── 介面更新與提示 ─────────
   hud() {
     const q = (s) => this.root.querySelector(s), T = this.tgt(), multi = this.alive().length > 1;
-    q('#pzTHp').style.width = (100 * this.hp) / this.hpMax + '%'; q('#pzTHpT').textContent = `${U.fmt(this.hp)} / ${U.fmt(this.hpMax)}`;
+    q('#pzTHp').style.clipPath = `inset(0 ${100 - (100 * this.hp) / this.hpMax}% 0 0)`; q('#pzTHpT').textContent = `${U.fmt(this.hp)} / ${U.fmt(this.hpMax)}`;
     this.foes.forEach((f) => {
       const el = this.foeEl(f); if (!el) return;
-      el.querySelector('.pz-hp i').style.width = (100 * f.hp) / f.max + '%';
+      el.querySelector('.pz-hp i').style.clipPath = `inset(0 ${100 - (100 * f.hp) / f.max}% 0 0)`;
       el.querySelector('.pz-hp span').textContent = f.boss ? `${U.fmt(f.hp)} / ${U.fmt(f.max)}` : U.fmt(f.hp);
-      const E = PZ_EL[f.el], e = el.querySelector('.pz-el'); e.textContent = E.ch; e.style.setProperty('--c', E.c); e.style.setProperty('--d', E.d);
-      el.querySelector('.pz-fname em').textContent = f.boss && f.ph && f.ph.name ? f.ph.name + (f.dr ? `・減傷 ${Math.round(f.dr * 100)}%` : '') + (f.leech ? '・吸血' : '') : '';
+      const E = PZ_EL[f.el], e = el.querySelector('.pz-el'); e.textContent = E.ch; e.dataset.el = f.el; e.style.setProperty('--c', E.c); e.style.setProperty('--d', E.d);
+      el.querySelector('.pz-st').innerHTML = [f.dr > 0 && ['ward', '減傷'], el.classList.contains('enrage') && ['rage', '狂暴'], f.leech && ['leech', '吸血']].filter(Boolean).map(([k, t]) => `<i class="st-${k}" title="${t}"></i>`).join('');
+      el.querySelector('.pz-fname em').textContent = f.boss && f.ph && f.ph.name ? f.ph.name + (f.dr ? `・減傷 ${Math.round(f.dr * 100)}%` : '') + (f.leech && !pzHas('st_leech') ? '・吸血' : '') : '';
       el.querySelector('.pz-fcd b').textContent = Math.max(0, f.cd);
       el.querySelector('.pz-fcd').classList.toggle('danger', f.cd <= 1);
       el.querySelector('.pz-fcd').classList.toggle('heavy', !!this.heavyNext(f));
@@ -796,14 +803,25 @@ const Puzzle = {
     const btns = [];
     if (next) btns.push(['下一關', () => this.close(true, st.id), 'go']);
     btns.push([`再戰（${st.cost}）`, () => this.again()], ['返回地圖', () => this.close()]);
-    this.endPanel(`<h3>通關</h3><p class="c">${r.turns} 回合・最高 ${r.maxCombo} Combo・剩餘氣血 ${Math.round(r.hpRatio * 100)}%</p>
+    const panel = () => this.endPanel(`<h3 class="pz-res win">通關</h3><p class="c">${r.turns} 回合・最高 ${r.maxCombo} Combo・剩餘氣血 ${Math.round(r.hpRatio * 100)}%</p>
       <ul class="pzm-starlist">${stars}</ul>
       <p class="c">${W.firstClear ? '<b class="pz-first">首次通關</b><br>' : ''}獲得 ${Stage.rwText(W.rw)}${W.rw.ovf ? `<br><small class="note">${Stage.ovfText(W.rw.ovf)}</small>` : ''}</p>`, btns);
+    // 章節最後一關首次通關：先播章節完成，再看這關結算
+    if (W.firstClear && st.ch.stages[st.ch.stages.length - 1].id === st.id) this.chapterClear(st.ch, panel); else panel();
+  },
+  chapterClear(C, then) {
+    const ids = C.stages.map((s) => s.id), stars = ids.reduce((a, id) => a + Stage.stars(id), 0);
+    const rw = ids.map(stageById).reduce((o, st) => { [st, st.first || {}].forEach((x) => { o.stone += x.stone || 0; o.exp += x.expSec ? Stage.expOf(x.expSec) : 0; Object.entries(x.items || {}).forEach(([k, n]) => (o.items[k] = (o.items[k] || 0) + n)); }); return o; }, { stone: 0, exp: 0, items: {} });
+    const num = '零一二三四五六七八九十'[C.id] || C.id;
+    this.endPanel(`<div class="pz-chap"><b>第${num}章 完成</b><small>${C.name.split('・').pop()}</small></div>
+      <p class="c pz-chap-st">★ ${stars} / ${ids.length * 3}</p>
+      <p class="c">本章獎勵合計 ${Stage.rwText(rw)}</p>`, [['繼續', then, 'go']]);
+    if (typeof Audio2 !== 'undefined') Audio2.play('pickup');
   },
   lose() {
     this.state = 'end';
     const st = this.stage, alive = this.alive(), left = alive.reduce((a, f) => a + f.hp, 0), max = this.foes.reduce((a, f) => a + f.max, 0);
-    this.endPanel(`<h3>道消身殞</h3><p class="c">撐了 ${this.turn} 回合・第 ${this.wave + 1} / ${st.waves.length} 波・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">進場體力不退還</p>`,
+    this.endPanel(`<h3 class="pz-res lose">道消身殞</h3><p class="c">撐了 ${this.turn} 回合・第 ${this.wave + 1} / ${st.waves.length} 波・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">進場體力不退還</p>`,
       [[`重試（${st.cost}）`, () => this.again(), 'go'], ['返回地圖', () => this.close()]]);
   },
   // 再戰／重試：再扣一次體力，不夠就提示
@@ -829,7 +847,7 @@ if (typeof DEV !== 'undefined' && DEV) {
     if (!t) return;
     const b = document.createElement('button');
     b.className = 'region'; b.id = 'pzEntry';
-    b.style.cssText = `background-image:url(${PZ_CHAPTERS[0].bg[0]});background-position:${PZ_ART.bgPos}`;
+    b.style.cssText = pzHas('entry_pz') ? 'background-image:linear-gradient(90deg,rgba(5,8,14,.72),rgba(5,8,14,.15) 70%),url(assets/ui/entry_pz.webp);background-position:50% 50%' : `background-image:url(${PZ_CHAPTERS[0].bg[0]});background-position:${PZ_ART.bgPos}`;
     b.innerHTML = `<h4>轉珠關卡</h4><p>${PZ_CHAPTERS[0].name}</p><span class="prog">測試・體力 ${Stage.sta()} / ${STA_CFG.max}</span>`;
     b.onclick = () => Stage.showMap(1);
     t.after(b);

@@ -1303,3 +1303,114 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-tut-box b { color: var(--gold2); font-size: 16px; }
 .pz-tut-box p { margin: 6px 0 2px; font: 14px/1.6 var(--serif); }
 .pz-tut-box .pz-row { margin-top: 8px; justify-content: flex-end; }
+
+/* ════════ 轉珠 UI 圖（1123）════════
+   js/puzzle.js 依素材清單在 <html> 加 pa-<檔名>；沒有這個 class（圖不在清單）就維持上面原本的 CSS 外觀
+   圖是「內容等比置中＋透明邊」的固定畫布，長條類用 background-size 把內容撐滿元素（例 timer_fill 內容只佔畫布寬 25%） */
+/* ── 章節地圖 ── */
+.pa-ch1_bg .pzm-scroll { background-size: 100% auto; background-repeat: no-repeat; background-position: 50% 100%; background-color: #1c2a26; }
+.pa-path_seg .pzm-path { background: url(assets/map/path_seg.webp) 50% 0 / 40px auto repeat-y; }
+.pa-node_open .pzm-node.open b, .pa-node_clear .pzm-node.clear b, .pa-node_lock .pzm-node.lock b, .pa-node_boss .pzm-node.boss b { width: 64px; height: 64px; border: 0; border-radius: 0; background: var(--nimg) center / contain no-repeat; box-shadow: none; color: #fff; text-shadow: 0 0 3px #000, 0 0 6px #000, 0 1px 2px #000; }
+.pa-node_open .pzm-node.open b { --nimg: url(assets/map/node_open.webp); }
+.pa-node_clear .pzm-node.clear b { --nimg: url(assets/map/node_clear.webp); }
+.pa-node_lock .pzm-node.lock b { --nimg: url(assets/map/node_lock.webp); }
+.pa-node_boss .pzm-node.boss b { --nimg: url(assets/map/node_boss.webp); width: 76px; height: 76px; padding-top: 14px; box-sizing: border-box; }
+.pa-node_open .pzm-node.open b { animation: pzmGlow 1.4s infinite; }
+@keyframes pzmGlow { 50% { filter: drop-shadow(0 0 8px rgba(255,215,106,.85)); } }
+.pa-node_lock .pzm-node.lock { opacity: 1; }
+.pa-icon_lock .pzm-lock { display: block; width: 26px; height: 26px; font-size: 0; background: url(assets/ui/icon_lock.webp) center / contain no-repeat; }
+.pzm-lock { font-style: normal; }
+.pa-star_on .pzm-stars i.on, .pa-star_off .pzm-stars i:not(.on) { width: 15px; height: 15px; color: transparent; text-shadow: none; background: url(assets/ui/star_off.webp) center / contain no-repeat; }
+.pa-star_on .pzm-stars i.on { background-image: url(assets/ui/star_on.webp); }
+.pa-star_on .pzm-starlist li.on i, .pa-star_off .pzm-starlist li:not(.on) i { display: inline-block; width: 16px; height: 16px; vertical-align: -3px; color: transparent; background: url(assets/ui/star_off.webp) center / contain no-repeat; }
+.pa-star_on .pzm-starlist li.on i { background-image: url(assets/ui/star_on.webp); }
+.pzm-staico { display: none; }
+.pa-icon_stamina .pzm-staico { display: inline-block; width: 18px; height: 18px; margin-right: 2px; vertical-align: -4px; background: url(assets/ui/icon_stamina.webp) center / contain no-repeat; }
+.pa-bar_title .pzm-title { align-items: center; padding: 5px 14px; background: url(assets/ui/bar_title.webp) 50% 50% / 375% 109% no-repeat; }   /* 卷軸內容只佔畫布寬 27%，撐滿標題區 */
+.pa-bar_title .pzm-title b { max-width: 86%; color: #3a1e08; font-size: 15px; text-shadow: 0 0 4px rgba(255,240,210,.8); }
+@media (max-width: 359px) { .pa-bar_title .pzm-title b { font-size: 13px; } }
+.pa-bar_title .pzm-title small { color: #6a3a10; font-weight: 700; text-shadow: 0 0 3px rgba(255,240,210,.9); }
+/* ── 圖示按鈕（返回、撤退、說明、設定）── */
+.pa-btn_back #pzmBack, .pa-btn_retreat #pzExit, .pa-btn_help #pzHelp, .pa-btn_settings #pzSet { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border: 0; border-image: none; font-size: 0; background: var(--bimg) center / contain no-repeat; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7)); }
+.pa-btn_back #pzmBack { --bimg: url(assets/ui/btn_back.webp); }
+.pa-btn_retreat #pzExit { --bimg: url(assets/ui/btn_retreat.webp); }
+.pa-btn_help #pzHelp { --bimg: url(assets/ui/btn_help.webp); }
+.pa-btn_settings #pzSet { --bimg: url(assets/ui/btn_settings.webp); }
+.pa-btn_retreat .pz-bar .pz-btn#pzExit, .pa-btn_help .pz-bar .pz-btn#pzHelp, .pa-btn_settings .pz-bar .pz-btn#pzSet { min-height: 32px; height: 32px; width: 32px; min-width: 32px; }
+/* ── 一般按鈕：9-slice（border-image），角落等比縮、中間拉伸 ── */
+.pa-btn_secondary .pz-btn { border: 10px solid transparent; border-image: url(assets/ui/btn_secondary.webp) 40 44 fill / 10px 11px / 4px 0 stretch; background: none; border-radius: 0; padding: 0 4px; color: #3a2408; text-shadow: 0 0 3px rgba(255,248,230,.9); }
+.pa-btn_primary .pz-btn.go, .pa-btn_primary .pzm-break.ready { border: 10px solid transparent; border-image: url(assets/ui/btn_primary.webp) 40 44 fill / 10px 11px / 4px 0 stretch; background: none; border-radius: 0; color: #fff3d6; text-shadow: 0 1px 2px #3a0a04, 0 0 4px #3a0a04; }
+.pa-btn_secondary .pz-btn.wide { min-height: 42px; padding: 0 6px; }
+.pa-btn_secondary .pz-btn:disabled { filter: grayscale(.8); }
+/* ── 技能膠囊、可施放光暈 ── */
+.pa-sk_pill .pz-sk:not(:empty) { padding: 2px 9px; color: #2a2010; background: url(assets/ui/sk_pill.webp) 50% 50% / 165% 117% no-repeat; border-radius: 0; text-shadow: 0 0 2px rgba(255,250,235,.9); }
+.pa-sk_pill .pz-mem.ready .pz-sk { color: #1a0d05; background: url(assets/ui/sk_pill.webp) 50% 50% / 165% 117% no-repeat; box-shadow: none; filter: drop-shadow(0 0 4px var(--c)); }
+@media (max-width: 359px) { .pa-sk_pill .pz-sk:not(:empty) { padding: 2px 5px; } }
+.pa-sk_ready_glow .pz-mem.ready::before { content: ''; position: absolute; left: 50%; top: -4px; z-index: 4; width: 100%; aspect-ratio: 1; filter: brightness(1.6); transform: translateX(-50%); background: url(assets/ui/sk_ready_glow.webp) center / contain no-repeat; mix-blend-mode: screen; pointer-events: none; animation: pzBlink 1.4s infinite; }
+/* ── 主遊戲底部分頁：tab_* 圖示，文字留在下方 ── */
+:is(.pa-tab_home #nav [data-tab=home], .pa-tab_map #nav [data-tab=map], .pa-tab_alch #nav [data-tab=alch], .pa-tab_arts #nav [data-tab=arts], .pa-tab_gear #nav [data-tab=gear], .pa-tab_draw #nav [data-tab=draw]) b { width: 40px; height: 40px; border: 0; border-radius: 50%; font-size: 0; background: var(--timg) center / contain no-repeat; box-shadow: none; filter: grayscale(.35) brightness(.85); }
+:is(.pa-tab_home #nav [data-tab=home], .pa-tab_map #nav [data-tab=map], .pa-tab_alch #nav [data-tab=alch], .pa-tab_arts #nav [data-tab=arts], .pa-tab_gear #nav [data-tab=gear], .pa-tab_draw #nav [data-tab=draw]).on b { background: var(--timg) center / contain no-repeat; box-shadow: 0 0 0 2px var(--cinnabar), 0 0 10px rgba(216,68,58,.7); filter: none; transform: none; }
+#nav [data-tab=home] { --timg: url(assets/ui/tab_home.webp); } #nav [data-tab=map] { --timg: url(assets/ui/tab_map.webp); } #nav [data-tab=alch] { --timg: url(assets/ui/tab_alch.webp); }
+#nav [data-tab=arts] { --timg: url(assets/ui/tab_arts.webp); } #nav [data-tab=gear] { --timg: url(assets/ui/tab_gear.webp); } #nav [data-tab=draw] { --timg: url(assets/ui/tab_draw.webp); }
+/* ── 徽章：五行（含心珠）、稀有度、陣營 ── */
+:is(.pa-el_wood [data-el=wood], .pa-el_fire [data-el=fire], .pa-el_earth [data-el=earth], .pa-el_metal [data-el=metal], .pa-el_water [data-el=water], .pa-el_heart [data-el=heart]):is(.pz-el, .pz-eli, .pzr-eli) { color: transparent; text-shadow: none; box-shadow: none; background: var(--eimg) center / 118% no-repeat; }
+[data-el=wood] { --eimg: url(assets/ui/el_wood.webp); } [data-el=fire] { --eimg: url(assets/ui/el_fire.webp); } [data-el=earth] { --eimg: url(assets/ui/el_earth.webp); }
+[data-el=metal] { --eimg: url(assets/ui/el_metal.webp); } [data-el=water] { --eimg: url(assets/ui/el_water.webp); } [data-el=heart] { --eimg: url(assets/ui/el_heart.webp); }
+.pzm-waves .pz-el, .pzr-tag .pz-el { width: 16px; height: 16px; margin-right: 3px; font-size: 10px; vertical-align: -3px; }
+.pzr-tag .pz-el { display: none; }
+:is(.pa-el_wood, .pa-el_fire, .pa-el_earth, .pa-el_metal, .pa-el_water, .pa-el_heart) .pzr-tag .pz-el { display: inline-grid; }
+.pzr-fac { display: none; }
+:is(.pa-fac_sect [data-fac=sect], .pa-fac_demon [data-fac=demon], .pa-fac_rogue [data-fac=rogue], .pa-fac_wild [data-fac=wild]).pzr-fac { display: inline-block; width: 15px; height: 15px; margin-right: 3px; vertical-align: -3px; background: var(--fimg) center / 118% no-repeat; }
+[data-fac=sect] { --fimg: url(assets/ui/fac_sect.webp); } [data-fac=demon] { --fimg: url(assets/ui/fac_demon.webp); } [data-fac=rogue] { --fimg: url(assets/ui/fac_rogue.webp); } [data-fac=wild] { --fimg: url(assets/ui/fac_wild.webp); }
+:is(.pa-rare_r [data-r=R], .pa-rare_sr [data-r=SR], .pa-rare_ssr [data-r=SSR]).pzr-rare { display: inline-grid; place-items: center; width: 46px; height: 23px; vertical-align: -5px; font-size: 11px; color: #fff !important; text-shadow: 0 0 2px #000, 0 1px 2px #000; background: var(--rimg) 50% 50% / 109% 150% no-repeat; }
+[data-r=R] { --rimg: url(assets/ui/rare_r.webp); } [data-r=SR] { --rimg: url(assets/ui/rare_sr.webp); } [data-r=SSR] { --rimg: url(assets/ui/rare_ssr.webp); }
+/* ── 獎勵列物品圖示 ── */
+.pz-rw { white-space: nowrap; }
+.pz-rw .ico { width: 18px; height: 18px; margin-right: 2px; vertical-align: -4px; font-size: 10px; }
+/* ── 彈窗、角色詳情、toast、技能橫幅 ── */
+.pa-panel_frame .pz-panel { border: 22px solid transparent; border-image: url(assets/ui/panel_frame.webp) 64 / 22px / 4px stretch; border-radius: 0; background-clip: padding-box; padding: 6px 8px; }
+.pa-panel_frame .pz-panel:has(.pzr) { padding: 4px; }
+.pzr-info.art { padding: 32px 20px 18px; color: #2a1a0c; background: url(assets/ui/card_detail.webp) center / 100% 100% no-repeat; }
+.pzr-info.art b { color: #2a1608; }
+.pzr-info.art small, .pzr-info.art .pzr-star { color: #6a4a20; }
+.pzr-info.art p em { color: #8a3a10; }
+.pzr-info.art .pzr-tag { background: rgba(28,20,12,.82); }
+.pa-toast_bg .pz-toast { border: 0; background: url(assets/ui/toast_bg.webp) 50% 50% / 100% 100% no-repeat, radial-gradient(closest-side, rgba(8,10,16,.8) 55%, transparent); padding: 14px 22px; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
+.pa-banner_skill .pz-banner { padding: 18px 0 16px; background: url(assets/ui/banner_skill.webp) 50% 50% / min(100%, 420px) 100% no-repeat; }
+.pa-banner_skill .pz-banner b { color: #5a1808; text-shadow: 0 0 4px rgba(255,245,220,.9); }
+.pa-banner_skill .pz-banner span { color: #3a2410; text-shadow: none; }
+/* ── 結算：通關／失敗底板、首次通關、5 連珠、章節完成 ── */
+.pz-res { position: relative; }
+.pa-result_win .pz-res.win, .pa-result_lose .pz-res.lose { display: grid; place-items: center; height: 84px; margin: -4px -8px 4px; font-size: 34px; letter-spacing: 8px; background: var(--rsimg) 50% 50% / contain no-repeat; }
+.pa-result_win .pz-res.win { --rsimg: url(assets/ui/result_win.webp); color: #5a1e06; text-shadow: 0 0 6px #fff6d8, 0 0 2px #fff6d8; }
+.pa-result_lose .pz-res.lose { --rsimg: url(assets/ui/result_lose.webp); color: #f0e8ff; text-shadow: 0 0 4px #000, 0 2px 4px #000; }
+.pa-tag_first .pz-first { display: inline-grid; place-items: center; width: 116px; height: 34px; padding-left: 26px; box-sizing: border-box; font-size: 13px; color: #fff3d6; text-shadow: 0 0 3px #3a1a04, 0 1px 2px #000; background: url(assets/ui/tag_first.webp) 50% 50% / 155% 115% no-repeat; }
+.pa-tag_five :is(.pz-combo, .pz-total) em { padding: 3px 10px 3px 18px; color: #fff3d6; background: url(assets/ui/tag_five.webp) 50% 50% / 242% 117% no-repeat; box-shadow: none; border-radius: 0; text-shadow: 0 1px 2px #3a0a04; }
+.pz-chap { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 150px; margin: -6px -10px 0; }
+.pz-chap b { font-size: clamp(18px, 6vw, 24px); letter-spacing: 2px; color: var(--gold2); }
+.pz-chap small { font-size: 14px; color: var(--paper); }
+.pa-chapter_clear .pz-chap { background: url(assets/ui/chapter_clear.webp) 50% 50% / contain no-repeat; padding-top: 6px; }
+.pa-chapter_clear .pz-chap b { color: #4a1a06; text-shadow: 0 0 6px #fff6d8; }
+.pa-chapter_clear .pz-chap small { color: #6a3a10; }
+.pz-chap-st { font-size: 20px !important; color: #ffd76a; letter-spacing: 2px; }
+/* ── 血條、轉珠倒數、敵人出手倒數、首領狀態 ── */
+.pz-hp i { width: 100%; transition: clip-path .25s; }
+.pa-hp_frame .pz-foe > .pz-hp { overflow: visible; border: 0; border-radius: 0; background: url(assets/ui/hp_frame.webp) 50% 50% / 101.4% 174% no-repeat; }
+.pa-hp_frame .pz-foe > .pz-hp i { inset: 2px 4px; }
+.pa-hp_fill_red .pz-foe > .pz-hp i { background: url(assets/ui/hp_fill_red.webp) 50% 50% / 200% 125% no-repeat; border-radius: 3px; }
+.pa-hp_fill_green .pz-hp.team i { background: url(assets/ui/hp_fill_green.webp) 50% 50% / 199.5% 125% no-repeat; }
+.pz-tmi { display: none; }
+.pa-timer_fill .pz-timer { position: relative; height: 8px; margin-top: 4px; border-radius: 4px; overflow: visible; }
+.pa-timer_fill .pz-timer i { border-radius: 4px; background: url(assets/ui/timer_fill.webp) 50% 50% / 394% 150% no-repeat; }
+.pa-icon_timer .pz-timer { padding-left: 16px; }
+.pa-icon_timer .pz-tmi { display: block; position: absolute; left: 0; top: 50%; width: 16px; height: 20px; transform: translateY(-50%); background: url(assets/ui/icon_timer.webp) center / contain no-repeat; }
+.pa-cd_ring .pz-fcd { border: 0; background: url(assets/ui/cd_ring.webp) center / 100% 100% no-repeat, radial-gradient(circle, rgba(10,10,14,.82) 58%, transparent 61%); }
+.pa-cd_ring_danger .pz-fcd.danger { background: url(assets/ui/cd_ring_danger.webp) center / 100% 100% no-repeat, radial-gradient(circle, rgba(30,6,6,.85) 58%, transparent 61%); box-shadow: none; filter: drop-shadow(0 0 6px rgba(255,60,60,.8)); }
+.pz-st { display: inline-flex; gap: 1px; flex: none; }
+.pz-fname b { flex: none; max-width: 60%; }   /* 名字優先，階段說明再省略 */
+.pz-st i { display: none; width: 16px; height: 16px; background: var(--simg) center / 118% no-repeat; }
+.pa-st_ward .pz-st .st-ward, .pa-st_rage .pz-st .st-rage, .pa-st_leech .pz-st .st-leech { display: block; }
+.pz-foe.boss .pz-st i { width: 20px; height: 20px; }
+.pz-st .st-ward { --simg: url(assets/ui/st_ward.webp); } .pz-st .st-rage { --simg: url(assets/ui/st_rage.webp); } .pz-st .st-leech { --simg: url(assets/ui/st_leech.webp); }
+/* ── 技能特效：吸血、損血代價（正方形黑底圖）── */
+.pz-fx.fx-leech, .pz-fx.fx-bleed { height: 95%; }
