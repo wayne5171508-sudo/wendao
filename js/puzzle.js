@@ -87,7 +87,7 @@ const Puzzle = {
     if (!root) { root = document.createElement('div'); root.id = 'pz'; document.body.appendChild(root); }
     this.root = root;
     document.body.classList.add('pz-on');
-    if (typeof Audio2 !== 'undefined') Audio2.bgm('pz_battle');
+    if (typeof Audio2 !== 'undefined') { Audio2.bgm(this.bgmKey()); Audio2.play('stage_enter'); }
     this.reset();
     this.build();
     this.layout();
@@ -98,6 +98,8 @@ const Puzzle = {
     this.raf = requestAnimationFrame(loop);
     if (this.stage.id === '1-1' && S.d.pz && !S.d.pz.tut) setTimeout(() => this.on && this.tutorial(), 900);
   },
+  // 首領關用自己的曲子（關卡設定 bgm，且音檔有列在清單）；缺檔或一般關用轉珠戰鬥曲
+  bgmKey() { const k = this.stage.bgm; return k && typeof BGM_SRC !== 'undefined' && BGM_SRC[k] && ASSET_LIST.includes(BGM_SRC[k]) ? k : 'pz_battle'; },
   // 新手教學：第一次進 1-1 時 4 步高亮提示，可跳過，看完或跳過都只出現一次
   tutorial(i = 0) {
     const T = [
@@ -504,6 +506,7 @@ const Puzzle = {
     el.innerHTML = `<b>${n}</b><span>Combo</span>${five ? '<em>5連珠</em>' : ''}`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');   // 動畫自己淡出
     el.style.setProperty('--c', PZ_EL[G.c].c);
     this.sfx(five ? 'pz_five' : 'pz_clear', { combo: n });
+    const hi = typeof PZ_SFX_FILES !== 'undefined' && PZ_SFX_FILES.pz_combo_hi.at; if (hi && n === hi) this.sfx('pz_combo_hi');   // 高連擊：剛達門檻那一下疊加
     this.vib(five ? [30, 30, 50] : 12);
   },
 
@@ -821,16 +824,27 @@ const Puzzle = {
     if (this.state !== 'idle') { this.toast('結算中，這回合結束後才能撤退'); return; }
     this.endPanel('<h3>撤退</h3><p class="c">撤退視同失敗，進場體力不退還</p>', [['撤退', () => this.close()], ['繼續', () => this.endClose()]]);
   },
+  // 戰鬥結束：首領曲淡出、換回一般轉珠戰鬥曲（離開時 close 再切回地圖音樂）
+  endBgm() { if (typeof Audio2 !== 'undefined' && this.bgmKey() !== 'pz_battle') Audio2.bgm('pz_battle'); },
+  // 通關後「下一關」：走路聲期間畫面漸暗，開門聲開始時換到下一關說明、漸亮；沒有走路聲就直接換
+  nextStage(id) {
+    const seq = typeof Audio2 !== 'undefined' ? Audio2.nextStage() : null;
+    if (!seq) return this.close(true, id);
+    this.root.querySelectorAll('#pzEnd button').forEach((b) => (b.disabled = true));
+    const cv = document.createElement('div'); cv.className = 'pz-walk'; cv.style.setProperty('--w', seq.walk + 's'); cv.style.setProperty('--d', Math.max(0.3, seq.door) + 's');
+    document.body.appendChild(cv); requestAnimationFrame(() => cv.classList.add('on'));
+    setTimeout(() => { this.close(true, id); cv.classList.add('out'); setTimeout(() => cv.remove(), Math.max(0.3, seq.door) * 1000 + 100); }, seq.walk * 1000);
+  },
   result() { return { turns: this.turn, maxCombo: this.maxCombo, hpRatio: this.hp / this.hpMax }; },
   win() {
     if (this.state === 'end') return;
-    this.state = 'end';
+    this.state = 'end'; this.endBgm();
     if (typeof Audio2 !== 'undefined') Audio2.play('boom');
     const st = this.stage, r = this.result(), W = Stage.onWin(st.id, r);
     const stars = st.stars.map((c, i) => `<li class="${W.all & (1 << i) ? 'on' : ''}${W.newStars & (1 << i) ? ' pzm-new' : ''}"><i>★</i>${Stage.starText(c)}</li>`).join('');
     const i = PZ_STAGES.indexOf(st), next = PZ_STAGES[i + 1];
     const btns = [];
-    if (next) btns.push(['下一關', () => this.close(true, st.id), 'go']);
+    if (next) btns.push(['下一關', () => this.nextStage(st.id), 'go']);
     btns.push([`再戰（${st.cost}）`, () => this.again()], ['返回地圖', () => this.close()]);
     const panel = () => this.endPanel(`<h3 class="pz-res win">通關</h3><p class="c">${r.turns} 回合・最高 ${r.maxCombo} Combo・剩餘氣血 ${Math.round(r.hpRatio * 100)}%</p>
       <ul class="pzm-starlist">${stars}</ul>
@@ -848,7 +862,7 @@ const Puzzle = {
     if (typeof Audio2 !== 'undefined') Audio2.play('pickup');
   },
   lose() {
-    this.state = 'end';
+    this.state = 'end'; this.endBgm();
     const st = this.stage, back = Stage.refund(st), alive = this.alive(), left = alive.reduce((a, f) => a + f.hp, 0), max = this.foes.reduce((a, f) => a + f.max, 0);
     this.endPanel(`<h3 class="pz-res lose">道消身殞</h3><p class="c">撐了 ${this.turn} 回合・<span class="nw">第 ${this.wave + 1} / ${st.waves.length} 波</span>・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">${back ? `退還 ${back} 體力` : '進場體力不退還'}</p>`,
       [[`重試（${st.cost}）`, () => this.again(), 'go'], ['返回地圖', () => this.close()]]);
@@ -858,6 +872,7 @@ const Puzzle = {
     const st = this.stage;
     if (!Stage.spend(st.cost)) { this.endPanel(Stage.noSta(st.cost), [['返回地圖', () => this.close()]]); return; }
     this.reset(); this.root.querySelector('#pzFl').innerHTML = ''; this.endClose();
+    if (typeof Audio2 !== 'undefined') Audio2.bgm(this.bgmKey());   // 首領關重試：換回首領曲
     this.spawn(0); this.hud();
   },
 

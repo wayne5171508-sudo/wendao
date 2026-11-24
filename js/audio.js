@@ -10,7 +10,7 @@
 // ════════════════════════════════════════════
 
 const AUDIO_KEY = 'wendao_audio';
-const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', gacha: 'assets/audio/bgm_gacha.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3', pz_battle: 'assets/audio/bgm_pz_battle.mp3' };
+const BGM_SRC = { home: 'assets/audio/bgm_home.mp3', battle: 'assets/audio/bgm_battle.mp3', boss: 'assets/audio/bgm_boss.mp3', gacha: 'assets/audio/bgm_gacha.mp3', trib: 'assets/audio/bgm_trib.mp3', tribIntro: 'assets/audio/bgm_trib_intro.mp3', pz_battle: 'assets/audio/bgm_pz_battle.mp3', pz_boss: 'assets/audio/boss_bgm.mp3' };
 // 短音效：assets/audio/sfx_<key>.mp3
 const SFX_SRC = { slash: 'slash', crit: 'crit', hurt: 'hurt', cast: 'cast', thunder: 'thunder', gather: 'gather', divine: 'divine', meditate: 'meditate',
   reveal_fan: 'reveal_fan', reveal_ling: 'reveal_ling', reveal_xuan: 'reveal_xuan', reveal_xian: 'reveal_xian', reveal_shen: 'reveal_shen' };
@@ -21,10 +21,13 @@ const MOOD_BGM = { title: 'home', village: 'home', sect: 'home', wild: 'home', d
 // 遊戲內音效名稱 → 素材（含音量、音高隨機）；沒有列在這裡的只用合成
 const SFX_MAP = { swing1: ['slash', 0.8, 0.06], swing2: ['slash', 0.8, 0.06], swing3: ['slash', 0.9, 0.04], hitHeavy: ['crit', 0.9, 0.04], hurt: ['hurt', 0.9, 0.05], thunder: ['thunder', 0.85, 0.04], cast: ['cast', 0.7, 0.03], gather: ['gather', 0.8, 0], divine: ['divine', 1, 0], meditate: ['meditate', 0.3, 0] };
 // 個別 BGM 音量（相對其他曲，1＝原音量）：轉珠戰鬥曲偏大聲，壓到 45%
-const BGM_VOL = { pz_battle: 0.45 };
+const BGM_VOL = { pz_battle: 0.45, pz_boss: 0.45 };   // 首領曲響度已對齊轉珠戰鬥曲（-16 LUFS），用同樣倍率
+// 個別 BGM 淡入秒數（沒列的用 FADE）；首領曲進場 0.5 秒淡入
+const BGM_FADE_IN = { pz_boss: 0.5 };
 // 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
 // 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
 const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_drag: 0.8, pz_land: 1, pz_heal: 1, sk_open: 1,
+  pz_combo_hi: 1, stage_enter: 1, stage_next_walk: 1, stage_next_door: 1,
   atk_wood: 1, atk_water: 1, atk_fire: 1, atk_light: 1, atk_dark: 1, gacha_draw: 1, gacha_ssr_pre: 1, gacha_ssr: 1, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
 // 轉珠音檔（之後只改這裡）：assets/audio/<file>_<n>.mp3（n 從 1 起）或 <file>.mp3；只載入 js/asset-list.js 有列的檔（缺檔不請求、不 404），一個都沒有就用合成音
 //   檔名開頭 pz_／atk_／fx_／sk_ 第一次點畫面就載；gacha_ 進轉珠地圖才載（Audio2.loadLazy）
@@ -34,7 +37,10 @@ const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_drag: 0.8, pz_land: 1, pz_heal:
 const PZ_SFX_FILES = {
   pz_drag: { file: 'pz_drag', pick: 'random', vol: 0.86, jitter: 0.05, minGap: 0.045, max: 1 },   // 換珠與拖曳經過每一格；放開即停。音檔是 60ms 短點擊，vol 0.86＝有聲段 RMS 對齊 pz_hit_1，尖峰交給音效軟削波
   pz_land: { file: 'pz_hit', pick: 'random', vol: 0.4, max: 1 },   // 放開後珠子落定；事件名不用 pz_hit（那是打到怪物的音效）
-  pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 2, rateStep: 0.06, maxRate: 1.5 },
+  pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 1, rateStep: 0.06, maxRate: 1.5 },   // 只有 1 檔：每多 1 Combo 音高 +rateStep，最高 maxRate 倍
+  pz_combo_hi: { file: 'pz_combo_hi', vol: 0.4, at: 8 },   // 高連擊：Combo 達到 at 時疊在消除音上（每回合一次）
+  stage_enter: { file: 'stage_enter', pick: 'random', vol: 0.4 },   // 進關卡：stage_enter_1～3 隨機
+  stage_next_walk: { file: 'stage_next_walk', vol: 0.4 }, stage_next_door: { file: 'stage_next_door', vol: 0.4 },   // 通關按「下一關」：走路→開門
   pz_five: { file: 'pz_five', vol: 0.4 },          // 5 連珠（取代消除音）
   pz_heal: { file: 'fx_heal', vol: 0.4 },          // 回血
   pz_hurt: { file: 'fx_enemy_atk', vol: 0.4 },     // 敵人攻擊
@@ -45,6 +51,8 @@ const PZ_SFX_FILES = {
 };
 // 隊員攻擊音：遊戲屬性 → 音檔（遊戲沒有光、闇：金→光、土→闇；改這裡就好）
 //   metalLayer：攻擊起音疊一個 0.1 秒內的合成金屬敲擊，音量為主音的 metalVol 倍；主音檔缺時不疊
+// 下一關走路聲尾端疊一個合成破風聲（whoosh）：開關、音量（相對走路聲）、長度（秒）
+const NEXT_SFX = { whoosh: true, whooshVol: 0.2, whooshLen: 0.25 };
 const ATK_SFX = { map: { wood: 'atk_wood', water: 'atk_water', fire: 'atk_fire', metal: 'atk_light', earth: 'atk_dark' }, metalLayer: true, metalVol: 0.3 };
 const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
 
@@ -101,7 +109,7 @@ const Audio2 = {
   kick() { try { const s = this.ctx.createBufferSource(); s.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate); s.connect(this.ctx.destination); s.start(); } catch (e) {} },
   makeTrack(key) {
     const el = new Audio(); el.preload = 'auto'; el.loop = key !== 'tribIntro'; el.crossOrigin = 'anonymous';
-    const tr = { el, gain: this.ctx.createGain(), ready: null, vol: BGM_VOL[key] ?? 1 };
+    const tr = { key, el, gain: this.ctx.createGain(), ready: null, vol: BGM_VOL[key] ?? 1 };
     tr.gain.gain.value = 0;
     try { this.ctx.createMediaElementSource(el).connect(tr.gain); } catch (e) { tr.broken = true; }
     tr.gain.connect(this.bgmBus);
@@ -124,7 +132,7 @@ const Audio2 = {
         .catch(() => { this.sfxState[k] = 'missing'; console.warn(`[音效] 找不到或無法解碼：${url}`); });
     };
     for (const k of Object.keys(SFX_SRC)) load(k, `assets/audio/sfx_${k}.mp3`);
-    this._load = load; this.loadList(/^(pz|atk|fx|sk)_/);
+    this._load = load; this.loadList(/^(pz|atk|fx|sk|stage)_/);
     if (this.lazyWant) this.loadLazy();
   },
   // 轉珠音檔只載清單裡有的：pz_drag_1.mp3 → buffers.pz_drag_1、atk_wood.mp3 → buffers.atk_wood
@@ -180,7 +188,7 @@ const Audio2 = {
   },
   fadeIn(tr) {
     const t = this.ctx.currentTime, g = tr.gain.gain, from = g.value, delay = from > 0.05 ? 0 : FADE_IN_DELAY;
-    g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.setValueAtTime(from, t + delay); g.linearRampToValueAtTime(tr.vol ?? 1, t + delay + FADE);
+    g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.setValueAtTime(from, t + delay); g.linearRampToValueAtTime(tr.vol ?? 1, t + delay + (BGM_FADE_IN[tr.key] ?? FADE));
     clearTimeout(tr.stopT);
     if (tr.el && tr.el.paused && !document.hidden) tr.el.play().catch(() => {});
   },
@@ -242,12 +250,20 @@ const Audio2 = {
   playBuf(key, vol, jitter, rate = 1, max = SFX_MAX, when = 0) {
     const buf = this.buffers[key]; if (!buf) return;
     const list = (this.active[key] = (this.active[key] || []).filter((s) => !s.done));
-    while (list.length >= max) this.fadeOut(list.shift());
+    while (list.length >= max) this.sfxFadeOut(list.shift());
     const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
     src.buffer = buf; src.playbackRate.value = rate + (jitter ? U.rand(-jitter, jitter) : 0); g.gain.value = vol;
     src.connect(g); g.connect(this.sfxBus); src.start(when);
     const rec = { src, g, done: false, dur: buf.duration / src.playbackRate.value }; src.onended = () => (rec.done = true); list.push(rec);
     return rec;
+  },
+  // 通關「下一關」：走路聲→開門聲無縫接上，走路聲尾端疊破風聲；回傳 { walk, door } 秒數（缺走路聲回傳 null＝直接進關）
+  nextStage() {
+    if (!this.ctx || !this.has('stage_next_walk')) return null;
+    const t0 = this.ctx.currentTime + 0.03, w = this.play('stage_next_walk', { when: t0 }).dur;
+    const d = this.has('stage_next_door') ? this.play('stage_next_door', { when: t0 + w }).dur : 0;
+    if (NEXT_SFX.whoosh) { this.sfxMul = PZ_SFX_FILES.stage_next_walk.vol * PZ_SFX_VOL.master * NEXT_SFX.whooshVol; this.synth('whoosh', { when: t0 + w - NEXT_SFX.whooshLen }); this.sfxMul = 1; }
+    return { walk: w + 0.03, door: d };
   },
   // 依序接著播（SSR 前奏→神卡）：第二段排在第一段結束的那一刻，不留空白；回傳全部有檔時第一段的長度（秒），缺任一檔回傳 null
   chain(a, b) {
@@ -255,9 +271,10 @@ const Audio2 = {
     const t0 = this.ctx.currentTime + 0.03, r = this.play(a, { when: t0 });
     this.play(b, { when: t0 + r.dur }); return r.dur + 0.03;
   },
-  fadeOut(s) { try { s.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.008); s.src.stop(this.ctx.currentTime + 0.04); } catch (e) {} s.done = true; },
+  // 音效用（不可叫 fadeOut：那是背景音樂淡出，同名會蓋掉它，舊曲就停不下來）
+  sfxFadeOut(s) { try { s.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.008); s.src.stop(this.ctx.currentTime + 0.04); } catch (e) {} s.done = true; },
   // 停掉某個轉珠音效正在播的音檔（拖曳放開即停）
-  stopPz(name) { const pf = PZ_SFX_FILES[name]; if (!pf || !this.ctx) return; Object.keys(this.active).filter((k) => k === pf.file || k.startsWith(pf.file + '_')).forEach((k) => this.active[k].forEach((s) => !s.done && this.fadeOut(s))); },
+  stopPz(name) { const pf = PZ_SFX_FILES[name]; if (!pf || !this.ctx) return; Object.keys(this.active).filter((k) => k === pf.file || k.startsWith(pf.file + '_')).forEach((k) => this.active[k].forEach((s) => !s.done && this.sfxFadeOut(s))); },
   // 循環音效（打坐）：on 淡入、off 淡出
   loop(name, on) {
     if (!this.ctx) { this.loopWant = on ? name : null; return; }
@@ -315,6 +332,7 @@ const Audio2 = {
       case 'pz_pick': this.tone(660, 0.09, 'sine', 0.12, 220); break;
       case 'pz_tick': this.tone(1300 + Math.random() * 120, 0.03, 'square', 0.035); break;
       case 'pz_drag': this.tone(1300 + Math.random() * 120, 0.03, 'square', 0.035); break;   // 原本換珠的合成音
+      case 'whoosh': { const d = Math.max(0, (opt.when || 0) - this.ctx.currentTime), L = NEXT_SFX.whooshLen; this.noise(L, 0.5, 900, 0.7, d); this.noise(L * 0.8, 0.3, 2400, 0.9, d + L * 0.15); break; }   // 短促破風：低→高兩段帶通雜訊
       case 'pz_heal': this.tone(880, 0.25, 'sine', 0.08, 440); this.tone(1320, 0.2, 'sine', 0.05, 440, 0.06); break;
       // 攻擊起音的金屬敲擊：高頻快速衰減的三角波＋高通雜訊，0.1 秒內（音量由 sfxMul 帶入主音的 30%）
       case 'metal': { const d = opt.when ? Math.max(0, opt.when - this.ctx.currentTime) : 0; this.tone(2600, 0.08, 'triangle', 0.5, -900, d); this.tone(3900, 0.05, 'triangle', 0.25, -1200, d); this.noise(0.06, 0.35, 5000, 0.8, d, 'highpass'); break; }
