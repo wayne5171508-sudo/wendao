@@ -1592,3 +1592,16 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pa-gacha_tag_new .ga-flip .ga-tag.new, .pa-gacha_tag_upstar .ga-flip .ga-tag.up { width: 30px; height: 20px; padding-top: 4px; }
 .ga-flip.r-SR.on .ga-face { filter: drop-shadow(0 0 6px #b07aff); }
 .ga-flip.r-SSR.on .ga-face { filter: drop-shadow(0 0 8px #ffb040) drop-shadow(0 0 2px #fff); }
+/* 每日簽到（轉珠地圖，?dev）：按鈕疊在抽卡上方 */
+.pzm-daily { bottom: calc(84px + var(--safe-b, 0px)); }
+.pzm-daily i, .pa-icon_gacha_entry .pzm-daily i { border-radius: 50%; background: radial-gradient(circle at 50% 40%, #ffe6a0, #c98a2a 60%, #5a3510); display: grid; place-items: center; font: 700 20px var(--serif); color: #5a2a08; font-style: normal; }
+.pzm-daily.dot::after { content: ''; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: #e0473a; box-shadow: 0 0 0 2px rgba(5,8,14,.8); }
+.pzd-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 8px; padding: 0; list-style: none; }
+.pzd-days li { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 58px; padding: 4px 2px; border: 1px solid rgba(214,180,110,.35); border-radius: 6px; background: rgba(255,255,255,.04); font-size: 12px; text-align: center; }
+.pzd-days li:last-child { grid-column: span 2; border-color: var(--goldline); background: rgba(214,160,60,.12); }
+.pzd-days small { color: var(--dim); font-size: 11px; }
+.pzd-days b { font-size: 12px; color: #e8dcc0; }
+.pzd-days .pzd-bonus { color: var(--gold2); }
+.pzd-days li.now { border-color: var(--gold2); box-shadow: 0 0 0 1px var(--gold2), 0 0 12px rgba(255,210,120,.35); }
+.pzd-days li.got { opacity: .55; }
+.pzd-days li i { font-style: normal; font-size: 11px; color: #9fe8d8; }

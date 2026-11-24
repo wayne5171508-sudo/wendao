@@ -8,6 +8,7 @@
 //    sw  { date 日期, n: { 關卡 id: 今日掃蕩次數 } }
 //    tut 新手教學已看過（1）
 //    ovf 溢出修為：修為已滿時轉珠獎勵的修為先存這裡，突破成功時補入
+//    daily { last 上次簽到的台北日序（1970-01-01＝0，沒簽過＝-1）, streak 連續天數, total 累計天數 }（js/daily-cfg.js）
 // ════════════════════════════════════════════
 
 const PZ_STAGES = PZ_CHAPTERS.flatMap((C) => C.stages.map((s, i) => ({ ...s, ch: C, idx: i, stars: s.stars || STAR_DEFAULT })));
@@ -15,13 +16,15 @@ const stageById = (id) => PZ_STAGES.find((s) => s.id === id);
 
 const Stage = {
   // ───────── 存檔 ─────────
-  fresh() { return { v: 1, sta: STA_CFG.start, staAt: Date.now(), st: {}, sw: { date: '', n: {} }, ovf: 0, tut: 0 }; },
+  fresh() { return { v: 1, sta: STA_CFG.start, staAt: Date.now(), st: {}, sw: { date: '', n: {} }, ovf: 0, tut: 0, daily: { last: -1, streak: 0, total: 0 } }; },
   // 補欄位、修正異常值；舊存檔（沒有 pz）＝新的一份
   fix(d) {
     const f = this.fresh(), p = d.pz && typeof d.pz === 'object' && !Array.isArray(d.pz) ? d.pz : {};
     const num = (v, def) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : def);
     const g = { v: 1, sta: num(p.sta, f.sta), staAt: num(p.staAt, f.staAt), st: {}, sw: { date: '', n: {} }, ovf: Math.max(0, Math.floor(num(p.ovf, 0))), tut: p.tut ? 1 : 0 };
     g.sta = U.clamp(Math.floor(g.sta), 0, 9999);
+    const dl = p.daily && typeof p.daily === 'object' ? p.daily : {}, int = (v, def, lo) => Math.max(lo, Math.floor(num(v, def)));
+    g.daily = { last: int(dl.last, -1, -1), streak: int(dl.streak, 0, 0), total: int(dl.total, 0, 0) };
     if (g.staAt > Date.now() || g.staAt < 0) g.staAt = Date.now();   // 時間被調過：從現在重算
     if (p.st && typeof p.st === 'object') for (const [k, v] of Object.entries(p.st)) {
       if (!v || typeof v !== 'object') continue;
@@ -143,6 +146,33 @@ const Stage = {
     return true;
   },
 
+  // ───────── 每日簽到（數值在 js/daily-cfg.js） ─────────
+  // 台北日期的日序：用整數比字串好算連續與斷簽
+  dayNo(now = Date.now()) { return Math.floor((now + DAILY_CFG.tzOffsetH * 36e5) / 864e5); },
+  // can 今天可領；day 今天（或今天已領）是這輪第幾天；back 手機日期早於上次簽到（時間被調回去）
+  dailyInfo() {
+    const g = this.d.daily, t = this.dayNo(), C = DAILY_CFG.cycle;
+    if (t <= g.last) return { can: false, back: t < g.last, day: ((Math.max(1, g.streak) - 1) % C) + 1, streak: g.streak };
+    const streak = t === g.last + 1 ? g.streak + 1 : 1;   // 斷簽（隔超過一天）從第 1 天重算
+    return { can: true, day: ((streak - 1) % C) + 1, streak };
+  },
+  dailyClaim() {
+    const i = this.dailyInfo(); if (!i.can) return null;
+    const g = this.d.daily, rw = { ticket: DAILY_CFG.ticket, stone: i.day === DAILY_CFG.cycle ? DAILY_CFG.bonus.stone : 0 };
+    Object.assign(g, { last: this.dayNo(), streak: i.streak, total: g.total + 1 });
+    Gacha.d.ticket += rw.ticket; if (rw.stone) S.add('stone', rw.stone);
+    S.save(); return { ...i, ...rw };
+  },
+  dailyPanel() {
+    const i = this.dailyInfo(), C = DAILY_CFG.cycle, B = DAILY_CFG.bonus.stone;
+    const days = [...Array(C)].map((_, k) => { const d = k + 1, got = d < i.day || (d === i.day && !i.can);
+      return `<li class="${got ? 'got' : d === i.day ? 'now' : ''}"><small>第 ${d} 天</small><b>券 ×${DAILY_CFG.ticket}</b>${d === C ? `<b class="pzd-bonus">靈石 ${B}</b>` : ''}${got ? '<i>已領</i>' : ''}</li>`; }).join('');
+    const note = i.back ? '手機日期早於上次簽到，請確認時間設定' : i.can ? `今天是連續第 ${i.streak} 天` : `已連續簽到 ${i.streak} 天，明天再來`;
+    this.panel(`<h3>每日簽到</h3><ol class="pzd-days">${days}</ol><p class="c">${note}</p><p class="c note">每天送仙緣券 ${DAILY_CFG.ticket} 張；連續第 ${C} 天加送靈石 ${B}；斷簽從第 1 天重算（台北時間換日）</p>`,
+      i.can ? [['領取', () => { const r = this.dailyClaim(); if (!r) return this.closePanel(); this.toast(`仙緣券 +${r.ticket}${r.stone ? `、靈石 +${r.stone}` : ''}`); this.renderMap(); this.dailyPanel(); }], ['稍後', () => this.closePanel()]]
+        : [['知道了', () => this.closePanel()]]);
+  },
+
   // ════════ 章節地圖 ════════
   mapOn: false,
   showMap(ch = 1) {
@@ -194,11 +224,13 @@ const Stage = {
       <div class="pzm-scroll" id="pzmScroll" style="background-image:${C.id === 1 && pzHas('ch1_bg') ? 'linear-gradient(rgba(8,10,14,.15),rgba(8,10,14,.3)),url(assets/map/ch1_bg.webp)' : `linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})`}"><div class="pzm-path">${nodes.join('')}</div></div>
       ${DEV && STA_CFG.devRefill ? '<button class="pzm-dev" id="pzmDev">補滿體力（測試）</button>' : ''}
       ${typeof Gacha !== 'undefined' ? '<button class="pzm-gacha" id="pzmGacha" aria-label="抽卡"><i></i><b>抽卡</b></button>' : ''}
+      ${DEV && typeof Gacha !== 'undefined' ? `<button class="pzm-gacha pzm-daily${this.dailyInfo().can ? ' dot' : ''}" id="pzmDaily" aria-label="每日簽到"><i>簽</i><b>簽到</b></button>` : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-toast" id="pzmToast"></div><div class="pz-end hidden" id="pzmPanel"></div>`;
     this.el.querySelector('#pzmBack').onclick = () => this.closeMap();
     const bk = this.el.querySelector('#pzmBreak'); if (bk) bk.onclick = () => this.breakEntry();
     const ga = this.el.querySelector('#pzmGacha'); if (ga) ga.onclick = () => Gacha.open();
+    const dy = this.el.querySelector('#pzmDaily'); if (dy) dy.onclick = () => this.dailyPanel();
     const dev = this.el.querySelector('#pzmDev'); if (dev) dev.onclick = () => { this.refill(); this.staHud(); this.toast('體力已補滿'); };
     this.el.querySelectorAll('.pzm-node').forEach((b) => (b.onclick = () => this.detail(b.dataset.st)));
     this.staHud();
