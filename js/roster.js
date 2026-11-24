@@ -88,6 +88,9 @@ const Roster = {
   calc(T) {
     const leads = [[T[0], T[0].lead], [T[1], T[1].lead]].filter(([, L]) => L), mods = [];
     leads.forEach(([m, L]) => L.fx.forEach((e) => mods.push({ ...e, el: e.el === 'self' ? m.el : e.el, fac: e.fac === 'self' ? m.fac : e.fac, src: L.name })));
+    // 主角修行（放置版功法、法寶、副手、靈根、造化丹、道侶印記）：只乘在自己的主角身上
+    const hero = T.find((m) => m.id === 'hero'), G = hero ? this.growth() : null;
+    if (G) { G.atkMult = ((hero.atk + G.off) * (1 + G.atk) * (1 + G.mark)) / hero.atk; G.hpMult = (1 + G.hp) * (1 + G.mark); mods.push({ t: 'atk', who: 'hero', mult: G.atkMult, src: '修行' }, { t: 'hp', who: 'hero', mult: G.hpMult, src: '修行' }); }
     // 同陣營加成：主角、副隊長是「萬用」，可補進任一陣營；各陣營＝抽卡角色數＋萬用數，只取最高的一個陣營
     const wild = T.filter((m) => m.wild).length, facs = [];
     const best = Object.keys(PZ_FACS).map((f) => ({ fac: f, own: T.filter((m) => !m.wild && m.fac === f).length }))
@@ -100,10 +103,27 @@ const Roster = {
     const sum = (t, k = 'n') => mods.filter((e) => e.t === t).reduce((a, e) => a + (e[k] || 0), 0);
     const hp = Math.round(T.reduce((a, m) => a + m.hp * this.mul(mods, 'hp', m), 0)), rcv = Math.round(T.reduce((a, m) => a + m.rcv * this.mul(mods, 'rcv', m), 0));
     const atk = Math.round(T.reduce((a, m) => a + m.atk * this.mul(mods, 'atk', m), 0));
-    return { mods, facs, hp, rcv, atk, combo: sum('combo'), delay: sum('delay'), time: sum('time', 'sec'), comboUp: sum('comboUp', 'add'), pierce: mods.some((e) => e.t === 'pierce'),
+    return { mods, facs, hp, rcv, atk, growth: G, combo: sum('combo'), delay: sum('delay'), time: sum('time', 'sec'), comboUp: sum('comboUp', 'add'), pierce: mods.some((e) => e.t === 'pierce'),
       leads: leads.map(([m, L], i) => ({ ...L, who: m.name, pos: i ? '副隊長技' : '隊長技' })) };
   },
-  match(e, m) { return (!e.el || e.el === m.el || (Array.isArray(e.el) && e.el.includes(m.el))) && (!e.fac || (e.wild && m.wild) || e.fac === m.fac) && (!e.role || e.role === m.role); },
+  // 主角修行加成：數值與換算都在 js/pz-growth-cfg.js。atk／hp 為加總的百分比（0.3＝+30%），off 為副手換成的轉珠攻擊點數，mark 為道侶印記
+  growth() {
+    const P = PZ_GROWTH, d = S.d, out = { atk: 0, hp: 0, off: 0, mark: 0, by: {} };
+    const put = (src, stat, v) => {
+      const [to, k] = P.conv[stat] || []; if (!to || !v) return;
+      out[to] += v * k; const b = out.by[src] || (out.by[src] = { atk: 0, hp: 0 }); b[to] += v * k;
+    };
+    ARTS.forEach((A) => ['atk', 'hp'].forEach((k) => put('功法', k, (A.stat[k] || 0) * S.artLv(A.id) * P.artRate)));
+    for (const [k, v] of Object.entries(S.rootFx())) if (typeof v === 'number') put('靈根', k, v * P.rootRate);
+    const B = d.bonus || {}; put('造化丹', 'atk', (B.atk || 0) * P.bonusRate); put('造化丹', 'hp', (B.hp || 0) * P.bonusRate);
+    const f = S.fMain(); if (f) put('法寶', FB_TYPES[f.type].stat, (S.fStat(f.id) / 100) * P.fabaoRate);
+    const ow = d.wslot && d.wslot[1] && S.wStat(d.wslot[1]);
+    if (ow) out.off = Math.round(ow.atk * PZ_HERO.wpnAtk * P.offhandRate);
+    const g = d.dao || {}, mate = !!(g.partner || (DEV && (g.simOnline || (this.d.mate && this.d.mate.sim))));
+    if (mate) out.mark = (g.mark || 0) * P.markRate;
+    return out;
+  },
+  match(e, m) { return (!e.who || e.who === m.id) && (!e.el || e.el === m.el || (Array.isArray(e.el) && e.el.includes(m.el))) && (!e.fac || (e.wild && m.wild) || e.fac === m.fac) && (!e.role || e.role === m.role); },
   mul(mods, t, m) { return mods.reduce((a, e) => (e.t === t && e.mult && this.match(e, m) ? a * e.mult : a), 1); },
 
   // ───────── 編組操作 ─────────
@@ -124,10 +144,15 @@ const Roster = {
   },
   skText(S1) { return S1 ? `「${S1.name}」${S1.desc}${S1.cd ? `（冷卻 ${S1.cd}）` : ''}` : '無'; },
   info(m) {
-    const F = PZ_FACS[m.fac], R = PZ_RARITY[m.rare];
+    const F = PZ_FACS[m.fac], R = PZ_RARITY[m.rare], G = m.id === 'hero' ? this.calc(this.team()).growth : null;
     return `<div class="pzr-info${pzHas('card_detail') ? ' art' : ''}">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" data-r="${m.rare}" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
-      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${pzElI(m.el, 'pz-el')}${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}"><i class="pzr-fac" data-fac="${m.wild ? 'wild' : m.fac}"></i>${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}</small></p>
+      <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${pzElI(m.el, 'pz-el')}${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}"><i class="pzr-fac" data-fac="${m.wild ? 'wild' : m.fac}"></i>${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}${G ? `<br>修行後 攻 ${U.fmt(Math.round(m.atk * G.atkMult))}・血 ${U.fmt(Math.round(m.hp * G.hpMult))}` : ''}</small></p>
       <p><em>${m.id === 'mate' ? '副隊長技' : '隊長技'}</em>${this.skText(m.lead)}</p><p><em>主動技</em>${this.skText(m.sk)}</p></div></div>`;
+  },
+  growthText(G) {
+    const pc = (v) => `+${Math.round(v * 100)}%`, src = Object.entries(G.by).map(([k, b]) => `${k}${b.atk ? '攻' + pc(b.atk) : ''}${b.hp ? '血' + pc(b.hp) : ''}`);
+    if (G.off) src.push(`副手攻 +${U.fmt(G.off)}`); if (G.mark) src.push(`道侶印記 ${pc(G.mark)}`);
+    return `主角攻 ×${G.atkMult.toFixed(2)}、血 ×${G.hpMult.toFixed(2)}${src.length ? `（${src.join('・')}）` : '（尚無功法、法寶等加成）'}`;
   },
   // 地圖關卡說明裡的一行隊伍摘要
   summary() {
@@ -153,7 +178,7 @@ const Roster = {
     const html = `<div class="pzr"><h3>隊伍編組</h3>
       <div class="pzr-row">${card(byId.hero, 'hero', byId.hero.pos)}${card(byId.mate, 'mate', '副隊長')}${slots.map((id, i) => card(id && byId[id], id || 'slot' + i, id ? (byId[id].pos === '隊長' ? '隊長' : '隊員') : '空位')).join('')}</div>
       <div class="pzr-sum"><span>氣血 <b>${U.fmt(C.hp)}</b></span><span>攻擊 <b>${U.fmt(C.atk)}</b></span><span>回復 <b>${U.fmt(C.rcv)}</b></span></div>
-      <p class="pzr-lead">${C.leads.map((L) => `<em>${L.pos}</em>${L.who}「${L.name}」${L.desc}`).join('<br>')}<br><em>陣營</em>${facTxt}</p>
+      <p class="pzr-lead">${C.leads.map((L) => `<em>${L.pos}</em>${L.who}「${L.name}」${L.desc}`).join('<br>')}<br><em>陣營</em>${facTxt}${C.growth ? `<br><em>修行</em>${this.growthText(C.growth)}` : ''}</p>
       ${pick ? this.info(pick) : `<p class="c note">點下方角色編入這個空位</p>`}
       ${pick && pick.src === 'char' && !g.own[pick.id] ? '<p class="c note">尚未擁有・可從抽卡取得</p>' : ''}
       ${acts.length ? `<div class="pz-row">${acts.map(([k, t]) => `<button class="pz-btn" data-a="${k}">${t}</button>`).join('')}</div>` : ''}
