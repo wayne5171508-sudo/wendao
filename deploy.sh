@@ -1,6 +1,6 @@
 #!/bin/sh
 # 部署《問道青冥》到 GitHub Pages（Pages 直接發佈 main 分支）
-#   1. 檢查 js/asset-list.js 列的素材都存在
+#   1. 新的 assets/audio/pz_*.mp3 自動加進 js/asset-list.js，並檢查清單列的素材都存在
 #   2. 把 sw.js 與 asset-list.js 的版本號改成現在時間：玩家下次開遊戲就會換掉舊快取（同檔名換圖也會更新）
 #   3. 提交並推上 main
 # 用法：在 main 分支、改動都提交後執行  sh deploy.sh
@@ -9,6 +9,8 @@ set -e
 cd "$(dirname "$0")"
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "請先切到 main 分支"; exit 1; }
 git diff --quiet && git diff --cached --quiet || { echo "有未提交的改動，請先提交"; exit 1; }
+[ -z "$(git ls-files --others --exclude-standard assets)" ] || { echo "assets/ 有未提交的新素材，請先 git add 並提交"; exit 1; }
+sh sync-asset-list.sh   # 新的轉珠音檔自動進清單（跟版本號一起提交）
 for f in $(grep -oE "'assets/[^']+'" js/asset-list.js | tr -d "'"); do [ -f "$f" ] || { echo "找不到素材：$f"; exit 1; }; done
 # 截圖目錄與報告不可進 main（Pages 直接發佈 main，會變成公開檔案）
 [ -z "$(git -c core.quotePath=false ls-files | grep -E '(^|/)(截圖|測試截圖[^/]*)/|報告-[^/]*\.md$' | head -1)" ] || { echo "截圖或報告被 git 追蹤了（Pages 會公開），請先 git rm -r --cached 再部署"; exit 1; }

@@ -23,7 +23,8 @@ OWNER=$(gh api user -q .login)
 OUT=$(mktemp -d)
 git archive HEAD | tar -x -C "$OUT"
 cd "$OUT"
-rm -f deploy.sh deploy-staging.sh firebase.json database.rules.json   # 部署工具與資料庫規則不放上測試站
+sh sync-asset-list.sh .   # 新的轉珠音檔自動進清單（只含已提交的檔）
+rm -f deploy.sh deploy-staging.sh sync-asset-list.sh firebase.json database.rules.json   # 部署工具與資料庫規則不放上測試站
 # 截圖與報告不進部署包（.gitignore 已排除，這裡再保險一次；任何層的都刪）
 find . \( -name '截圖' -o -name '測試截圖*' \) -type d -prune -exec rm -rf {} +
 find . -name '*報告-*.md' -type f -delete

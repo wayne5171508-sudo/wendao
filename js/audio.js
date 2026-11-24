@@ -25,6 +25,11 @@ const BGM_VOL = { pz_battle: 0.45 };
 // 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
 // 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
 const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_tick: 0.9, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
+// 轉珠音檔（之後只改這裡）：assets/audio/<file>_<n>.mp3，n 從 1 起；只載入 js/asset-list.js 有列的檔（缺檔不請求、不 404），一個都沒有就用合成音
+//   random：每次隨機播一個；combo：每 perFile 個 Combo 換高一階的檔，檔不夠時用最高那檔、每多 1 Combo 音高 +rateStep，最高 maxRate 倍
+//   vol：音檔基準音量（再乘上 PZ_SFX_VOL；master 2.5 是給偏小聲的合成音調的）
+const PZ_SFX_FILES = { pz_tick: { file: 'pz_tick', pick: 'random', vol: 0.4, jitter: 0.03 },
+  pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 2, rateStep: 0.06, maxRate: 1.5 } };
 const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
 
 const Audio2 = {
@@ -87,12 +92,25 @@ const Audio2 = {
   },
   sfxState: {},   // 每個音效：loading／ok／missing
   preloadSfx() {
-    for (const k of Object.keys(SFX_SRC)) {
+    const load = (k, url) => {
       this.sfxState[k] = 'loading';
-      fetch(`assets/audio/sfx_${k}.mp3`).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); })
+      fetch(url).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); })
         .then((ab) => new Promise((res, rej) => this.ctx.decodeAudioData(ab, res, rej))).then((buf) => { this.buffers[k] = buf; this.sfxState[k] = 'ok'; })
-        .catch(() => { this.sfxState[k] = 'missing'; console.warn(`[音效] 找不到或無法解碼：assets/audio/sfx_${k}.mp3`); });
-    }
+        .catch(() => { this.sfxState[k] = 'missing'; console.warn(`[音效] 找不到或無法解碼：${url}`); });
+    };
+    for (const k of Object.keys(SFX_SRC)) load(k, `assets/audio/sfx_${k}.mp3`);
+    // 轉珠音檔只載清單裡有的：pz_tick_1.mp3 → buffers.pz_tick_1
+    (typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : []).forEach((s) => { const m = /^assets\/audio\/(pz_\w+_\d+)\.mp3$/.exec(s); if (m) load(m[1], s); });
+  },
+  // 轉珠音檔：依 PZ_SFX_FILES 選檔與音高；沒有已載入的檔回傳 null（改用合成音）
+  pzPick(name, combo) {
+    const pf = PZ_SFX_FILES[name]; if (!pf) return null;
+    const vs = Object.keys(this.buffers).filter((k) => k.startsWith(pf.file + '_') && /_\d+$/.test(k)).sort((a, b) => a.split('_').pop() - b.split('_').pop());
+    if (!vs.length) return null;
+    if (pf.pick === 'random') return { key: vs[Math.floor(Math.random() * vs.length)], rate: 1, pf };
+    const lv = Math.max(0, (combo || 1) - 1), i = Math.min(vs.length - 1, Math.floor(lv / pf.perFile));
+    const over = i === vs.length - 1 ? lv - i * pf.perFile : 0;   // 只有最高那檔再往上調音高
+    return { key: vs[i], rate: Math.min(pf.maxRate, 1 + over * pf.rateStep), pf };
   },
   // 揭曉音效：該品階檔案缺少時退回上一階（往下找），全部沒有才用合成；不報錯、不中斷演出
   reveal(tier) {
@@ -179,15 +197,17 @@ const Audio2 = {
     if (!this.ctx) return;
     const m = SFX_MAP[name], V = PZ_SFX_VOL;
     const pv = name in V ? V.master * V[name] * (name === 'pz_clear' ? Math.min(V.clearMax, 1 + ((opt.combo || 1) - 1) * V.clearStep) : 1) : 1;
+    const pz = this.pzPick(name, opt.combo);
+    if (pz) return this.playBuf(pz.key, pz.pf.vol * (opt.vol ?? 1) * pv, pz.pf.jitter || 0, pz.rate);
     if (!m || !this.buffers[m[0]]) { this.sfxMul = pv; this.synth(name, opt); this.sfxMul = 1; return; }   // 合成音也套同一張音量表
     this.playBuf(m[0], m[1] * (opt.vol ?? 1) * pv, m[2]);
   },
-  playBuf(key, vol, jitter) {
+  playBuf(key, vol, jitter, rate = 1) {
     const buf = this.buffers[key]; if (!buf) return;
     const list = (this.active[key] = (this.active[key] || []).filter((s) => !s.done));
     if (list.length >= SFX_MAX) { const old = list.shift(); try { old.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.02); old.src.stop(this.ctx.currentTime + 0.08); } catch (e) {} }
     const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
-    src.buffer = buf; src.playbackRate.value = 1 + (jitter ? U.rand(-jitter, jitter) : 0); g.gain.value = vol;
+    src.buffer = buf; src.playbackRate.value = rate + (jitter ? U.rand(-jitter, jitter) : 0); g.gain.value = vol;
     src.connect(g); g.connect(this.sfxBus); src.start();
     const rec = { src, g, done: false }; src.onended = () => (rec.done = true); list.push(rec);
   },
