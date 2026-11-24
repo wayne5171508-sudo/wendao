@@ -409,7 +409,8 @@ const Puzzle = {
       if (other) other.tw = { x: other.x, y: other.y, t: performance.now() };   // 手指一經過就滑到空位
       h.o.x = nc; h.o.y = nr; h.c = nc; h.r = nr;
       if (!this.moved) { this.moved = true; this.t0 = performance.now(); const hint = this.root.querySelector('#pzHint'); if (hint) hint.classList.add('off'); }
-      this.sfx('pz_tick');
+      const now = performance.now(), slide = typeof PZ_SFX_FILES !== 'undefined' ? PZ_SFX_FILES.pz_drag.slide * 1000 : 180;
+      this.sfx(now - (this._swT || 0) < slide ? 'pz_drag' : 'pz_tick'); this._swT = now;   // 連續滑動播「得得得」，單次換位播「得、答」
     }
   },
   up(e) {
@@ -436,7 +437,9 @@ const Puzzle = {
   finish() {
     if (this.state !== 'drag') return;
     try { this.cv.releasePointerCapture(this.pid); } catch (er) {}
-    const moved = this.moved; this.held = null; this.dropLift();
+    const moved = this.moved; this.held = null; this.dropLift(); this._swT = 0;
+    if (typeof Audio2 !== 'undefined') Audio2.stopPz('pz_drag');   // 放開即停滑動音
+    if (moved) this.sfx('pz_land');
     this.root.querySelector('#pzTm').style.transform = 'scaleX(1)';
     if (!moved) { this.state = 'idle'; return; }
     this.resolve();
