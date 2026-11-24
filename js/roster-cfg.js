@@ -128,8 +128,6 @@ const PZ_HERO_BY_CHAR = {
     lead: ['yx_lead1', 'yx_lead2', 'yx_lead3', 'yx_lead4', 'yx_lead5'], sub: ['yx_sub1', 'yx_sub2', 'yx_sub3', 'yx_sub4', 'yx_sub5'], own: [null, null, 'yx_own1', 'yx_own2', 'yx_own3'] },
 };
 const PZ_OWN_LV = 6;   // 本命技解鎖境界（結丹初期）
-// 沒綁道侶時的副隊長補位（綁了但對方還沒同步過快照：用這組數值、名字換成道侶名字）
-const PZ_MATE_DEFAULT = { name: '雲遊道友', char: 'yunxi', el: 'wood', lv: 0, atk: 460, hp: 1300, rcv: 200, wpn: null, sk: 'liuyun_sk', sub: 'hero_sub' };
 
 // ───────── 抽卡角色 ─────────
 // id 唯一；name 名號（「稱號·名字」時卡片只顯示名字，或用 short 指定）；el 五行；role 定位；fac 陣營；rare 稀有度；atk/hp/rcv 一星數值；lead 隊長技、sk 主動技（PZ_SKILLS 的 id）
@@ -151,8 +149,6 @@ const PZ_CHARS = [
   { id: 'youyao',    name: '魔族聖女·幽瑤',    el: 'water', role: 'sup',  fac: 'demon', rare: 'R', atk: 470, hp: 1000, rcv: 110, lead: 'yy_lead', sk: 'yy_sk', face: 'assets/char/youyao_face.webp', art: 'assets/char/youyao.webp' },
   { id: 'tieyue',    name: '魔將·鐵嶽',        el: 'earth', role: 'tank', fac: 'demon', rare: 'R', atk: 420, hp: 2000, rcv: 60, lead: 'ty_lead', sk: 'ty_sk', face: 'assets/char/tieyue_face.webp', art: 'assets/char/tieyue.webp' },
 ];
-// 新存檔與舊存檔升級時送的角色（之後抽卡才會產出其他角色）
-const PZ_STARTER = ['linzhao', 'bairuoshui', 'tieyue'];
 // 改過 id 的角色：舊存檔裡的舊 id 讀檔時換成新 id（佔位版 → 正式版）；對不到的舊角色丟掉，若因此一個角色都沒有就重送起始角色
 const PZ_RENAMED = { shizun: 'xuanqiong', shijie: 'suningxue', shixiong: 'luqingchuan', guard: 'linzhao', mozhu: 'litianjue', monv: 'youyao', mojiang: 'tieyue',
   yaoshi: 'bairuoshui', sanxiu: 'tianjizi', hunter: 'langye', shidi: 'suhongyu' };

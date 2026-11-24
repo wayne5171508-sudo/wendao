@@ -68,7 +68,7 @@ const pzRel = (a, d) => (PZ_BEATS[a] === d ? PZ_CFG.beat : PZ_BEATS[d] === a ? P
 // 靈根對應珠色：雷歸火、冰歸水
 const PZ_ROOT = { metal: 'metal', wood: 'wood', water: 'water', fire: 'fire', earth: 'earth', thunder: 'fire', ice: 'water' };
 
-// 隊伍：[隊長, 副隊長, 隊員…]，由 js/roster.js 依存檔編組（主角、道侶快照、抽卡角色）
+// 隊伍：[隊長, 戰友…, 道侶]，由 js/roster.js 依存檔編組（主角、劇情招募／抽卡角色、道侶快照）
 function pzTeam() { return Roster.team(); }
 
 const Puzzle = {
@@ -236,7 +236,7 @@ const Puzzle = {
         <div class="pz-foes" id="pzFoes"></div>
         <div class="pz-fl" id="pzFl"></div>
       </div>
-      <div class="pz-team"><div class="pz-combo" id="pzCombo"></div>${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
+      <div class="pz-team"><div class="pz-combo" id="pzCombo"></div>${T.map((m, i) => `<button class="pz-mem${m.id === 'mate' ? ' mate' : ''}" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
           <span class="pz-face">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em>${pzElI(m.el, 'pz-eli')}</span>
           <span class="pz-sk"></span><small>${m.pos === '隊員' ? m.short.slice(0, 4) : m.pos}</small></button>`).join('')}</div>
       <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span><b class="pz-tst" id="pzTSt"></b></div>
@@ -820,6 +820,7 @@ const Puzzle = {
       <p>橫或直 3 顆以上同色相連就消除，相連的同色算 1 個 Combo；消除後上方掉珠，可再連鎖。每多 1 Combo 傷害 +25%。</p>
       <p>每位隊員打自己顏色的珠。五行相剋：木剋土、土剋水、水剋火、火剋金、金剋木（剋 1.5 倍、被剋 0.5 倍）。心珠回血。</p>
       <p>敵人頭上數字是出手倒數；有多隻時點敵人可指定攻擊目標。點隊員頭像施放技能（冷卻歸零才能用，會先顯示說明，按「開啟」才施放，可在設定關閉確認；不會結束回合）。</p>
+      <p>開局只有主角一人出戰；推進章節會有戰友加入（最多 3 位），締結道侶後可在編隊最右邊帶道侶同行。</p>
       <p>${L || '無隊長技'}</p>`, [['繼續', () => this.endClose()]]);
   },
   endPanel(html, btns) {

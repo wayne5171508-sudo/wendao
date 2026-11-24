@@ -1653,3 +1653,19 @@ button.st-opt.sel { border-color: var(--gold2); background: rgba(242,220,148,.14
 .st-foot p { flex: 1 0 100%; margin: 0; text-align: center; font-size: 14px; }
 .st-foot p.lack { color: #ff9a9a; }
 .st-foot .seal.sm { min-width: 96px; }
+
+/* ── 劇情流程（js/pz-story.js）：戰友招募與抽卡解鎖對話、道侶欄位 ── */
+.pz-mem.mate { grid-column: 5; }
+.pzr-card.mate.blank { border-style: dashed; opacity: .55; }
+.pzr-card.mate.off .pzr-face { filter: grayscale(.8) brightness(.7); }
+.pzr-stale { color: #ffb36a; font-weight: 700; }
+#pz > .pz-story { position: absolute; inset: 0; width: 100%; z-index: 40; display: flex; align-items: flex-end; justify-content: center; padding: 0 10px calc(14% + env(safe-area-inset-bottom)); background: rgba(5,8,14,.55); cursor: pointer; }
+.pz-story-box { display: flex; gap: 10px; align-items: flex-start; width: 100%; max-width: 440px; box-sizing: border-box; padding: 12px; border: 1px solid var(--goldline); border-radius: 10px; background: linear-gradient(rgba(22,18,12,.95), rgba(12,10,8,.97)); color: var(--paper); box-shadow: 0 6px 24px rgba(0,0,0,.6); animation: pzStoryIn .25s ease-out; }
+.pz-story-face { flex: none; width: 64px; height: 64px; object-fit: cover; object-position: 50% 15%; border-radius: 8px; border: 1px solid var(--goldline); }
+.pz-story-box b { display: block; color: var(--gold2); font-size: 15px; }
+.pz-story-box p { margin: 4px 0 2px; font-size: 15px; line-height: 1.55; }
+.pz-story-box small { font-size: 11px; color: var(--dim); }
+.pz-story-box.narr p { color: var(--gold2); }
+.pz-story-box.end { flex-direction: column; align-items: center; text-align: center; cursor: default; }
+.pz-story-box.end b { display: inline; }
+@keyframes pzStoryIn { from { opacity: 0; transform: translateY(12px); } }
