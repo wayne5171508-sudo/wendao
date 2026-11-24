@@ -69,7 +69,9 @@ const Audio2 = {
 
   // 第一次點擊畫面時呼叫（瀏覽器自動播放限制）
   unlock() {
-    if (this.ctx) { if (this.ctx.state === 'suspended' && !document.hidden) this.ctx.resume(); return; }
+    // iOS：切背景、鎖屏、來電後是 suspended 或 interrupted，而且只有 touchend／click 當下 resume 才有效；
+    //   背景音樂 <audio> 在部分 iOS 不經過 AudioContext，所以會出現「只有背景音樂、音效全無」。每次點擊都檢查並喚醒，順便播一個無聲緩衝完成解鎖
+    if (this.ctx) { if (this.ctx.state !== 'running' && !document.hidden) { this.ctx.resume().catch(() => {}); this.kick(); } return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const c = (this.ctx = new AC());
@@ -96,6 +98,7 @@ const Audio2 = {
     this.preloadSfx();
     const w = this.want; this.cur = null; this.bgm(w);
   },
+  kick() { try { const s = this.ctx.createBufferSource(); s.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate); s.connect(this.ctx.destination); s.start(); } catch (e) {} },
   makeTrack(key) {
     const el = new Audio(); el.preload = 'auto'; el.loop = key !== 'tribIntro'; el.crossOrigin = 'anonymous';
     const tr = { el, gain: this.ctx.createGain(), ready: null, vol: BGM_VOL[key] ?? 1 };
@@ -280,7 +283,7 @@ const Audio2 = {
   init() {
     this.loadSet();
     const go = () => this.unlock();
-    addEventListener('pointerdown', go); addEventListener('keydown', go);
+    ['pointerdown', 'touchend', 'click', 'keydown'].forEach((t) => addEventListener(t, go, { capture: true, passive: true }));   // iOS 只認 touchend／click
     document.addEventListener('visibilitychange', () => this.pauseAll(document.hidden));
     setInterval(() => this.guard(), 500);
     addEventListener('pagehide', () => this.pauseAll(true));
