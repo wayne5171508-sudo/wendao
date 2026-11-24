@@ -25,6 +25,10 @@ const PZ_GROWTH = {
 };
 
 // 流雲技（流雲劍、碧濤劍）：轉心珠、回血之外再補一段自身屬性傷害，避免換上流雲劍後打首領反而變弱
-const PZ_LIUYUN_NUKE = 3;   // 攻擊幾倍
+const PZ_LIUYUN_NUKE = 5;   // 攻擊幾倍
 PZ_SKILLS.liuyun_sk.fx.push({ t: 'nuke', mult: PZ_LIUYUN_NUKE });
 PZ_SKILLS.liuyun_sk.desc = `心珠全部轉為自身屬性珠，回復兩成氣血，再造成攻擊 ${PZ_LIUYUN_NUKE} 倍傷害`;
+
+// 殘卷出口：功法升到第 from 層起，除了靈石還要殘卷（第 from 層 base 張，之後每層多 step 張）；前面的層數不變，已超過的層數不回收
+const PZ_ART_SCROLL = { from: 6, base: 2, step: 1 };
+const artScroll = (to) => (to >= PZ_ART_SCROLL.from ? PZ_ART_SCROLL.base + (to - PZ_ART_SCROLL.from) * PZ_ART_SCROLL.step : 0);   // 升到第 to 層要幾張

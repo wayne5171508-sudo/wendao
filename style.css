@@ -1632,3 +1632,24 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-skc h3 { margin: 6px 0 4px; }
 .pz-skc p { text-align: center; }
 .pz-skc .note span { white-space: nowrap; }
+
+/* ───────── 神通領悟（js/shentong.js）：自己的全螢幕層，蓋過章節地圖；按鈕固定在底部 ───────── */
+.st-ov { position: fixed; inset: 0; z-index: 9600; display: flex; align-items: center; justify-content: center; padding: 12px; padding-bottom: calc(12px + var(--safe-b, 0px)); background: rgba(3,5,9,.78); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.st-box { display: flex; flex-direction: column; width: 100%; max-width: 380px; max-height: 100%; padding: 14px 12px 10px; border: 1px solid var(--goldline); border-radius: 10px; background: linear-gradient(180deg, #121826, #0a0e17); color: var(--paper); box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+.st-box h3 { margin: 0; text-align: center; font-family: var(--brush); font-size: 26px; font-weight: 400; letter-spacing: 8px; color: var(--gold2); }
+.st-sub { margin: 4px 0 10px; text-align: center; font-size: 13px; opacity: .85; }
+.st-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 8px; }
+.st-opt { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; width: 100%; padding: 10px 12px; text-align: left; border: 1px solid rgba(216,196,138,.28); border-radius: 8px; background: rgba(255,255,255,.04); color: var(--paper); font: inherit; }
+.st-opt b { font-family: var(--brush); font-size: 19px; font-weight: 400; color: var(--gold2); }
+.st-opt em { align-self: center; padding: 0 6px; border: 1px solid rgba(159,232,255,.45); border-radius: 4px; font-size: 11px; font-style: normal; color: #9fe8ff; }
+.st-opt em.own { border-color: rgba(255,158,196,.55); color: #ff9ec4; }
+.st-opt span { grid-column: 1 / -1; font-size: 14px; line-height: 1.5; }
+button.st-opt.sel { border-color: var(--gold2); background: rgba(242,220,148,.14); box-shadow: 0 0 0 1px var(--gold2) inset; }
+.st-row { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px dashed rgba(216,196,138,.2); }
+.st-row h4 { margin: 0; font-family: var(--brush); font-weight: 400; font-size: 17px; color: var(--gold2); }
+.st-row .note { margin: 0; font-size: 13px; opacity: .75; }
+.st-row .seal.sm { align-self: flex-end; }
+.st-foot { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding-top: 10px; margin-top: 8px; border-top: 1px solid rgba(216,196,138,.2); }
+.st-foot p { flex: 1 0 100%; margin: 0; text-align: center; font-size: 14px; }
+.st-foot p.lack { color: #ff9a9a; }
+.st-foot .seal.sm { min-width: 96px; }

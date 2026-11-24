@@ -104,6 +104,7 @@ const Roster = {
     // 主角修行（放置版功法、法寶、副手、靈根、造化丹、道侶印記）：只乘在自己的主角身上
     const hero = T.find((m) => m.id === 'hero'), G = hero ? this.grow(hero) : null;
     if (G) mods.push({ t: 'atk', who: 'hero', mult: G.atkMult, src: '修行' }, { t: 'hp', who: 'hero', mult: G.hpMult, src: '修行' });
+    if (G) G.st.forEach((s1) => s1.fx.forEach((e) => mods.push({ ...e, el: e.el === 'self' ? hero.el : e.el, src: '神通' })));   // 神通（js/shentong.js）
     // 同陣營加成：主角、副隊長是「萬用」，可補進任一陣營；各陣營＝抽卡角色數＋萬用數，只取最高的一個陣營
     const wild = T.filter((m) => m.wild).length, facs = [];
     const best = Object.keys(PZ_FACS).map((f) => ({ fac: f, own: T.filter((m) => !m.wild && m.fac === f).length }))
@@ -127,7 +128,7 @@ const Roster = {
     return G;
   },
   growth() {
-    const P = PZ_GROWTH, d = S.d, out = { atk: 0, hp: 0, off: 0, mark: 0, by: {} };
+    const P = PZ_GROWTH, d = S.d, out = { atk: 0, hp: 0, off: 0, mark: 0, by: {}, st: typeof ST !== 'undefined' ? ST.list() : [] };
     const put = (src, stat, v) => {
       const [to, k] = P.conv[stat] || []; if (!to || !v) return;
       out[to] += v * k; const b = out.by[src] || (out.by[src] = { atk: 0, hp: 0 }); b[to] += v * k;
@@ -171,7 +172,8 @@ const Roster = {
   growthText(G) {
     const pc = (v) => `+${Math.round(v * 100)}%`, src = Object.entries(G.by).map(([k, b]) => `${k}${b.atk ? '攻' + pc(b.atk) : ''}${b.hp ? '血' + pc(b.hp) : ''}`);
     if (G.off) src.push(`副手攻 +${U.fmt(G.off)}`); if (G.mark) src.push(`道侶印記 ${pc(G.mark)}`);
-    return `主角攻 ×${G.atkMult.toFixed(2)}、血 ×${G.hpMult.toFixed(2)}${src.length ? `（${src.join('・')}）` : '（尚無功法、法寶等加成）'}`;
+    const st = G.st && G.st.length ? `<br><em>神通</em>${G.st.map((x) => `「${x.name}」${x.desc}`).join('・')}` : '';
+    return `主角攻 ×${G.atkMult.toFixed(2)}、血 ×${G.hpMult.toFixed(2)}${src.length ? `（${src.join('・')}）` : '（尚無功法、法寶等加成）'}${st}`;
   },
   // 地圖關卡說明裡的一行隊伍摘要
   summary() {
@@ -195,6 +197,7 @@ const Roster = {
     if (pick && inTeam && pick.id !== 'hero') acts.push(['out', '移出隊伍']);
     if (pick && !inTeam && g.own[pick.id]) acts.push(['in', emptySlot >= 0 ? '編入隊伍' : '換下選取的隊員']);
     const HR = this.hero();
+    if (pick && pick.id === 'hero' && typeof ST !== 'undefined' && (S.d.lv >= 3 || ST.list().length || ST.pending())) acts.push(['st', ST.pending() ? `領悟神通（${S.d.st.pend.length}）` : '神通']);
     if (pick && pick.id === 'hero' && HR.own) acts.push(['ownsk', HR.useOwn ? `改用兵器技「${pzSk(HR.wsk).name}」` : `改用本命技「${pzSk(HR.own).name}」`]);
     const html = `<div class="pzr"><h3>隊伍編組</h3>
       <div class="pzr-row">${card(byId.hero, 'hero', byId.hero.pos)}${card(byId.mate, 'mate', '副隊長')}${slots.map((id, i) => card(id && byId[id], id || 'slot' + i, id ? (byId[id].pos === '隊長' ? '隊長' : '隊員') : '空位')).join('')}</div>
@@ -220,6 +223,7 @@ const Roster = {
       const a = b.dataset.a;
       if (a === 'cap') this.setCap(pick.id);
       else if (a === 'out') this.remove(pick.id);
+      else if (a === 'st') return ST.open(() => re('hero'));
       else if (a === 'ownsk') { g.own_sk = g.own_sk === 'own' ? 'wpn' : 'own'; S.save(); }
       else if (a === 'in') this.put(emptySlot >= 0 ? emptySlot : Math.max(0, slots.indexOf(this._last)), pick.id);
       re(pick.id);
