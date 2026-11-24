@@ -1605,3 +1605,11 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pzd-days li.now { border-color: var(--gold2); box-shadow: 0 0 0 1px var(--gold2), 0 0 12px rgba(255,210,120,.35); }
 .pzd-days li.got { opacity: .55; }
 .pzd-days li i { font-style: normal; font-size: 11px; color: #9fe8d8; }
+/* 開技能確認框（轉珠）：頭像＋名字、技能名與說明；按鈕列沿用 .pz-panel 固定在底部、內容可捲動 */
+.pz-skc-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 4px; }
+.pz-skc-face { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: 50% 15%; border: 2px solid var(--goldline); background: rgba(255,255,255,.06); flex: none; }
+.pz-skc-head b { display: block; font-size: 17px; color: #f0e2c0; }
+.pz-skc-head small { color: var(--dim); font-size: 12px; }
+.pz-skc h3 { margin: 6px 0 4px; }
+.pz-skc p { text-align: center; }
+.pz-skc .note span { white-space: nowrap; }

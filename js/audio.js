@@ -24,16 +24,28 @@ const SFX_MAP = { swing1: ['slash', 0.8, 0.06], swing2: ['slash', 0.8, 0.06], sw
 const BGM_VOL = { pz_battle: 0.45 };
 // 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
 // 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
-const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_tick: 0.9, pz_drag: 0.8, pz_land: 1, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
-// 轉珠音檔（之後只改這裡）：assets/audio/<file>_<n>.mp3，n 從 1 起；只載入 js/asset-list.js 有列的檔（缺檔不請求、不 404），一個都沒有就用合成音
+const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_drag: 0.8, pz_land: 1, pz_heal: 1, sk_open: 1,
+  atk_wood: 1, atk_water: 1, atk_fire: 1, atk_light: 1, atk_dark: 1, gacha_draw: 1, gacha_ssr_pre: 1, gacha_ssr: 1, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
+// 轉珠音檔（之後只改這裡）：assets/audio/<file>_<n>.mp3（n 從 1 起）或 <file>.mp3；只載入 js/asset-list.js 有列的檔（缺檔不請求、不 404），一個都沒有就用合成音
+//   檔名開頭 pz_／atk_／fx_／sk_ 第一次點畫面就載；gacha_ 進轉珠地圖才載（Audio2.loadLazy）
 //   random：每次隨機播一個；combo：每 perFile 個 Combo 換高一階的檔（2 檔時 1～2→第 1 檔、3～4→第 2 檔），超出最高那檔的範圍後每多 1 Combo 音高 +rateStep，最高 maxRate 倍
 //   vol：音檔基準音量（再乘上 PZ_SFX_VOL；master 2.5 是給偏小聲的合成音調的）；jitter：音高隨機 ±（0.05＝0.95～1.05 倍）
 //   minGap：同一音效最短間隔（秒），太密的直接略過；max：同時最多幾個（1＝新的蓋掉舊的，不疊音）
-//   slide：距離上次換位小於這個秒數算「連續滑動」，播 pz_drag；否則算單次換位，播 pz_tick（js/puzzle.js 用）
-const PZ_SFX_FILES = { pz_tick: { file: 'pz_tick', pick: 'random', vol: 0.4, jitter: 0.05 },
-  pz_drag: { file: 'pz_drag', pick: 'random', vol: 0.4, jitter: 0.03, minGap: 0.045, max: 1, slide: 0.18 },
+const PZ_SFX_FILES = {
+  pz_drag: { file: 'pz_drag', pick: 'random', vol: 0.4, jitter: 0.05, minGap: 0.045, max: 1 },   // 換珠與拖曳經過每一格；放開即停
   pz_land: { file: 'pz_hit', pick: 'random', vol: 0.4, max: 1 },   // 放開後珠子落定；事件名不用 pz_hit（那是打到怪物的音效）
-  pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 2, rateStep: 0.06, maxRate: 1.5 } };
+  pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 2, rateStep: 0.06, maxRate: 1.5 },
+  pz_five: { file: 'pz_five', vol: 0.4 },          // 5 連珠（取代消除音）
+  pz_heal: { file: 'fx_heal', vol: 0.4 },          // 回血
+  pz_hurt: { file: 'fx_enemy_atk', vol: 0.4 },     // 敵人攻擊
+  pz_cast: { file: 'sk_open', pick: 'random', vol: 0.4 },   // 確認開技能
+  atk_wood: { file: 'atk_wood', vol: 0.4 }, atk_water: { file: 'atk_water', vol: 0.4 }, atk_fire: { file: 'atk_fire', vol: 0.4 },
+  atk_light: { file: 'atk_light', vol: 0.4 }, atk_dark: { file: 'atk_dark', vol: 0.4 },
+  gacha_draw: { file: 'gacha_draw', vol: 0.4 }, gacha_ssr_pre: { file: 'gacha_ssr_pre', vol: 0.4 }, gacha_ssr: { file: 'gacha_ssr', vol: 0.4 },
+};
+// 隊員攻擊音：遊戲屬性 → 音檔（遊戲沒有光、闇：金→光、土→闇；改這裡就好）
+//   metalLayer：攻擊起音疊一個 0.1 秒內的合成金屬敲擊，音量為主音的 metalVol 倍；主音檔缺時不疊
+const ATK_SFX = { map: { wood: 'atk_wood', water: 'atk_water', fire: 'atk_fire', metal: 'atk_light', earth: 'atk_dark' }, metalLayer: true, metalVol: 0.3 };
 const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
 
 const Audio2 = {
@@ -62,7 +74,13 @@ const Audio2 = {
     if (!AC) return;
     const c = (this.ctx = new AC());
     this.bgmBus = c.createGain(); this.bgmBus.connect(c.destination);
-    this.sfxBus = c.createGain(); this.sfxBus.connect(c.destination);
+    // 音效最後過一個限幅器：多個音效疊在一起（5 連珠＋消除、抽卡演出）也不會削波爆音
+    //   軟削波：0.8 以下完全線性（一般音效不受影響），超過的部分用 tanh 柔和壓到 1 以內；不像壓縮器會自動補增益
+    //   WaveShaper 只吃 -1～1 的輸入，所以先乘 0.5（可處理到 ±2 的訊號），曲線用 2u 畫回原比例
+    this.sfxBus = c.createGain(); const half = c.createGain(), lim = (this.sfxLim = c.createWaveShaper()), N = 4096, cv = new Float32Array(N), K = 0.8;
+    for (let i = 0; i < N; i++) { const x = ((i / (N - 1)) * 2 - 1) * 2, a = Math.abs(x); cv[i] = Math.sign(x) * (a <= K ? a : K + (1 - K) * Math.tanh((a - K) / (1 - K))); }
+    half.gain.value = 0.5; lim.curve = cv; lim.oversample = 'none';
+    this.sfxBus.connect(half); half.connect(lim); lim.connect(c.destination);
     // 合成配樂（抽卡 BGM）當成一條 BGM 軌
     this.synthOut = c.createGain(); this.synthOut.gain.value = 0; this.synthOut.connect(this.bgmBus);
     this.verb = c.createConvolver();
@@ -103,15 +121,20 @@ const Audio2 = {
         .catch(() => { this.sfxState[k] = 'missing'; console.warn(`[音效] 找不到或無法解碼：${url}`); });
     };
     for (const k of Object.keys(SFX_SRC)) load(k, `assets/audio/sfx_${k}.mp3`);
-    // 轉珠音檔只載清單裡有的：pz_tick_1.mp3 → buffers.pz_tick_1
-    (typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : []).forEach((s) => { const m = /^assets\/audio\/(pz_\w+_\d+)\.mp3$/.exec(s); if (m) load(m[1], s); });
+    this._load = load; this.loadList(/^(pz|atk|fx|sk)_/);
+    if (this.lazyWant) this.loadLazy();
   },
+  // 轉珠音檔只載清單裡有的：pz_drag_1.mp3 → buffers.pz_drag_1、atk_wood.mp3 → buffers.atk_wood
+  loadList(re) { (typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : []).forEach((s) => { const m = /^assets\/audio\/(\w+)\.mp3$/.exec(s); if (m && re.test(m[1]) && !this.sfxState[m[1]]) this._load(m[1], s); }); },
+  // 抽卡音效進轉珠地圖才載；音效還沒啟動就記著，啟動時一起載
+  loadLazy() { if (!this._load) { this.lazyWant = true; return; } this.loadList(/^gacha_/); },
+  has(name) { return !!this.pzPick(name); },
   // 轉珠音檔：依 PZ_SFX_FILES 選檔與音高；沒有已載入的檔回傳 null（改用合成音）
   pzPick(name, combo) {
     const pf = PZ_SFX_FILES[name]; if (!pf) return null;
-    const vs = Object.keys(this.buffers).filter((k) => k.startsWith(pf.file + '_') && /_\d+$/.test(k)).sort((a, b) => a.split('_').pop() - b.split('_').pop());
+    const vs = Object.keys(this.buffers).filter((k) => k === pf.file || (k.startsWith(pf.file + '_') && /^\d+$/.test(k.slice(pf.file.length + 1)))).sort((a, b) => (+a.split('_').pop() || 0) - (+b.split('_').pop() || 0));
     if (!vs.length) return null;
-    if (pf.pick === 'random') return { key: vs[Math.floor(Math.random() * vs.length)], rate: 1, pf };
+    if (pf.pick !== 'combo') return { key: vs[Math.floor(Math.random() * vs.length)], rate: 1, pf };
     const lv = Math.max(0, (combo || 1) - 1), i = Math.min(vs.length - 1, Math.floor(lv / pf.perFile));
     const over = i === vs.length - 1 ? Math.max(0, lv - (i + 1) * pf.perFile + 1) : 0;   // 只有最高那檔、超出它自己那段 Combo 後才往上調音高
     return { key: vs[i], rate: Math.min(pf.maxRate, 1 + over * pf.rateStep), pf };
@@ -204,23 +227,34 @@ const Audio2 = {
     const pf = PZ_SFX_FILES[name], now = this.ctx.currentTime;
     if (pf && pf.minGap) { if (now - (this.lastAt[name] ?? -9) < pf.minGap) return; this.lastAt[name] = now; }
     const pz = this.pzPick(name, opt.combo);
-    if (pz) return this.playBuf(pz.key, pz.pf.vol * (opt.vol ?? 1) * pv, pz.pf.jitter || 0, pz.rate, pz.pf.max);
+    if (pz) {
+      const vol = pz.pf.vol * (opt.vol ?? 1) * pv, rec = this.playBuf(pz.key, vol, pz.pf.jitter || 0, pz.rate, pz.pf.max, opt.when);
+      if (opt.metal && ATK_SFX.metalLayer) { this.sfxMul = vol * ATK_SFX.metalVol; this.synth('metal', { when: opt.when }); this.sfxMul = 1; }
+      return rec;
+    }
     if (!m || !this.buffers[m[0]]) { this.sfxMul = pv; this.synth(name, opt); this.sfxMul = 1; return; }   // 合成音也套同一張音量表
     this.playBuf(m[0], m[1] * (opt.vol ?? 1) * pv, m[2]);
   },
   lastAt: {},
-  playBuf(key, vol, jitter, rate = 1, max = SFX_MAX) {
+  playBuf(key, vol, jitter, rate = 1, max = SFX_MAX, when = 0) {
     const buf = this.buffers[key]; if (!buf) return;
     const list = (this.active[key] = (this.active[key] || []).filter((s) => !s.done));
     while (list.length >= max) this.fadeOut(list.shift());
     const src = this.ctx.createBufferSource(), g = this.ctx.createGain();
     src.buffer = buf; src.playbackRate.value = rate + (jitter ? U.rand(-jitter, jitter) : 0); g.gain.value = vol;
-    src.connect(g); g.connect(this.sfxBus); src.start();
-    const rec = { src, g, done: false }; src.onended = () => (rec.done = true); list.push(rec);
+    src.connect(g); g.connect(this.sfxBus); src.start(when);
+    const rec = { src, g, done: false, dur: buf.duration / src.playbackRate.value }; src.onended = () => (rec.done = true); list.push(rec);
+    return rec;
+  },
+  // 依序接著播（SSR 前奏→神卡）：第二段排在第一段結束的那一刻，不留空白；回傳全部有檔時第一段的長度（秒），缺任一檔回傳 null
+  chain(a, b) {
+    if (!this.ctx || !this.has(a) || !this.has(b)) return null;
+    const t0 = this.ctx.currentTime + 0.03, r = this.play(a, { when: t0 });
+    this.play(b, { when: t0 + r.dur }); return r.dur + 0.03;
   },
   fadeOut(s) { try { s.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.008); s.src.stop(this.ctx.currentTime + 0.04); } catch (e) {} s.done = true; },
   // 停掉某個轉珠音效正在播的音檔（拖曳放開即停）
-  stopPz(name) { const pf = PZ_SFX_FILES[name]; if (!pf || !this.ctx) return; Object.keys(this.active).filter((k) => k.startsWith(pf.file + '_')).forEach((k) => this.active[k].forEach((s) => !s.done && this.fadeOut(s))); },
+  stopPz(name) { const pf = PZ_SFX_FILES[name]; if (!pf || !this.ctx) return; Object.keys(this.active).filter((k) => k === pf.file || k.startsWith(pf.file + '_')).forEach((k) => this.active[k].forEach((s) => !s.done && this.fadeOut(s))); },
   // 循環音效（打坐）：on 淡入、off 淡出
   loop(name, on) {
     if (!this.ctx) { this.loopWant = on ? name : null; return; }
@@ -277,7 +311,10 @@ const Audio2 = {
       // 轉珠臨時合成音：之後有音檔時，在 SFX_SRC 加檔名、SFX_MAP 加 pz_xxx: ['檔名', 音量, 音高隨機] 即自動改播音檔
       case 'pz_pick': this.tone(660, 0.09, 'sine', 0.12, 220); break;
       case 'pz_tick': this.tone(1300 + Math.random() * 120, 0.03, 'square', 0.035); break;
-      case 'pz_drag': this.tone(1500 + Math.random() * 160, 0.02, 'square', 0.025); break;
+      case 'pz_drag': this.tone(1300 + Math.random() * 120, 0.03, 'square', 0.035); break;   // 原本換珠的合成音
+      case 'pz_heal': this.tone(880, 0.25, 'sine', 0.08, 440); this.tone(1320, 0.2, 'sine', 0.05, 440, 0.06); break;
+      // 攻擊起音的金屬敲擊：高頻快速衰減的三角波＋高通雜訊，0.1 秒內（音量由 sfxMul 帶入主音的 30%）
+      case 'metal': { const d = opt.when ? Math.max(0, opt.when - this.ctx.currentTime) : 0; this.tone(2600, 0.08, 'triangle', 0.5, -900, d); this.tone(3900, 0.05, 'triangle', 0.25, -1200, d); this.noise(0.06, 0.35, 5000, 0.8, d, 'highpass'); break; }
       case 'pz_land': this.tone(900, 0.06, 'triangle', 0.08, -200); break;
       case 'pz_clear': { const f = 440 * Math.pow(2, Math.min((opt.combo || 1) - 1, 14) / 12); this.tone(f, 0.28, 'triangle', 0.14); this.tone(f * 1.5, 0.22, 'sine', 0.06, 0, 0.03); this.noise(0.08, 0.08, 4000, 1); break; }
       case 'pz_five': { const f = 330 * Math.pow(2, Math.min((opt.combo || 1) - 1, 12) / 12); this.tone(f / 4, 0.6, 'sawtooth', 0.16, -40); this.tone(f, 0.5, 'triangle', 0.16); this.tone(f * 1.26, 0.45, 'triangle', 0.1, 0, 0.04); this.tone(f * 1.5, 0.45, 'sine', 0.1, 0, 0.08); this.tone(f * 2, 0.35, 'sine', 0.06, 200, 0.1); this.noise(0.5, 0.3, 1800, 0.8); break; }

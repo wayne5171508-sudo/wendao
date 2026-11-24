@@ -23,6 +23,8 @@ const Stage = {
     const num = (v, def) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : def);
     const g = { v: 1, sta: num(p.sta, f.sta), staAt: num(p.staAt, f.staAt), st: {}, sw: { date: '', n: {} }, ovf: Math.max(0, Math.floor(num(p.ovf, 0))), tut: p.tut ? 1 : 0 };
     g.sta = U.clamp(Math.floor(g.sta), 0, 9999);
+    d.settings = d.settings && typeof d.settings === 'object' ? d.settings : {};
+    if (typeof d.settings.skConfirm !== 'boolean') d.settings.skConfirm = true;   // 技能施放前確認（舊存檔補預設：開）
     const dl = p.daily && typeof p.daily === 'object' ? p.daily : {}, int = (v, def, lo) => Math.max(lo, Math.floor(num(v, def)));
     g.daily = { last: int(dl.last, -1, -1), streak: int(dl.streak, 0, 0), total: int(dl.total, 0, 0) };
     if (g.staAt > Date.now() || g.staAt < 0) g.staAt = Date.now();   // 時間被調過：從現在重算
@@ -197,6 +199,7 @@ const Stage = {
   },
   // 轉珠素材：第一次進轉珠地圖才在背景下載（音檔交給 Audio2 自己載）；之後由離線快取提供
   preloadPz() {
+    if (typeof Audio2 !== 'undefined') Audio2.loadLazy();   // 抽卡音效
     if (this._pre || typeof PZ_ASSET === 'undefined') return; this._pre = true;
     ASSET_LIST.filter((s) => PZ_ASSET.test(s) && !s.endsWith('.mp3')).forEach((s, i) => setTimeout(() => { const im = new Image(); im.src = s; }, i * 60));
   },
