@@ -27,7 +27,7 @@ const BGM_FADE_IN = { pz_boss: 0.5 };
 // 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
 // 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
 const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_drag: 0.8, pz_land: 1, pz_heal: 1, sk_open: 1,
-  pz_combo_hi: 1, stage_enter: 1, stage_next_walk: 1, stage_next_door: 1,
+  pz_combo_hi: 1, stage_enter: 1, stage_ready: 1, stage_next_walk: 1, stage_next_door: 1,
   atk_wood: 1, atk_water: 1, atk_fire: 1, atk_light: 1, atk_dark: 1, gacha_draw: 1, gacha_ssr_pre: 1, gacha_ssr: 1, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
 // 轉珠音檔（之後只改這裡）：assets/audio/<file>_<n>.mp3（n 從 1 起）或 <file>.mp3；只載入 js/asset-list.js 有列的檔（缺檔不請求、不 404），一個都沒有就用合成音
 //   檔名開頭 pz_／atk_／fx_／sk_ 第一次點畫面就載；gacha_ 進轉珠地圖才載（Audio2.loadLazy）
@@ -39,7 +39,8 @@ const PZ_SFX_FILES = {
   pz_land: { file: 'pz_hit', pick: 'random', vol: 0.4, max: 1 },   // 放開後珠子落定；事件名不用 pz_hit（那是打到怪物的音效）
   pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 1, rateStep: 0.06, maxRate: 1.5 },   // 只有 1 檔：每多 1 Combo 音高 +rateStep，最高 maxRate 倍
   pz_combo_hi: { file: 'pz_combo_hi', vol: 0.4, at: 8 },   // 高連擊：Combo 達到 at 時疊在消除音上（每回合一次）
-  stage_enter: { file: 'stage_enter', pick: 'random', vol: 0.4 },   // 進關卡：stage_enter_1～3 隨機
+  stage_enter: { file: 'stage_enter', pick: 'random', vol: 0.4 },   // 進入任一關卡：stage_enter_1、2 隨機
+  stage_ready: { file: 'stage_ready', vol: 0.4 },   // 準備進遊戲：從洞府或標題進到轉珠地圖時播一次（原「進關卡音效3」）
   stage_next_walk: { file: 'stage_next_walk', vol: 0.4 }, stage_next_door: { file: 'stage_next_door', vol: 0.4 },   // 通關按「下一關」：走路→開門
   pz_five: { file: 'pz_five', vol: 0.4 },          // 5 連珠（取代消除音）
   pz_heal: { file: 'fx_heal', vol: 0.4 },          // 回血

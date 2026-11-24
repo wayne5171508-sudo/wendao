@@ -893,14 +893,14 @@ if (typeof DEV !== 'undefined' && DEV) {
     b.className = 'region'; b.id = 'pzEntry';
     b.style.cssText = pzHas('entry_pz') ? 'background-image:linear-gradient(90deg,rgba(5,8,14,.72),rgba(5,8,14,.15) 70%),url(assets/ui/entry_pz.webp);background-position:50% 50%' : `background-image:url(${PZ_CHAPTERS[0].bg[0]});background-position:${PZ_ART.bgPos}`;
     b.innerHTML = `<h4>轉珠關卡</h4><p>${PZ_CHAPTERS[0].name}</p><span class="prog">測試・體力 ${Stage.sta()} / ${STA_CFG.max}</span>`;
-    b.onclick = () => Stage.showMap(1);
+    b.onclick = () => Stage.enterMode();
     t.after(b);
   };
   // 標題畫面也放一顆入口（沒有存檔也能測）
   const _title = Game.title;
   Game.title = function () {
     _title.apply(this, arguments);
-    const b = document.createElement('button'); b.className = 't-imp t-pz'; b.textContent = '轉珠關卡'; b.onclick = () => Stage.showMap(1);
+    const b = document.createElement('button'); b.className = 't-imp t-pz'; b.textContent = '轉珠關卡'; b.onclick = () => Stage.enterMode();
     const s = $('#sceneContent'); if (s) s.appendChild(b);
   };
   // 網址帶 &pz 直接開章節地圖

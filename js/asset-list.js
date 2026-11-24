@@ -17,7 +17,7 @@ const ASSET_LIST = [
   'assets/audio/pz_combo_hi.mp3',
   'assets/audio/stage_enter_1.mp3',
   'assets/audio/stage_enter_2.mp3',
-  'assets/audio/stage_enter_3.mp3',
+  'assets/audio/stage_ready.mp3',
   'assets/audio/stage_next_door.mp3',
   'assets/audio/stage_next_walk.mp3',
   'assets/audio/atk_dark.mp3',

@@ -98,7 +98,7 @@ const Stage = {
     if (o.stone) p.push(`${ic('stone')}靈石 ${U.fmt(o.stone)}</span>`);
     if (o.exp) p.push(`${ic('exp')}修為 ${U.fmt(o.exp)}</span>`);
     for (const [k, n] of Object.entries(o.items || {})) p.push(`${ic(k)}${(ITEMS[k] && ITEMS[k].name) || k} ×${n}</span>`);
-    return p.join('、') || '無';
+    return p.join('、<wbr>') || '無';   // <wbr>：每項是不換行的圖示＋文字，Safari 不會在「、」後自己斷行（章節獎勵合計會連成一條撐破面板）
   },
   ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入<span class="nw">（共 ${U.fmt(this.d.ovf)}）</span>`; },
   // 預覽用（還沒發）：修為以目前速度估
@@ -176,6 +176,8 @@ const Stage = {
   },
 
   // ════════ 章節地圖 ════════
+  // 從洞府或標題進入轉珠模式：播「準備進遊戲」再開地圖（戰鬥結束回地圖、抽卡返回都不播）
+  enterMode(ch = 1) { if (typeof Audio2 !== 'undefined') { Audio2.unlock(); Audio2.play('stage_ready'); } this.showMap(ch); },
   mapOn: false,
   showMap(ch = 1) {
     this.ch = PZ_CHAPTERS.find((c) => c.id === ch) || PZ_CHAPTERS[0];
