@@ -7,6 +7,7 @@
 //    team [id|null ×3] 三個隊員位
 //    cap  'hero'＝主角當隊長，或隊上某角色的 id
 //    mate 道侶主角快照（雲端 heroes/<uid> 讀來的最後一份；dev 模擬的帶 sim:true）
+//    own_sk 'wpn'＝主動技用兵器技、'own'＝用本命技（結丹解鎖；v2 起，舊存檔補 'wpn'）
 //  雲端：heroes/<uid> 放自己的主角快照，道侶讀它當副隊長（需阿文部署規則）
 // ════════════════════════════════════════════
 
@@ -17,17 +18,17 @@ const Roster = {
   get d() { return S.d.pz.ro; },
 
   // ───────── 存檔 ─────────
-  fresh() { return { v: 1, own: Object.fromEntries(PZ_STARTER.map((id) => [id, { star: 1 }])), team: PZ_STARTER.slice(0, 3), cap: 'hero', mate: null }; },
+  fresh() { return { v: 2, own_sk: 'wpn', own: Object.fromEntries(PZ_STARTER.map((id) => [id, { star: 1 }])), team: PZ_STARTER.slice(0, 3), cap: 'hero', mate: null }; },
   fix(o) {
     if (!o || typeof o !== 'object' || Array.isArray(o)) return this.fresh();   // 舊存檔：沒有這欄＝送起始角色
-    const r = { v: 1, own: {}, team: [null, null, null], cap: 'hero', mate: this.clean(o.mate) }, nid = (id) => PZ_RENAMED[id] || id;
+    const r = { v: 2, own_sk: o.own_sk === 'own' ? 'own' : 'wpn', own: {}, team: [null, null, null], cap: 'hero', mate: this.clean(o.mate) }, nid = (id) => PZ_RENAMED[id] || id;
     if (r.mate && o.mate.sim) r.mate.sim = true;
     if (r.mate && typeof o.mate.uid === 'string') r.mate.uid = o.mate.uid.slice(0, 64);
     if (o.own && typeof o.own === 'object') for (const [id0, v] of Object.entries(o.own)) {
       const id = nid(id0), C = pzChar(id); if (!C) continue;
       r.own[id] = { star: Math.max((r.own[id] && r.own[id].star) || 1, U.clamp(Math.floor(Number(v && v.star) || 1), 1, PZ_RARITY[C.rare].maxStar)) };
     }
-    if (!Object.keys(r.own).length) return { ...this.fresh(), mate: r.mate };   // 舊角色都對不到：重送起始角色
+    if (!Object.keys(r.own).length) return { ...this.fresh(), mate: r.mate, own_sk: r.own_sk };   // 舊角色都對不到：重送起始角色
     if (Array.isArray(o.team)) o.team.slice(0, 3).forEach((id, i) => { id = nid(id); if (r.own[id] && !r.team.includes(id)) r.team[i] = id; });
     r.cap = r.team.includes(nid(o.cap)) ? nid(o.cap) : 'hero';
     return r;
@@ -46,13 +47,24 @@ const Roster = {
   },
 
   // ───────── 主角 ─────────
-  // 自己的主角快照（也是寫到雲端 heroes/<uid> 的內容）
-  snap() {
-    const d = S.d, k = 1 + (d.lv || 0) * PZ_HERO.lvStep, w = S.wMain(), ws = w ? S.wStat(w.id) : null;
+  // 角色別主角設定（PZ_HERO_BY_CHAR）與目前大境界的技能；找不到角色退回 PZ_HERO
+  hero() {
+    const d = S.d, H = PZ_HERO_BY_CHAR[(d.dao && d.dao.char) || 'qingyuan'], i = Math.min(4, Math.floor((d.lv || 0) / 3)), w = S.wMain();
+    const wsk = (w && PZ_HERO.wpnSk[w.id]) || PZ_HERO.sk, own = H && (d.lv || 0) >= PZ_OWN_LV ? H.own[i] : null;
+    return { H: H || PZ_HERO, w, wsk, own, useOwn: !!own && this.d.own_sk === 'own', lead: H ? H.lead[i] : PZ_HERO.lead, sub: H ? H.sub[i] : PZ_HERO.sub, role: (H && H.role) || PZ_HERO.role };
+  },
+  // 主角基礎數值（未加修行）：自己隊上的主角用這份，修行加成由 calc 套用
+  base() {
+    const d = S.d, R = this.hero(), k = 1 + (d.lv || 0) * PZ_HERO.lvStep, ws = R.w ? S.wStat(R.w.id) : null;
     return { name: (typeof HERO_NAME !== 'undefined' && HERO_NAME) || '林清遠', char: (d.dao && d.dao.char) || 'qingyuan', el: PZ_ROOT[d.root] || 'wood', lv: d.lv || 0,
-      atk: Math.round(PZ_HERO.atk * k + (ws ? ws.atk * PZ_HERO.wpnAtk : 0)), hp: Math.round(PZ_HERO.hp * k), rcv: Math.round(PZ_HERO.rcv * k),
-      wpn: w ? w.id : null, sk: (w && PZ_HERO.wpnSk[w.id]) || PZ_HERO.sk, sub: PZ_HERO.sub, at: Date.now(),
+      atk: Math.round(R.H.atk * k + (ws ? ws.atk * PZ_HERO.wpnAtk : 0)), hp: Math.round(R.H.hp * k), rcv: Math.round(R.H.rcv * k),
+      wpn: R.w ? R.w.id : null, sk: R.useOwn ? R.own : R.wsk, sub: R.sub, at: Date.now(),
       st: Object.fromEntries(Object.entries(this.d.own).map(([id, o]) => [id, o.star])) };   // 角色星級：抽卡升星後跟著同步到雲端
+  },
+  // 寫到雲端 heroes/<uid> 的快照：欄位同 base，atk／hp 換成修行後的數值（道侶當副隊長時不再乘修行），夾在 clean() 的上限內
+  snap() {
+    const b = this.base(), G = this.grow(b);
+    return { ...b, atk: U.clamp(Math.round(b.atk * G.atkMult), 1, 99999), hp: U.clamp(Math.round(b.hp * G.hpMult), 1, 999999) };
   },
   // 道侶主角：有快照用快照；綁了道侶但還沒同步過＝預設數值配道侶名字；沒綁＝預設補位
   mateSnap() {
@@ -63,9 +75,10 @@ const Roster = {
   },
   // 主角／道侶快照 → 隊員
   fromSnap(s, pos, self) {
-    return { id: self ? 'hero' : 'mate', src: self ? 'self' : 'partner', name: s.name, short: s.name, el: s.el, role: PZ_HERO.role, fac: PZ_HERO.fac, wild: true, rare: '', star: 0,
+    const R = self ? this.hero() : null;
+    return { id: self ? 'hero' : 'mate', src: self ? 'self' : 'partner', name: s.name, short: s.name, el: s.el, role: self ? R.role : PZ_HERO.role, fac: PZ_HERO.fac, wild: true, rare: '', star: 0,
       atk: s.atk, hp: s.hp, rcv: s.rcv, img: `assets/ui/char_${s.char}.webp`, port: false, pos, lv: s.lv, wpn: s.wpn,
-      sk: pzSk(s.sk), lead: pzSk(self ? PZ_HERO.lead : s.sub), leadId: self ? PZ_HERO.lead : s.sub, mateSrc: s.src };
+      sk: pzSk(s.sk), lead: pzSk(self ? R.lead : s.sub), leadId: self ? R.lead : s.sub, mateSrc: s.src };
   },
   // 抽卡角色 → 隊員（數值乘星級）
   fromChar(id, pos) {
@@ -78,7 +91,7 @@ const Roster = {
   // ───────── 組隊 ─────────
   // 回傳 [隊長, 副隊長, 隊員…]：主角固定在隊上，隊長可換成隊上的抽卡角色
   team() {
-    const g = this.d, hero = this.fromSnap(this.snap(), '隊員', true), mate = this.fromSnap(this.mateSnap(), '副隊長', false);
+    const g = this.d, hero = this.fromSnap(this.base(), '隊員', true), mate = this.fromSnap(this.mateSnap(), '副隊長', false);
     const mem = g.team.filter((id) => id && g.own[id]).map((id) => this.fromChar(id, '隊員'));
     const all = [hero, ...mem], cap = all.find((m) => m.id === g.cap) || hero;
     cap.pos = '隊長';
@@ -89,8 +102,8 @@ const Roster = {
     const leads = [[T[0], T[0].lead], [T[1], T[1].lead]].filter(([, L]) => L), mods = [];
     leads.forEach(([m, L]) => L.fx.forEach((e) => mods.push({ ...e, el: e.el === 'self' ? m.el : e.el, fac: e.fac === 'self' ? m.fac : e.fac, src: L.name })));
     // 主角修行（放置版功法、法寶、副手、靈根、造化丹、道侶印記）：只乘在自己的主角身上
-    const hero = T.find((m) => m.id === 'hero'), G = hero ? this.growth() : null;
-    if (G) { G.atkMult = ((hero.atk + G.off) * (1 + G.atk) * (1 + G.mark)) / hero.atk; G.hpMult = (1 + G.hp) * (1 + G.mark); mods.push({ t: 'atk', who: 'hero', mult: G.atkMult, src: '修行' }, { t: 'hp', who: 'hero', mult: G.hpMult, src: '修行' }); }
+    const hero = T.find((m) => m.id === 'hero'), G = hero ? this.grow(hero) : null;
+    if (G) mods.push({ t: 'atk', who: 'hero', mult: G.atkMult, src: '修行' }, { t: 'hp', who: 'hero', mult: G.hpMult, src: '修行' });
     // 同陣營加成：主角、副隊長是「萬用」，可補進任一陣營；各陣營＝抽卡角色數＋萬用數，只取最高的一個陣營
     const wild = T.filter((m) => m.wild).length, facs = [];
     const best = Object.keys(PZ_FACS).map((f) => ({ fac: f, own: T.filter((m) => !m.wild && m.fac === f).length }))
@@ -103,10 +116,16 @@ const Roster = {
     const sum = (t, k = 'n') => mods.filter((e) => e.t === t).reduce((a, e) => a + (e[k] || 0), 0);
     const hp = Math.round(T.reduce((a, m) => a + m.hp * this.mul(mods, 'hp', m), 0)), rcv = Math.round(T.reduce((a, m) => a + m.rcv * this.mul(mods, 'rcv', m), 0));
     const atk = Math.round(T.reduce((a, m) => a + m.atk * this.mul(mods, 'atk', m), 0));
-    return { mods, facs, hp, rcv, atk, growth: G, combo: sum('combo'), delay: sum('delay'), time: sum('time', 'sec'), comboUp: sum('comboUp', 'add'), pierce: mods.some((e) => e.t === 'pierce'),
+    return { mods, facs, hp, rcv, atk, growth: G, combo: sum('combo'), delay: sum('delay'), time: sum('time', 'sec'), comboUp: sum('comboUp', 'add'), regen: sum('regen', 'pct'), guard: mods.reduce((a, e) => (e.t === 'guard' ? a * (1 - (e.pct || 0)) : a), 1), pierce: mods.some((e) => e.t === 'pierce'),
       leads: leads.map(([m, L], i) => ({ ...L, who: m.name, pos: i ? '副隊長技' : '隊長技' })) };
   },
   // 主角修行加成：數值與換算都在 js/pz-growth-cfg.js。atk／hp 為加總的百分比（0.3＝+30%），off 為副手換成的轉珠攻擊點數，mark 為道侶印記
+  // 修行加成套到某份主角數值 b（atk、hp）上的倍率
+  grow(b) {
+    const G = this.growth();
+    G.atkMult = ((b.atk + G.off) * (1 + G.atk) * (1 + G.mark)) / b.atk; G.hpMult = (1 + G.hp) * (1 + G.mark);
+    return G;
+  },
   growth() {
     const P = PZ_GROWTH, d = S.d, out = { atk: 0, hp: 0, off: 0, mark: 0, by: {} };
     const put = (src, stat, v) => {
@@ -175,6 +194,8 @@ const Roster = {
     if (pick && inTeam && pick.pos !== '隊長') acts.push(['cap', '設為隊長']);
     if (pick && inTeam && pick.id !== 'hero') acts.push(['out', '移出隊伍']);
     if (pick && !inTeam && g.own[pick.id]) acts.push(['in', emptySlot >= 0 ? '編入隊伍' : '換下選取的隊員']);
+    const HR = this.hero();
+    if (pick && pick.id === 'hero' && HR.own) acts.push(['ownsk', HR.useOwn ? `改用兵器技「${pzSk(HR.wsk).name}」` : `改用本命技「${pzSk(HR.own).name}」`]);
     const html = `<div class="pzr"><h3>隊伍編組</h3>
       <div class="pzr-row">${card(byId.hero, 'hero', byId.hero.pos)}${card(byId.mate, 'mate', '副隊長')}${slots.map((id, i) => card(id && byId[id], id || 'slot' + i, id ? (byId[id].pos === '隊長' ? '隊長' : '隊員') : '空位')).join('')}</div>
       <div class="pzr-sum"><span>氣血 <b>${U.fmt(C.hp)}</b></span><span>攻擊 <b>${U.fmt(C.atk)}</b></span><span>回復 <b>${U.fmt(C.rcv)}</b></span></div>
@@ -182,6 +203,7 @@ const Roster = {
       ${pick ? this.info(pick) : `<p class="c note">點下方角色編入這個空位</p>`}
       ${pick && pick.src === 'char' && !g.own[pick.id] ? '<p class="c note">尚未擁有・可從抽卡取得</p>' : ''}
       ${acts.length ? `<div class="pz-row">${acts.map(([k, t]) => `<button class="pz-btn" data-a="${k}">${t}</button>`).join('')}</div>` : ''}
+      ${pick && pick.id === 'hero' && !HR.own ? `<p class="c note">結丹期解鎖本命技（可與兵器技二選一）</p>` : ''}
       ${pick && pick.id === 'mate' ? `<p class="c note">${{ none: '尚未締結道侶：由預設道友補位', bond: '道侶尚未同步主角資料：先用預設數值', cloud: '道侶上次同步的主角資料', sim: '測試用模擬道侶' }[pick.mateSrc]}</p>` : ''}
       <h4>圖鑑（已擁有 ${Object.keys(g.own).length} / ${PZ_CHARS.length}）</h4>
       <div class="pzr-list">${PZ_CHARS.map((c) => { const m = this.fromChar(c.id, ''), has = g.own[c.id]; return `<button class="pzr-card${sel === c.id ? ' sel' : ''}${has ? '' : ' lock'}${slots.includes(c.id) ? ' in' : ''}" data-k="${c.id}" style="--r:${PZ_RARITY[c.rare].c}">${this.face(m)}<small>${m.short}</small></button>`; }).join('')}</div>
@@ -198,6 +220,7 @@ const Roster = {
       const a = b.dataset.a;
       if (a === 'cap') this.setCap(pick.id);
       else if (a === 'out') this.remove(pick.id);
+      else if (a === 'ownsk') { g.own_sk = g.own_sk === 'own' ? 'wpn' : 'own'; S.save(); }
       else if (a === 'in') this.put(emptySlot >= 0 ? emptySlot : Math.max(0, slots.indexOf(this._last)), pick.id);
       re(pick.id);
     }));

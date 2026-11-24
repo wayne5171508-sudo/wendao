@@ -21,6 +21,10 @@
 //  t: 'time'    轉珠時間 +sec 秒。隊長技＝每回合；主動技＝本回合
 //  t: 'comboUp' 每多 1 Combo 的傷害加成再 +add（基礎見 PZ_CFG.comboStep）。隊長技＝整場；主動技＝本回合
 //  t: 'convert' 的 from 可填陣列（多色一起轉）；atk／hp／rcv 的 el 可填陣列（多屬性）
+//  t: 'regen'   回合結束回復 pct 成最大氣血。隊長技／副隊長技＝每回合
+//  t: 'guard'   受到的傷害 ×（1 − pct）。隊長技＝整場；主動技＝之後 n 回合（n 不填＝1）。多個減傷相乘
+//  t: 'cdCut'   其他隊員的技能冷卻 −n。主動技
+//  t: 'execute' 非首領敵人氣血低於 pct 成直接倒下（本回合內施放當下與之後的攻擊都會檢查）。主動技
 //  el／fac 填 'self'＝施放者自己的屬性／陣營
 const PZ_SKILLS = {
   // 主角（隊長）
@@ -34,6 +38,35 @@ const PZ_SKILLS = {
   nitian_sk:  { name: '逆天', cd: 6, desc: '本回合無視防禦，且自身屬性攻擊 ×2', fx: [{ t: 'pierce' }, { t: 'atk', el: 'self', mult: 2 }] },
   jinxia_sk:  { name: '破防', cd: 4, desc: '本回合無視敵方的防禦與減傷', fx: [{ t: 'pierce' }] },
   chixiao_sk: { name: '連擊', cd: 4, desc: '本回合結算 Combo 數 +2', fx: [{ t: 'combo', n: 2 }] },
+  // ── 主角角色別技能（見 PZ_HERO_BY_CHAR，依大境界取用）──
+  // 男主・林清遠：輸出、爆發（禁制、斬斷）
+  qy_lead1: { name: '劍心封禁', desc: '與隊長同屬性的隊員攻擊 ×1.5', fx: [{ t: 'atk', el: 'self', mult: 1.5 }] },
+  qy_lead2: { name: '劍心封禁・二重', desc: '與隊長同屬性的隊員攻擊 ×1.8', fx: [{ t: 'atk', el: 'self', mult: 1.8 }] },
+  qy_lead3: { name: '劍心封禁・三重', desc: '與隊長同屬性的隊員攻擊 ×2，每多 1 Combo 傷害再 +10%', fx: [{ t: 'atk', el: 'self', mult: 2 }, { t: 'comboUp', add: 0.1 }] },
+  qy_lead4: { name: '劍心封禁・四重', desc: '與隊長同屬性的隊員攻擊 ×2.2，每回合 Combo +1', fx: [{ t: 'atk', el: 'self', mult: 2.2 }, { t: 'combo', n: 1 }] },
+  qy_lead5: { name: '劍心封禁・五重', desc: '與隊長同屬性的隊員攻擊 ×2.5，每回合 Combo +1，每多 1 Combo 傷害再 +15%', fx: [{ t: 'atk', el: 'self', mult: 2.5 }, { t: 'combo', n: 1 }, { t: 'comboUp', add: 0.15 }] },
+  qy_sub1:  { name: '劍鳴同契', desc: '全隊攻擊 ×1.15', fx: [{ t: 'atk', mult: 1.15 }] },
+  qy_sub2:  { name: '劍鳴同契・二重', desc: '全隊攻擊 ×1.2', fx: [{ t: 'atk', mult: 1.2 }] },
+  qy_sub3:  { name: '劍鳴同契・三重', desc: '全隊攻擊 ×1.25', fx: [{ t: 'atk', mult: 1.25 }] },
+  qy_sub4:  { name: '劍鳴同契・四重', desc: '全隊攻擊 ×1.3', fx: [{ t: 'atk', mult: 1.3 }] },
+  qy_sub5:  { name: '劍鳴同契・五重', desc: '全隊攻擊 ×1.35，每回合 Combo +1', fx: [{ t: 'atk', mult: 1.35 }, { t: 'combo', n: 1 }] },
+  qy_own1:  { name: '封天禁劍', cd: 5, desc: '本回合無視防禦，以自身屬性造成攻擊 12 倍傷害', fx: [{ t: 'pierce' }, { t: 'nuke', mult: 12 }] },
+  qy_own2:  { name: '千鎖禁制', cd: 6, desc: '以自身屬性對全體造成攻擊 8 倍傷害，全體敵人出手倒數 +1', fx: [{ t: 'nuke', mult: 8, all: true }, { t: 'delay', n: 1 }] },
+  qy_own3:  { name: '斬界', cd: 7, desc: '本回合無視防禦，攻擊 25 倍傷害；非首領敵人氣血低於兩成直接斬殺', fx: [{ t: 'pierce' }, { t: 'execute', pct: 0.2 }, { t: 'nuke', mult: 25 }] },
+  // 女主・蘇雲汐：輔助、控場、回復（夢境、時間、魂幡）
+  yx_lead1: { name: '雲汐清夢', desc: '全隊氣血 ×1.2、回復 ×1.5', fx: [{ t: 'hp', mult: 1.2 }, { t: 'rcv', mult: 1.5 }] },
+  yx_lead2: { name: '雲汐清夢・二重', desc: '全隊氣血 ×1.3、回復 ×1.6，轉珠時間 +1 秒', fx: [{ t: 'hp', mult: 1.3 }, { t: 'rcv', mult: 1.6 }, { t: 'time', sec: 1 }] },
+  yx_lead3: { name: '雲汐清夢・三重', desc: '全隊氣血 ×1.4、回復 ×1.8，轉珠時間 +1.5 秒', fx: [{ t: 'hp', mult: 1.4 }, { t: 'rcv', mult: 1.8 }, { t: 'time', sec: 1.5 }] },
+  yx_lead4: { name: '雲汐清夢・四重', desc: '全隊氣血 ×1.4、回復 ×1.8，轉珠時間 +1.5 秒，每回合結束回復 5% 氣血', fx: [{ t: 'hp', mult: 1.4 }, { t: 'rcv', mult: 1.8 }, { t: 'time', sec: 1.5 }, { t: 'regen', pct: 0.05 }] },
+  yx_lead5: { name: '雲汐清夢・五重', desc: '同四重，且全隊受到的傷害減兩成', fx: [{ t: 'hp', mult: 1.4 }, { t: 'rcv', mult: 1.8 }, { t: 'time', sec: 1.5 }, { t: 'regen', pct: 0.05 }, { t: 'guard', pct: 0.2 }] },
+  yx_sub1:  { name: '夢引同心', desc: '全隊氣血 ×1.2，轉珠時間 +1 秒', fx: [{ t: 'hp', mult: 1.2 }, { t: 'time', sec: 1 }] },
+  yx_sub2:  { name: '夢引同心・二重', desc: '全隊氣血 ×1.25，轉珠時間 +1 秒', fx: [{ t: 'hp', mult: 1.25 }, { t: 'time', sec: 1 }] },
+  yx_sub3:  { name: '夢引同心・三重', desc: '全隊氣血 ×1.3，轉珠時間 +1.5 秒', fx: [{ t: 'hp', mult: 1.3 }, { t: 'time', sec: 1.5 }] },
+  yx_sub4:  { name: '夢引同心・四重', desc: '全隊氣血 ×1.35，每回合結束回復 3% 氣血', fx: [{ t: 'hp', mult: 1.35 }, { t: 'regen', pct: 0.03 }] },
+  yx_sub5:  { name: '夢引同心・五重', desc: '全隊氣血 ×1.4，受到的傷害減一成', fx: [{ t: 'hp', mult: 1.4 }, { t: 'guard', pct: 0.1 }] },
+  yx_own1:  { name: '夢境迴廊', cd: 6, desc: '全體敵人出手倒數 +2，回復三成氣血', fx: [{ t: 'delay', n: 2 }, { t: 'heal', pct: 0.3 }] },
+  yx_own2:  { name: '魂幡引渡', cd: 5, desc: '心珠全部轉為自身屬性珠，本回合造成傷害的三成回復氣血', fx: [{ t: 'convert', from: 'heart' }, { t: 'leech', pct: 0.3 }] },
+  yx_own3:  { name: '光陰回溯', cd: 8, desc: '其他隊員技能冷卻 −2，回復五成氣血', fx: [{ t: 'cdCut', n: 2 }, { t: 'heal', pct: 0.5 }] },
   // 通用（測試、道侶模擬用）
   ld_hp:      { name: '固守', desc: '全隊氣血 ×1.5', fx: [{ t: 'hp', mult: 1.5 }] },
   // ── SSR ──
@@ -86,6 +119,15 @@ const PZ_HERO = {
   wpnSk: { qinggang: 'jianqi', xuantie: 'jianqi', liuyun: 'liuyun_sk', bitao: 'liuyun_sk', shuanghan: 'shuang_sk', zichen: 'shuang_sk',
     jinxia: 'jinxia_sk', qingming: 'qingming_sk', chixiao: 'chixiao_sk', nitian: 'nitian_sk' },
 };
+// 角色別主角：數值與技能依角色（S.d.dao.char）與大境界 Math.floor(lv / 3)（0 凝氣～4 化神）取用；找不到角色時退回 PZ_HERO
+// lead 隊長技、sub 副隊長技（寫進雲端快照給道侶用）、own 本命技（結丹 lv ≥ 6 解鎖，null＝該境界沒有）
+const PZ_HERO_BY_CHAR = {
+  qingyuan: { atk: 560, hp: 1300, rcv: 110, role: 'dps',
+    lead: ['qy_lead1', 'qy_lead2', 'qy_lead3', 'qy_lead4', 'qy_lead5'], sub: ['qy_sub1', 'qy_sub2', 'qy_sub3', 'qy_sub4', 'qy_sub5'], own: [null, null, 'qy_own1', 'qy_own2', 'qy_own3'] },
+  yunxi:    { atk: 470, hp: 1500, rcv: 210, role: 'heal',
+    lead: ['yx_lead1', 'yx_lead2', 'yx_lead3', 'yx_lead4', 'yx_lead5'], sub: ['yx_sub1', 'yx_sub2', 'yx_sub3', 'yx_sub4', 'yx_sub5'], own: [null, null, 'yx_own1', 'yx_own2', 'yx_own3'] },
+};
+const PZ_OWN_LV = 6;   // 本命技解鎖境界（結丹初期）
 // 沒綁道侶時的副隊長補位（綁了但對方還沒同步過快照：用這組數值、名字換成道侶名字）
 const PZ_MATE_DEFAULT = { name: '雲遊道友', char: 'yunxi', el: 'wood', lv: 0, atk: 460, hp: 1300, rcv: 200, wpn: null, sk: 'liuyun_sk', sub: 'hero_sub' };
 

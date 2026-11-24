@@ -23,3 +23,8 @@ const PZ_GROWTH = {
   // 道侶印記：有道侶（含 ?dev 模擬道侶／模擬在線）時，每層攻擊、氣血 +markRate（放置版同為每層 2%）
   markRate: 0.02,
 };
+
+// 流雲技（流雲劍、碧濤劍）：轉心珠、回血之外再補一段自身屬性傷害，避免換上流雲劍後打首領反而變弱
+const PZ_LIUYUN_NUKE = 3;   // 攻擊幾倍
+PZ_SKILLS.liuyun_sk.fx.push({ t: 'nuke', mult: PZ_LIUYUN_NUKE });
+PZ_SKILLS.liuyun_sk.desc = `心珠全部轉為自身屬性珠，回復兩成氣血，再造成攻擊 ${PZ_LIUYUN_NUKE} 倍傷害`;

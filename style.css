@@ -1053,6 +1053,9 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-hp.team { flex: none; height: 14px; margin: 3px 0 0; }
 .pz-hp.team i { background: linear-gradient(#7fe0a0, #2a8a4a); }
 .pz-hp.team span { line-height: 14px; }
+.pz-tst { position: absolute; left: 3px; top: 0; display: flex; gap: 3px; font: 600 9px/14px var(--serif); pointer-events: none; }
+.pz-tst em { font-style: normal; padding: 0 3px; border-radius: 3px; background: rgba(0,0,0,.55); text-shadow: 0 0 2px #000; }
+.pz-tst .rg { color: #ff9ccc; } .pz-tst .gd { color: #8ff0d8; } .pz-tst .ex { color: #f3e7b0; }
 .pz-warn i { font-style: normal; font-weight: 700; }
 .pz-warn .hv { color: #ff8a7a; animation: pzBlink 1s infinite; }
 .pz-fl { position: absolute; inset: 0; z-index: 4; pointer-events: none; }

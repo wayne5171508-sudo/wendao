@@ -136,7 +136,7 @@ const Puzzle = {
     this.team = pzTeam().map((m) => ({ ...m, cd: !m.sk ? 0 : PZ_CFG.skillStartHalf ? Math.ceil(m.sk.cd / 2) : m.sk.cd }));
     // 隊長技＋副隊長技＋同陣營加成（效果清單見 roster-cfg.js 效果庫）
     const C = Roster.calc(this.team);
-    this.mods = C.mods; this.leads = C.leads; this.facs = C.facs; this.base = { combo: C.combo, delay: C.delay, pierce: C.pierce, time: C.time, comboUp: C.comboUp }; this.dots = [];
+    this.mods = C.mods; this.leads = C.leads; this.facs = C.facs; this.base = { combo: C.combo, delay: C.delay, pierce: C.pierce, time: C.time, comboUp: C.comboUp, regen: C.regen, guard: C.guard }; this.dots = []; this.guards = [];
     this.hpMax = C.hp; this.hp = this.hpMax; this.rcv = C.rcv;
     this.buff = this.newBuff();
     this.sid = (this.sid || 0) + 1;   // 每局一個編號：撤退或重試後，上一局還在跑的結算醒來發現編號變了就停
@@ -239,7 +239,7 @@ const Puzzle = {
       <div class="pz-team"><div class="pz-combo" id="pzCombo"></div>${T.map((m, i) => `<button class="pz-mem" data-m="${i}" style="--c:${PZ_EL[m.el].c};--d:${PZ_EL[m.el].d}">
           <span class="pz-face">${m.img ? `<img${m.port ? ' class="port"' : ''} src="${m.img}" alt="" onerror="this.remove()">` : ''}<em>${m.short.slice(-2)}</em>${pzElI(m.el, 'pz-eli')}</span>
           <span class="pz-sk"></span><small>${m.pos === '隊員' ? m.short.slice(0, 4) : m.pos}</small></button>`).join('')}</div>
-      <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span></div>
+      <div class="pz-hp team"><i id="pzTHp"></i><span id="pzTHpT"></span><b class="pz-tst" id="pzTSt"></b></div>
       <div class="pz-timer"><b class="pz-tmi"></b><i id="pzTm"></i></div>
       <div class="pz-boardwrap"><canvas id="pzCv"></canvas><canvas class="pz-lift" id="pzLift"></canvas><div class="pz-hint" id="pzHint">按住珠子拖曳換位，放開或 ${this.mt()} 秒到就結算</div></div>
       <div class="pz-toast" id="pzToast"></div>${this.dbg ? '<div class="pz-dbg" id="pzDbg"></div><i class="pz-dot" id="pzDot"></i>' : ''}
@@ -475,7 +475,20 @@ const Puzzle = {
     if (this.hp <= 0) return this.lose();
     this.endTurn();
   },
-  newBuff() { return { pierce: false, combo: 0, atk: [], leech: 0, time: 0, comboUp: 0 }; },
+  newBuff() { return { pierce: false, combo: 0, atk: [], leech: 0, time: 0, comboUp: 0, exec: 0 }; },
+  // 受到傷害的倍率：隊長技減傷 × 主動技減傷（guard）
+  guardMul() { return this.base.guard * this.guards.reduce((a, g) => a * (1 - g.pct), 1); },
+  // 斬殺（execute）：本回合內，非首領敵人氣血低於門檻直接倒下
+  execNow() {
+    if (!this.buff.exec) return;
+    this.alive().forEach((f) => { if (!f.boss && f.hp / f.max < this.buff.exec) { this.hitFoe(f, f.hp, 1, '#f3e7b0'); this.float('斬殺', '#f3e7b0', 'boss'); } });
+  },
+  // 技能打倒整波：直接換下一波或通關（不算回合、敵方不出手）
+  async skillClear(sid) {
+    if (this.wave >= this.stage.waves.length - 1) return this.win();
+    await U.wait(500); if (!this.on || this.sid !== sid) return;
+    this.spawn(this.wave + 1); this.state = 'idle'; this.hud();
+  },
   // 這回合的轉珠秒數：基本＋隊長技＋主動技
   mt() { return this.moveTime + this.base.time + this.buff.time; },
   endTurn() {
@@ -487,6 +500,9 @@ const Puzzle = {
       if (n > 0) { this.hp -= n; this.float('-' + U.fmt(n), '#c66', 'team'); }
       return --d.n > 0;
     });
+    // 回合回復（regen）：隊長技／副隊長技，每回合結束
+    if (this.base.regen && this.hp > 0 && this.hp < this.hpMax) this.heal(Math.round(this.hpMax * this.base.regen));
+    this.guards = this.guards.filter((g) => --g.n > 0);
     this.hud();
     this.state = 'idle';
   },
@@ -557,6 +573,7 @@ const Puzzle = {
       total += sum; this._atkSfx = false;
       await this.sleep(all ? 260 : 160);
     }
+    this.execNow();
     if (R.heal) this.heal(R.heal);
     if (total && this.buff.leech) { await this.sleep(200); this.heal(Math.round(total * this.buff.leech)); }
     if (total) {
@@ -614,7 +631,7 @@ const Puzzle = {
       if (this.hp <= 0) break;
       f.hits++;
       const H = f.M.heavy, heavy = !!H && f.hits % H.every === 0, hm = heavy ? (f.ph && f.ph.heavyMult) || H.mult : 1;
-      const dmg = Math.round(f.atk * hm * U.rand(0.92, 1.08));
+      const dmg = Math.round(f.atk * hm * U.rand(0.92, 1.08) * this.guardMul());
       const el = this.foeEl(f); if (el) { el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); }
       await this.sleep(220);
       this.hp = Math.max(0, this.hp - dmg);
@@ -630,7 +647,7 @@ const Puzzle = {
     // 範圍攻擊（PZ_MONS 的 aoe）：每 every 回合一次，不佔出手倒數，打全隊
     for (const f of aoe) {
       if (this.hp <= 0) break;
-      const A = f.M.aoe, dmg = Math.round(f.atk * A.mult * U.rand(0.95, 1.05));
+      const A = f.M.aoe, dmg = Math.round(f.atk * A.mult * U.rand(0.95, 1.05) * this.guardMul());
       this.banner(A.name, f.name + '・範圍攻擊');
       const el = this.foeEl(f); if (el) { el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); }
       await this.sleep(500);
@@ -681,6 +698,13 @@ const Puzzle = {
       case 'comboUp': this.buff.comboUp += e.add || 0.1; this.float('連擊加成', '#ffb08a', 'mid'); break;
       case 'pierce': this.buff.pierce = true; this.float('破防', '#f3e7b0', 'mid'); break;
       case 'combo': this.buff.combo += e.n || 1; this.float(`本回合 Combo +${e.n || 1}`, '#ffb08a', 'mid'); break;
+      case 'guard': this.guards.push({ pct: e.pct || 0.2, n: e.n || 1 }); this.float(`減傷 ${Math.round((e.pct || 0.2) * 100)}%`, '#8ff0d8', 'team'); break;
+      case 'cdCut': this.team.forEach((o) => { if (o !== m && o.sk) o.cd = Math.max(0, o.cd - (e.n || 1)); }); this.float(`隊友冷卻 −${e.n || 1}`, '#9fd8ff', 'mid'); break;
+      case 'execute': {
+        this.buff.exec = Math.max(this.buff.exec, e.pct || 0.2); this.float(`斬殺線 ${Math.round(this.buff.exec * 100)}%`, '#f3e7b0', 'mid'); this.execNow();
+        if (!this.alive().length) { this.state = 'resolve'; const sid = this.sid; setTimeout(() => this.on && this.sid === sid && this.skillClear(sid), 350); }
+        break;
+      }
       case 'nuke': {
         const f = this.tgt(), nel = (Array.isArray(el) ? el[0] : el) || m.el; if (!f) break;
         this.state = 'resolve';   // 傷害落地前不能轉珠，避免和結算重疊
@@ -688,11 +712,9 @@ const Puzzle = {
         setTimeout(async () => {
           if (!this.on || this.sid !== sid) return;
           (e.all ? this.alive() : [f]).forEach((t) => { this.hitFoe(t, this.dmgTo(t, m.atk * (e.mult || 10) * this.leadMult(m), nel), pzRel(nel, t.el), PZ_EL[nel].c); this.phaseCheck(t); });
+          this.execNow();
           if (this.alive().length) { this.state = 'idle'; this.hud(); return; }
-          // 技能打倒整波：直接換下一波或通關（不算回合、敵方不出手）
-          if (this.wave >= this.stage.waves.length - 1) return this.win();
-          await U.wait(500); if (!this.on || this.sid !== sid) return;
-          this.spawn(this.wave + 1); this.state = 'idle'; this.hud();
+          this.skillClear(sid);
         }, 350);
         break;
       }
@@ -704,6 +726,9 @@ const Puzzle = {
   hud() {
     const q = (s) => this.root.querySelector(s), T = this.tgt(), multi = this.alive().length > 1;
     q('#pzTHp').style.clipPath = `inset(0 ${100 - (100 * this.hp) / this.hpMax}% 0 0)`; q('#pzTHpT').textContent = `${U.fmt(this.hp)} / ${U.fmt(this.hpMax)}`;
+    // 隊伍狀態：回合回復、減傷（隊長技＋主動技）、斬殺線
+    const gm = this.guardMul(), ag = this.guards.length ? Math.max(...this.guards.map((g) => g.n)) : 0;
+    q('#pzTSt').innerHTML = [this.base.regen && `<em class="rg">回${Math.round(this.base.regen * 100)}%</em>`, gm < 1 && `<em class="gd">減傷${Math.round((1 - gm) * 100)}%${ag ? `・${ag}回` : ''}</em>`, this.buff.exec && `<em class="ex">斬${Math.round(this.buff.exec * 100)}%</em>`].filter(Boolean).join('');
     this.foes.forEach((f) => {
       const el = this.foeEl(f); if (!el) return;
       el.querySelector('.pz-hp i').style.clipPath = `inset(0 ${100 - (100 * f.hp) / f.max}% 0 0)`;
