@@ -32,7 +32,7 @@ const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_drag: 0.8, pz_land: 1, pz_heal:
 //   vol：音檔基準音量（再乘上 PZ_SFX_VOL；master 2.5 是給偏小聲的合成音調的）；jitter：音高隨機 ±（0.05＝0.95～1.05 倍）
 //   minGap：同一音效最短間隔（秒），太密的直接略過；max：同時最多幾個（1＝新的蓋掉舊的，不疊音）
 const PZ_SFX_FILES = {
-  pz_drag: { file: 'pz_drag', pick: 'random', vol: 0.4, jitter: 0.05, minGap: 0.045, max: 1 },   // 換珠與拖曳經過每一格；放開即停
+  pz_drag: { file: 'pz_drag', pick: 'random', vol: 0.86, jitter: 0.05, minGap: 0.045, max: 1 },   // 換珠與拖曳經過每一格；放開即停。音檔是 60ms 短點擊，vol 0.86＝有聲段 RMS 對齊 pz_hit_1，尖峰交給音效軟削波
   pz_land: { file: 'pz_hit', pick: 'random', vol: 0.4, max: 1 },   // 放開後珠子落定；事件名不用 pz_hit（那是打到怪物的音效）
   pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 2, rateStep: 0.06, maxRate: 1.5 },
   pz_five: { file: 'pz_five', vol: 0.4 },          // 5 連珠（取代消除音）
