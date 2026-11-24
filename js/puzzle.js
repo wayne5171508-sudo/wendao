@@ -35,6 +35,8 @@ const pzHas = (name) => document.documentElement.classList.contains('pa-' + name
 const pzElI = (el, cls) => `<i class="${cls}" data-el="${el}" style="--c:${PZ_EL[el].c};--d:${PZ_EL[el].d}">${PZ_EL[el].ch}</i>`;
 
 // ───────── 拖曳手感（之後只改這裡）─────────
+// 特效預熱用：幾乎看不到、不播動畫（opacity 0 會被瀏覽器跳過不畫，就預熱不到）
+const PZ_GHOST = ';animation:none;opacity:.01';
 const PZ_DRAG = {
   enter: 0.1,        // 換位門檻：手指越過格線、進入新格子多深（格寬比例）就換；各軸分開算，0＝碰到格線就換（易在格線上來回抖）
   subStep: 0.25,     // 快速拖曳時兩個取樣點之間每隔幾格補一個判定點，確保沿路逐格換、不跳格
@@ -280,14 +282,20 @@ const Puzzle = {
   },
   loadArt() {
     this.art = {}; this.clr = {}; this.five = {};
-    Object.entries(PZ_ART.clear).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.clr[k] = src); im.src = src; });
-    Object.entries(PZ_ART.five || {}).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => (this.five[k] = src); im.src = src; });
+    Object.entries(PZ_ART.clear).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => { this.clr[k] = src; this.warm(k); }; im.src = src; });
+    Object.entries(PZ_ART.five || {}).forEach(([k, src]) => { if (!src) return; const im = new Image(); im.onload = () => { this.five[k] = src; this.warm(k); }; im.src = src; });
     // 特效圖先解碼並留著參照：第一次 5 連珠、消除、技能特效不會因為解碼卡一幀
     this._dec = [...Object.values(PZ_ART.five || {}), ...Object.values(PZ_ART.clear), ...Object.values(PZ_ART.fx)].filter(Boolean).map((src) => { const im = new Image(); im.src = src; if (im.decode) im.decode().catch(() => {}); return im; });
     Object.entries(PZ_ART.orbs).forEach(([k, src]) => {
       if (!src) return;
       const im = new Image(); im.onload = () => { this.art[k] = im; this.sprites[k] = this.orbSprite(k); }; im.src = src;
     });
+  },
+  // 第一次 5 連珠會卡一幀（特效圖層第一次排版、繪製、上傳 GPU、混色）：特效圖一載好就用同一段程式放一次幾乎透明、不動的版本，先把成本付掉
+  warm(k) {
+    if (!this.on || !this.cell) return;
+    const G = { c: k, cells: [0, 1, 2, 3, 4].map((c) => [PZ_CFG.rows - 1, c]) };
+    this.clearFx(G, true); this.fiveFx(G, true);
   },
   // 預先把每色珠子畫成小圖，每幀只貼圖（30 顆對手機很輕）
   orbSprite(k) {
@@ -720,31 +728,33 @@ const Puzzle = {
     const el = document.createElement('div'); el.className = 'pz-banner'; el.innerHTML = `<b>${a}</b>${b ? `<span>${b}</span>` : ''}`;
     this.root.querySelector('.pz-top').appendChild(el); setTimeout(() => el.remove(), 1500);
   },
-  clearFx(G) {
+  clearFx(G, ghost) {
     const src = this.clr[G.c]; if (!src) return;
     // 每顆被消除的珠子各放一張，固定珠子 1.5 倍大，五行一致、不會蓋到隔壁太多
     const cell = this.cell, size = cell * 1.5, wrap = this.root.querySelector('.pz-boardwrap');
     G.cells.forEach(([r, c]) => {
       const im = new Image(); im.className = 'pz-clr'; im.alt = ''; im.src = src;
-      im.style.cssText = `--m:url(${src});width:${size}px;height:${size}px;left:${this.cv.offsetLeft + (c + 0.5) * cell}px;top:${this.cv.offsetTop + (r + 0.5) * cell}px`;
-      im.onerror = im.onanimationend = () => im.remove();
+      im.style.cssText = `--m:url(${src});width:${size}px;height:${size}px;left:${this.cv.offsetLeft + (c + 0.5) * cell}px;top:${this.cv.offsetTop + (r + 0.5) * cell}px` + (ghost ? PZ_GHOST : '');
+      im.onerror = im.onanimationend = () => im.remove(); if (ghost) setTimeout(() => im.remove(), 400);
       wrap.appendChild(im);
     });
   },
   // 5 連珠特效：屬性圖光爆（PZ_ART.five；沒圖就程式光爆）＋往首領區的光柱＋螢幕閃光＋震動
-  fiveFx(G) {
+  fiveFx(G, ghost) {
     const cell = this.cell, E = PZ_EL[G.c], rb = this.root.getBoundingClientRect(), cb = this.cv.getBoundingClientRect();
     const cx = cb.left - rb.left + (G.cells.reduce((a, [, c]) => a + c, 0) / G.cells.length + 0.5) * cell;
     const cy = cb.top - rb.top + (G.cells.reduce((a, [r]) => a + r, 0) / G.cells.length + 0.5) * cell;
-    const add = (cls, css) => { const d = document.createElement('div'); d.className = cls; d.style.cssText = `--c:${E.c};--d:${E.d};` + css; d.onanimationend = () => d.remove(); this.root.appendChild(d); return d; };
+    const gone = (d) => { if (ghost) { d.style.cssText += PZ_GHOST; setTimeout(() => d.remove(), 400); } };
+    const add = (cls, css) => { const d = document.createElement('div'); d.className = cls; d.style.cssText = `--c:${E.c};--d:${E.d};` + css; d.onanimationend = () => d.remove(); gone(d); this.root.appendChild(d); return d; };
     const src = this.five[G.c], size = cell * (src ? 5 : 4.4), pos = `left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;`;   // 一般消除每顆 1.5 格，這裡約 3 倍（圖的光爆約佔 85%）
     if (src) {
       add('pz-five-dim', pos);
       const im = new Image(); im.className = 'pz-five-img'; im.alt = ''; im.src = src; im.style.cssText = pos;
-      im.onerror = im.onanimationend = () => im.remove(); this.root.appendChild(im);
+      im.onerror = im.onanimationend = () => im.remove(); gone(im); this.root.appendChild(im);
     } else add('pz-five', pos);
     add('pz-five-beam', `left:${cx}px;top:${PZ_LAYOUT.topMin * 0.35}px;height:${cy - PZ_LAYOUT.topMin * 0.35}px;width:${cell * 1.6}px`);
     if (G.c !== 'heart') add('pz-flash', '');
+    if (ghost) return;
     this.root.classList.remove('pz-shake'); void this.root.offsetWidth; this.root.classList.add('pz-shake');
   },
   fx(t) {
