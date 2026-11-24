@@ -87,7 +87,7 @@ const Puzzle = {
     if (!root) { root = document.createElement('div'); root.id = 'pz'; document.body.appendChild(root); }
     this.root = root;
     document.body.classList.add('pz-on');
-    if (typeof Audio2 !== 'undefined') Audio2.bgm('pz_battle');
+    if (typeof Audio2 !== 'undefined') { Audio2.bgm(this.bgmKey()); Audio2.play('stage_start'); }   // 準備進入關卡戰鬥（第一波開始前）
     this.reset();
     this.build();
     this.layout();
@@ -98,13 +98,15 @@ const Puzzle = {
     this.raf = requestAnimationFrame(loop);
     if (this.stage.id === '1-1' && S.d.pz && !S.d.pz.tut) setTimeout(() => this.on && this.tutorial(), 900);
   },
+  // 首領關用自己的曲子（關卡設定 bgm，且音檔有列在清單）；缺檔或一般關用轉珠戰鬥曲
+  bgmKey() { const k = this.stage.bgm; return k && typeof BGM_SRC !== 'undefined' && BGM_SRC[k] && ASSET_LIST.includes(BGM_SRC[k]) ? k : 'pz_battle'; },
   // 新手教學：第一次進 1-1 時 4 步高亮提示，可跳過，看完或跳過都只出現一次
   tutorial(i = 0) {
     const T = [
       ['.pz-boardwrap', '拖珠換位', '按住任一顆珠子拖曳，經過的珠子會跟著換位。放開後，橫或直 3 顆以上同色相連就消除；一次消越多組 Combo 越高。'],
       ['.pz-foes', '五行相剋', '木剋土、土剋水、水剋火、火剋金、金剋木。剋敵人傷害 1.5 倍、被剋 0.5 倍；左上角會提示目前目標的弱點。'],
       ['.pz-hp.team', '心珠回血', '粉紅色的心珠不攻擊，消除後回復隊伍氣血（綠色血條）。'],
-      ['.pz-mem[data-m="0"]', '點技能', '頭像下的技能名亮起時，點頭像就能施放，不會結束回合。頭像左上角的數字是還要幾回合。'],
+      ['.pz-mem[data-m="0"]', '點技能', '頭像下的技能名亮起時，點頭像會先顯示技能說明，按「開啟」才施放、按「取消」不消耗；施放不會結束回合。頭像左上角的數字是還要幾回合。設定裡可關閉施放前確認。'],
     ];
     let el = this.root.querySelector('#pzTut');
     const done = () => { if (el) el.remove(); S.d.pz.tut = 1; S.save(); };
@@ -409,7 +411,7 @@ const Puzzle = {
       if (other) other.tw = { x: other.x, y: other.y, t: performance.now() };   // 手指一經過就滑到空位
       h.o.x = nc; h.o.y = nr; h.c = nc; h.r = nr;
       if (!this.moved) { this.moved = true; this.t0 = performance.now(); const hint = this.root.querySelector('#pzHint'); if (hint) hint.classList.add('off'); }
-      this.sfx('pz_tick');
+      this.sfx('pz_drag');   // 換珠與滑過每一格都播（節流與音高微調在 audio.js 的 PZ_SFX_FILES）
     }
   },
   up(e) {
@@ -437,6 +439,8 @@ const Puzzle = {
     if (this.state !== 'drag') return;
     try { this.cv.releasePointerCapture(this.pid); } catch (er) {}
     const moved = this.moved; this.held = null; this.dropLift();
+    if (typeof Audio2 !== 'undefined') Audio2.stopPz('pz_drag');   // 放開即停滑動音
+    if (moved) this.sfx('pz_land');
     this.root.querySelector('#pzTm').style.transform = 'scaleX(1)';
     if (!moved) { this.state = 'idle'; return; }
     this.resolve();
@@ -490,7 +494,9 @@ const Puzzle = {
   async waveCheck() {
     if (this.alive().length) return false;
     if (this.wave >= this.stage.waves.length - 1) { this.win(); return true; }
-    await this.sleep(500);
+    // 換波：走路聲播完接開門聲，開門聲播完才出下一波（缺走路聲照原本等 0.5 秒）
+    const seq = typeof Audio2 !== 'undefined' ? Audio2.walkDoor() : null;
+    await this.sleep(seq ? (seq.walk + seq.door) * 1000 : 500);
     this.spawn(this.wave + 1);
     await this.sleep(900);
     this.endTurn();
@@ -502,6 +508,7 @@ const Puzzle = {
     el.innerHTML = `<b>${n}</b><span>Combo</span>${five ? '<em>5連珠</em>' : ''}`; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');   // 動畫自己淡出
     el.style.setProperty('--c', PZ_EL[G.c].c);
     this.sfx(five ? 'pz_five' : 'pz_clear', { combo: n });
+    const hi = typeof PZ_SFX_FILES !== 'undefined' && PZ_SFX_FILES.pz_combo_hi.at; if (hi && n === hi) this.sfx('pz_combo_hi');   // 高連擊：剛達門檻那一下疊加
     this.vib(five ? [30, 30, 50] : 12);
   },
 
@@ -529,6 +536,9 @@ const Puzzle = {
       if (!this.alive().length) break;   // 全倒了：剩下的攻擊不用打
       const m = this.team[h.i], b = this.root.querySelector(`.pz-mem[data-m="${h.i}"]`);
       b.classList.remove('atk'); void b.offsetWidth; b.classList.add('atk');
+      // 屬性攻擊音（有檔才播，並疊金屬敲擊）；有播就不再播每一下的合成打擊音
+      const ak = typeof ATK_SFX !== 'undefined' && ATK_SFX.map[m.el];
+      this._atkSfx = !!(ak && typeof Audio2 !== 'undefined' && Audio2.has(ak)); if (this._atkSfx) this.sfx(ak, { metal: true });
       // 單體：打目標；5 連珠：打每一隻活著的敵人，相剋依各自屬性
       const shots = [...(h.raw ? [[this.tgt(), h.raw]] : []), ...(h.aoe ? this.alive().map((f) => [f, h.aoe]) : [])];
       let sum = 0, rel1 = 1;
@@ -544,7 +554,7 @@ const Puzzle = {
       el.textContent = (all ? '全體 ' : rel1 > 1 ? '剋 ' : rel1 < 1 ? '抗 ' : '') + U.fmt(sum);
       if (all || rel1 === 1) el.style.color = PZ_EL[m.el].c;
       b.appendChild(el); setTimeout(() => el.remove(), 1600);
-      total += sum;
+      total += sum; this._atkSfx = false;
       await this.sleep(all ? 260 : 160);
     }
     if (R.heal) this.heal(R.heal);
@@ -568,12 +578,12 @@ const Puzzle = {
       el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
       if (f.hp <= 0) el.classList.add('dead');
     }
-    this.sfx('pz_hit', { heavy: rel > 1 });
+    if (!this._atkSfx) this.sfx('pz_hit', { heavy: rel > 1 });
     this.hud();
   },
   heal(n) {
     const real = Math.min(n, this.hpMax - this.hp); this.hp += real;
-    this.float('+' + U.fmt(n), '#ff9ccc', 'team'); this.hud();
+    this.float('+' + U.fmt(n), '#ff9ccc', 'team'); this.hud(); this.sfx('pz_heal');
   },
   // 換相：血量低於門檻就套用該相的屬性、倒數、減傷、攻擊倍率、吸血
   phaseCheck(f) {
@@ -639,6 +649,17 @@ const Puzzle = {
     const m = this.team[i], sk = m.sk;
     if (this.state !== 'idle' || !sk) return;
     if (m.cd > 0) { this.toast(`${m.name}「${sk.name}」：${sk.desc}（還要 ${m.cd} 回合）`); return; }
+    if (S.d.settings && S.d.settings.skConfirm === false) return this.castSkill(i);
+    // 施放前確認：盤面鎖住（state=confirm 不能拖珠、計時本來就只在拖珠時走），取消不扣任何東西
+    this.state = 'confirm';
+    this.endPanel(`<div class="pz-skc"><div class="pz-skc-head">${m.img ? `<img class="pz-skc-face${m.port ? ' port' : ''}" src="${m.img}" alt="" onerror="this.remove()">` : ''}
+        <div><b>${m.name}</b><small>${m.pos || '隊員'}</small></div></div>
+      <h3>${sk.name}</h3><p>${sk.desc}</p><p class="c note"><span>已就緒</span>・<span>施放後冷卻 ${sk.cd} 回合</span>・<span>不會結束回合</span></p></div>`,
+      [['取消', () => { this.endClose(); this.state = 'idle'; }], ['開啟', () => { this.endClose(); this.state = 'idle'; this.castSkill(i); }, 'go']]);
+  },
+  castSkill(i) {
+    const m = this.team[i], sk = m.sk;
+    if (this.state !== 'idle' || !sk || m.cd > 0) return;
     m.cd = sk.cd;
     this.banner(sk.name, m.name);
     this.sfx('pz_cast');
@@ -773,7 +794,7 @@ const Puzzle = {
       <p>按住任一顆珠子拖曳，經過的珠子會跟它換位（可斜走）。放開手指，或第一次換位後 ${this.mt()} 秒到，就結算。</p>
       <p>橫或直 3 顆以上同色相連就消除，相連的同色算 1 個 Combo；消除後上方掉珠，可再連鎖。每多 1 Combo 傷害 +25%。</p>
       <p>每位隊員打自己顏色的珠。五行相剋：木剋土、土剋水、水剋火、火剋金、金剋木（剋 1.5 倍、被剋 0.5 倍）。心珠回血。</p>
-      <p>敵人頭上數字是出手倒數；有多隻時點敵人可指定攻擊目標。點隊員頭像施放技能（冷卻歸零才能用，不會結束回合）。</p>
+      <p>敵人頭上數字是出手倒數；有多隻時點敵人可指定攻擊目標。點隊員頭像施放技能（冷卻歸零才能用，會先顯示說明，按「開啟」才施放，可在設定關閉確認；不會結束回合）。</p>
       <p>${L || '無隊長技'}</p>`, [['繼續', () => this.endClose()]]);
   },
   endPanel(html, btns) {
@@ -786,14 +807,16 @@ const Puzzle = {
   vib(p) { if (S.d && S.d.settings && S.d.settings.vib === false) return; if (navigator.vibrate) try { navigator.vibrate(p); } catch (er) {} },
   // 戰鬥設定：配樂、音效音量、震動、說明、撤退（開著時不算時間：只在 idle 可開，轉珠中按不到）
   settings() {
-    if (this.state === 'drag') return;
+    if (this.state === 'drag' || this.state === 'confirm') return;
     const A = typeof Audio2 !== 'undefined' ? Audio2 : null, st = S.d.settings || (S.d.settings = {}), vibOn = st.vib !== false;
     const sl = (id, k, lab) => `<label class="pz-set"><span>${lab}</span><input type="range" min="0" max="100" id="${id}" value="${A ? Math.round(A.set[k] * 100) : 0}" aria-label="${lab}"><b id="${id}N">${A ? Math.round(A.set[k] * 100) : 0}</b></label>`;
     this.endPanel(`<h3>設定</h3>${sl('pzVb', 'bgm', '配樂')}${sl('pzVs', 'sfx', '音效')}
-      <label class="pz-set"><span>震動</span><button class="pz-btn" id="pzVib">${vibOn ? '開' : '關'}</button></label>`,
+      <label class="pz-set"><span>震動</span><button class="pz-btn" id="pzVib">${vibOn ? '開' : '關'}</button></label>
+      <label class="pz-set"><span>技能施放前確認</span><button class="pz-btn" id="pzSkc">${st.skConfirm !== false ? '開' : '關'}</button></label>`,
       [['說明', () => this.help()], ['撤退', () => this.retreat(true)], ['繼續', () => this.endClose(), 'go']]);
     const q = (s) => this.root.querySelector(s);
     [['#pzVb', 'bgm'], ['#pzVs', 'sfx']].forEach(([id, k]) => (q(id).oninput = (e) => { if (A) { A.unlock(); A.setVol(k, e.target.value / 100); } q(id + 'N').textContent = e.target.value; }));
+    q('#pzSkc').onclick = (e) => { st.skConfirm = st.skConfirm === false; S.save(); e.target.textContent = st.skConfirm ? '開' : '關'; };
     q('#pzVib').onclick = (e) => { st.vib = st.vib === false; S.save(); e.target.textContent = st.vib !== false ? '開' : '關'; this.vib(20); };
   },
   endClose() { this.root.querySelector('#pzEnd').classList.add('hidden'); },
@@ -803,10 +826,12 @@ const Puzzle = {
     if (this.state !== 'idle') { this.toast('結算中，這回合結束後才能撤退'); return; }
     this.endPanel('<h3>撤退</h3><p class="c">撤退視同失敗，進場體力不退還</p>', [['撤退', () => this.close()], ['繼續', () => this.endClose()]]);
   },
+  // 戰鬥結束：首領曲淡出、換回一般轉珠戰鬥曲（離開時 close 再切回地圖音樂）
+  endBgm() { if (typeof Audio2 !== 'undefined' && this.bgmKey() !== 'pz_battle') Audio2.bgm('pz_battle'); },
   result() { return { turns: this.turn, maxCombo: this.maxCombo, hpRatio: this.hp / this.hpMax }; },
   win() {
     if (this.state === 'end') return;
-    this.state = 'end';
+    this.state = 'end'; this.endBgm();
     if (typeof Audio2 !== 'undefined') Audio2.play('boom');
     const st = this.stage, r = this.result(), W = Stage.onWin(st.id, r);
     const stars = st.stars.map((c, i) => `<li class="${W.all & (1 << i) ? 'on' : ''}${W.newStars & (1 << i) ? ' pzm-new' : ''}"><i>★</i>${Stage.starText(c)}</li>`).join('');
@@ -830,7 +855,7 @@ const Puzzle = {
     if (typeof Audio2 !== 'undefined') Audio2.play('pickup');
   },
   lose() {
-    this.state = 'end';
+    this.state = 'end'; this.endBgm();
     const st = this.stage, back = Stage.refund(st), alive = this.alive(), left = alive.reduce((a, f) => a + f.hp, 0), max = this.foes.reduce((a, f) => a + f.max, 0);
     this.endPanel(`<h3 class="pz-res lose">道消身殞</h3><p class="c">撐了 ${this.turn} 回合・<span class="nw">第 ${this.wave + 1} / ${st.waves.length} 波</span>・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">${back ? `退還 ${back} 體力` : '進場體力不退還'}</p>`,
       [[`重試（${st.cost}）`, () => this.again(), 'go'], ['返回地圖', () => this.close()]]);
@@ -840,6 +865,7 @@ const Puzzle = {
     const st = this.stage;
     if (!Stage.spend(st.cost)) { this.endPanel(Stage.noSta(st.cost), [['返回地圖', () => this.close()]]); return; }
     this.reset(); this.root.querySelector('#pzFl').innerHTML = ''; this.endClose();
+    if (typeof Audio2 !== 'undefined') Audio2.bgm(this.bgmKey());   // 首領關重試：換回首領曲
     this.spawn(0); this.hud();
   },
 

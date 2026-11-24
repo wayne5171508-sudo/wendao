@@ -1,7 +1,7 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
 const ASSET_VER = '20261124120836';
 // 轉珠與抽卡專用素材：不進全遊戲預載，進轉珠地圖時才在背景下載（js/stage.js 的 Stage.preloadPz）
-const PZ_ASSET = /^assets\/(orb|pz|char|gacha)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/(bgm_)?pz_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king)\.|^assets\/map\/|^assets\/ui\/(banner|bar|btn|card|cd|chapter|el|entry|fac|hp|icon|panel|rare|result|sk|st|star|tag|timer|toast)_/;
+const PZ_ASSET = /^assets\/(orb|pz|char|gacha)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/((bgm_)?pz|atk|fx|sk|gacha|stage|boss)_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king)\.|^assets\/map\/|^assets\/ui\/(banner|bar|btn|card|cd|chapter|el|entry|fac|hp|icon|panel|rare|result|sk|st|star|tag|timer|toast)_/;
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -13,6 +13,28 @@ const ASSET_LIST = [
   'assets/art/wanjian.webp',
   'assets/art/yinqi.webp',
   'assets/audio/bgm_pz_battle.mp3',
+  'assets/audio/boss_bgm.mp3',
+  'assets/audio/pz_combo_hi.mp3',
+  'assets/audio/stage_enter_1.mp3',
+  'assets/audio/stage_enter_2.mp3',
+  'assets/audio/stage_enter_3.mp3',
+  'assets/audio/stage_next_door.mp3',
+  'assets/audio/stage_next_walk.mp3',
+  'assets/audio/atk_dark.mp3',
+  'assets/audio/atk_light.mp3',
+  'assets/audio/atk_wood.mp3',
+  'assets/audio/fx_heal.mp3',
+  'assets/audio/gacha_draw.mp3',
+  'assets/audio/gacha_ssr.mp3',
+  'assets/audio/gacha_ssr_pre.mp3',
+  'assets/audio/pz_five_1.mp3',
+  'assets/audio/atk_fire.mp3',
+  'assets/audio/atk_water.mp3',
+  'assets/audio/fx_enemy_atk.mp3',
+  'assets/audio/sk_open_1.mp3',
+  'assets/audio/pz_cast_1.mp3',
+  'assets/audio/pz_drag_1.mp3',
+  'assets/audio/pz_hit_1.mp3',
   'assets/bg/dongfu.webp',
   'assets/bg/gacha_art.webp',
   'assets/bg/gacha_wpn.webp',

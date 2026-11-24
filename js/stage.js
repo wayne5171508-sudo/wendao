@@ -23,6 +23,8 @@ const Stage = {
     const num = (v, def) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : def);
     const g = { v: 1, sta: num(p.sta, f.sta), staAt: num(p.staAt, f.staAt), st: {}, sw: { date: '', n: {} }, ovf: Math.max(0, Math.floor(num(p.ovf, 0))), tut: p.tut ? 1 : 0 };
     g.sta = U.clamp(Math.floor(g.sta), 0, 9999);
+    d.settings = d.settings && typeof d.settings === 'object' ? d.settings : {};
+    if (typeof d.settings.skConfirm !== 'boolean') d.settings.skConfirm = true;   // 技能施放前確認（舊存檔補預設：開）
     const dl = p.daily && typeof p.daily === 'object' ? p.daily : {}, int = (v, def, lo) => Math.max(lo, Math.floor(num(v, def)));
     g.daily = { last: int(dl.last, -1, -1), streak: int(dl.streak, 0, 0), total: int(dl.total, 0, 0) };
     if (g.staAt > Date.now() || g.staAt < 0) g.staAt = Date.now();   // 時間被調過：從現在重算
@@ -96,7 +98,7 @@ const Stage = {
     if (o.stone) p.push(`${ic('stone')}靈石 ${U.fmt(o.stone)}</span>`);
     if (o.exp) p.push(`${ic('exp')}修為 ${U.fmt(o.exp)}</span>`);
     for (const [k, n] of Object.entries(o.items || {})) p.push(`${ic(k)}${(ITEMS[k] && ITEMS[k].name) || k} ×${n}</span>`);
-    return p.join('、') || '無';
+    return p.join('、<wbr>') || '無';   // <wbr>：每項是不換行的圖示＋文字，Safari 不會在「、」後自己斷行（章節獎勵合計會連成一條撐破面板）
   },
   ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入<span class="nw">（共 ${U.fmt(this.d.ovf)}）</span>`; },
   // 預覽用（還沒發）：修為以目前速度估
@@ -197,6 +199,7 @@ const Stage = {
   },
   // 轉珠素材：第一次進轉珠地圖才在背景下載（音檔交給 Audio2 自己載）；之後由離線快取提供
   preloadPz() {
+    if (typeof Audio2 !== 'undefined') Audio2.loadLazy();   // 抽卡音效
     if (this._pre || typeof PZ_ASSET === 'undefined') return; this._pre = true;
     ASSET_LIST.filter((s) => PZ_ASSET.test(s) && !s.endsWith('.mp3')).forEach((s, i) => setTimeout(() => { const im = new Image(); im.src = s; }, i * 60));
   },
@@ -269,6 +272,7 @@ const Stage = {
   detail(id) {
     const st = stageById(id), state = this.state(st);
     if (state === 'lock') { this.toast('先通關前一關才能挑戰'); return; }
+    if (typeof Audio2 !== 'undefined') { Audio2.play('stage_select'); if (st.bgm && Audio2.tracks[st.bgm]) Audio2.loadTrack(st.bgm); }   // 選關音效；首領曲延後下載：看到首領關詳情才載
     const rec = this.rec(id), mons = st.waves.map((w, i) => `<li><em>${i === st.waves.length - 1 ? '首領' : `第 ${i + 1} 波`}</em>${w.map((m) => { const M = PZ_MONS[m]; return `<span style="--c:${PZ_EL[M.el].c}">${pzElI(M.el, 'pz-el')}${M.name}</span>`; }).join('')}</li>`).join('');
     const stars = st.stars.map((c, i) => `<li class="${rec.s & (1 << i) ? 'on' : ''}"><i>★</i>${this.starText(c)}</li>`).join('');
     const can = this.canSweep(st), left = this.swLeft(id), cost = this.swCost(st), B = SWEEP_CFG.batch;

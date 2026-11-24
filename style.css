@@ -1103,7 +1103,7 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 #pz > .pz-toast { width: auto; }
 .pz-toast { position: absolute; left: 12px; right: 12px; top: 40%; z-index: 20; padding: 10px 12px; font-size: 14px; text-align: center; color: var(--paper); background: rgba(8,10,16,.92); border: 1px solid var(--goldline); border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity .25s; }
 .pz-toast.show { opacity: 1; }
-.pz-end { position: absolute !important; inset: 0; width: 100% !important; z-index: 30; display: grid; place-items: center; background: rgba(0,0,0,.6); }
+.pz-end { position: absolute !important; inset: 0; width: 100% !important; z-index: 30; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; background: rgba(0,0,0,.6); }   /* minmax(0,1fr)：欄寬不被長內容撐開（預設 auto 會撐到內容最小寬，面板就偏出畫面） */
 .pz-end.hidden { display: none; }
 .pz-panel { width: min(88%, 380px); padding: 16px 18px; background: linear-gradient(#162030, #0b121c); border: 1px solid var(--goldline); border-radius: 8px; }
 .pz-panel h3 { margin: 0 0 8px; text-align: center; font-size: 22px; color: var(--gold2); letter-spacing: 3px; }
@@ -1529,7 +1529,7 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 /* 演出 */
 .ga-show { position: absolute; inset: 0; width: 100% !important; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px 10px calc(14px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; background: radial-gradient(ellipse at 50% 45%, #1c1628 0%, #07090d 72%); overflow: hidden; }   /* 要完全不透明：screen 混色的黑底才會消失 */
 .ga-show.hidden { display: none; }
-.ga-circle { position: absolute; left: 50%; top: 45%; width: min(92vw, 440px); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none; mix-blend-mode: screen;
+.ga-circle { position: absolute; left: 50%; top: 45%; width: min(150vw, max(118vw, 70vh, 70dvh)); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; pointer-events: none; mix-blend-mode: screen;
   background: repeating-conic-gradient(rgba(255,210,120,.0) 0 8deg, rgba(255,210,120,.35) 8deg 10deg), radial-gradient(circle, transparent 55%, rgba(255,200,110,.6) 57%, transparent 60%);
   animation: gaSpin 7s linear infinite, gaIn 1s ease-out both; transition: opacity .6s; }
 .pa-fx_gacha_circle .ga-circle { border-radius: 0; background: url(assets/gacha/fx_gacha_circle.webp) center / contain no-repeat; }
@@ -1537,7 +1537,23 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 @keyframes gaSpin { to { rotate: 360deg; } }
 @keyframes gaIn { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
 .ga-full { position: absolute; inset: 0; z-index: 3; pointer-events: none; mix-blend-mode: screen; background: radial-gradient(ellipse at 50% 50%, #fff6d0, #ffb040 30%, transparent 70%); animation: gaFull 1.4s ease-out forwards; }
-.pa-fx_gacha_ssr_full .ga-full { background: url(assets/gacha/fx_gacha_ssr_full.webp) center / cover no-repeat #000; }
+.pa-fx_gacha_ssr_full .ga-full { background: url(assets/gacha/fx_gacha_ssr_full.webp) 50% 45% / auto 135% no-repeat #000; }   /* 高度 135%：圖裡的光柱貫穿上下；寬度不足的兩側交給下面的全畫面光層 */
+/* SSR 全畫面金光：::before＝貫穿上下的光柱＋頂部／底部延伸到邊緣的光浪；::after＝鋪滿整個視窗的粒子（screen 混色，黑色等於透明） */
+.ga-full::before, .ga-full::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
+.ga-full::before { background:
+  linear-gradient(90deg, transparent 38%, rgba(255,214,140,.35) 46%, rgba(255,246,214,.85) 50%, rgba(255,214,140,.35) 54%, transparent 62%),
+  radial-gradient(ellipse 140% 26% at 50% 0%, rgba(255,196,96,.75), rgba(255,150,40,.25) 55%, transparent 75%),
+  radial-gradient(ellipse 140% 26% at 50% 100%, rgba(255,196,96,.75), rgba(255,150,40,.25) 55%, transparent 75%),
+  radial-gradient(ellipse 90% 60% at 50% 45%, rgba(255,170,60,.35), transparent 70%); }
+.ga-full::after { opacity: .75; background:   /* 4 層互質尺寸的光點錯開疊加，避免看出網格 */
+  radial-gradient(circle at 30% 40%, rgba(255,232,170,.95) 0 1.4px, transparent 2.4px) 0 0 / 53px 67px,
+  radial-gradient(circle at 70% 20%, rgba(255,186,80,.8) 0 1px, transparent 1.9px) 17px 29px / 89px 71px,
+  radial-gradient(circle at 20% 75%, rgba(255,250,224,.9) 0 2px, transparent 3.2px) 41px 11px / 151px 137px,
+  radial-gradient(circle at 80% 60%, rgba(255,210,120,.7) 0 .8px, transparent 1.6px) 7px 43px / 37px 59px;
+  animation: gaDust 1.4s linear forwards; }
+@keyframes gaDust { from { background-position: 0 0, 17px 29px, 41px 11px, 7px 43px; } to { background-position: 0 -67px, 17px -42px, 41px -126px, 7px -16px; } }
+/* 略過：右下角安全區內側，手指好點（≥44px），層級在金光與符文圈之上 */
+.ga-skip { position: absolute; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 10; min-width: 76px; min-height: 44px; padding: 0 14px; font-size: 16px; }
 @keyframes gaFull { 0% { opacity: 0; } 25% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 .ga-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
 .ga-acts { position: relative; z-index: 4; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -1605,3 +1621,11 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pzd-days li.now { border-color: var(--gold2); box-shadow: 0 0 0 1px var(--gold2), 0 0 12px rgba(255,210,120,.35); }
 .pzd-days li.got { opacity: .55; }
 .pzd-days li i { font-style: normal; font-size: 11px; color: #9fe8d8; }
+/* 開技能確認框（轉珠）：頭像＋名字、技能名與說明；按鈕列沿用 .pz-panel 固定在底部、內容可捲動 */
+.pz-skc-head { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 4px; }
+.pz-skc-face { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: 50% 15%; border: 2px solid var(--goldline); background: rgba(255,255,255,.06); flex: none; }
+.pz-skc-head b { display: block; font-size: 17px; color: #f0e2c0; }
+.pz-skc-head small { color: var(--dim); font-size: 12px; }
+.pz-skc h3 { margin: 6px 0 4px; }
+.pz-skc p { text-align: center; }
+.pz-skc .note span { white-space: nowrap; }

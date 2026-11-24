@@ -177,27 +177,29 @@ const Gacha = {
     const el = this.el.querySelector('#gaShow'), top = res.reduce((a, o) => Math.max(a, this.rank(o.rare)), 0);
     this.skip = false;
     el.className = 'ga-show';
-    el.innerHTML = `<div class="ga-circle"></div><div class="ga-stage"></div><div class="ga-acts"><button class="pz-btn" id="gaSkip">略過</button></div>`;
-    el.querySelector('#gaSkip').onclick = () => { this.skip = true; if (this._sk) this._sk(); };
+    el.innerHTML = `<div class="ga-circle"></div><div class="ga-stage"></div><div class="ga-acts"></div><button class="pz-btn ga-skip" id="gaSkip">略過</button>`;   // 略過固定右下角，在特效之上
+    el.querySelector('#gaSkip').onclick = () => { this.skip = true; if (this._sk) this._sk(); if (typeof Audio2 !== 'undefined') ['gacha_ssr_pre', 'gacha_ssr'].forEach((k) => Audio2.stopPz(k)); };
     const stage = el.querySelector('.ga-stage');
-    if (typeof Audio2 !== 'undefined') Audio2.play('gather');
-    await this.wait(1100);
+    // SSR：有前奏與神卡音檔時，前奏一開始就播、神卡接在前奏結束那一刻（Audio2.chain），全螢幕出場光等前奏播完才出現；缺檔用原本的音效
+    const A = typeof Audio2 !== 'undefined' ? Audio2 : null, pre = top === 2 && A ? A.chain('gacha_ssr_pre', 'gacha_ssr') : null;
+    if (A && pre == null) A.play('gather');
+    await this.wait(pre != null ? Math.max(1100, pre * 1000) : 1100);
     if (top === 2) {   // SSR：全螢幕出場光
       el.insertAdjacentHTML('beforeend', '<div class="ga-full"></div>');
-      if (typeof Audio2 !== 'undefined') Audio2.reveal(4);
+      if (A && pre == null) A.reveal(4);
       await this.wait(GACHA_CFG.ssrFull);
     }
     el.classList.add('dim');
     if (n === 1) {
       const o = res[0];
       stage.innerHTML = `<div class="ga-one r-${o.rare}"><div class="ga-fx"></div>${this.face(o, true)}</div><p class="ga-note">${this.note(o)}</p>`;
-      if (typeof Audio2 !== 'undefined' && top < 2) Audio2.reveal(top + 1);
+      if (A) { if (A.has('gacha_draw')) A.play('gacha_draw'); else if (top < 2) A.reveal(top + 1); }   // 翻卡音
     } else {
       stage.innerHTML = `<div class="ga-ten">${res.map((o) => `<div class="ga-flip r-${o.rare}"><div class="ga-back"></div>${this.face(o)}</div>`).join('')}</div>`;
       const cards = stage.querySelectorAll('.ga-flip');
       for (let i = 0; i < cards.length; i++) {
         cards[i].classList.add('on');
-        if (!this.skip && typeof Audio2 !== 'undefined') Audio2.play(res[i].rare === 'R' ? 'cast' : 'divine');
+        if (!this.skip && A) A.play(A.has('gacha_draw') ? 'gacha_draw' : res[i].rare === 'R' ? 'cast' : 'divine');
         await this.wait(GACHA_CFG.flipGap * (res[i].rare === 'R' ? 1 : 2.5));
       }
       cards.forEach((c) => c.classList.add('on'));
@@ -206,6 +208,7 @@ const Gacha = {
     }
     // 結果按鈕：編入隊伍放最佳（稀有度高、新角色優先）
     const best = [...res].sort((a, b) => this.rank(b.rare) - this.rank(a.rare) || (b.k === 'new') - (a.k === 'new'))[0];
+    el.querySelector('#gaSkip').remove();
     el.querySelector('.ga-acts').innerHTML = `<button class="pz-btn go" id="gaTeam">編入隊伍</button><button class="pz-btn" id="gaAgain">再${n === 1 ? '抽一次' : '十連'}</button><button class="pz-btn" id="gaDone">完成</button>`;
     el.querySelector('#gaTeam').onclick = () => this.toTeam(best.id);
     el.querySelector('#gaAgain').onclick = () => { this.render(); this.go(n); };

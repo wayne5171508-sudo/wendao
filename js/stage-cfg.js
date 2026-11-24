@@ -111,7 +111,7 @@ const PZ_CHAPTERS = [
         first: { stone: 200, items: { p_qi: 2 } } },
       { id: '1-9', name: '千年山精', cost: 7, k: 3.3, waves: [['jing', 'jing'], ['kui', 'lang', 'hun'], ['jing_old']], stone: 85, expSec: 170,
         first: { stone: 200, items: { ore: 8 } } },
-      { id: '1-10', big: true, name: '血甲妖將', cost: 10, k: 1, loseRefund: 0.5, waves: [['mo', 'kui'], ['mo', 'mo', 'jing'], ['xuejia']], stone: 150, expSec: 300,
+      { id: '1-10', big: true, bgm: 'pz_boss', name: '血甲妖將', cost: 10, k: 1, loseRefund: 0.5, waves: [['mo', 'kui'], ['mo', 'mo', 'jing'], ['xuejia']], stone: 150, expSec: 300,
         first: { stone: 500, items: { p_break: 1, scroll: 5 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 14 }, { t: 'hp', n: 0.3 }] },
     ] },
 ];
