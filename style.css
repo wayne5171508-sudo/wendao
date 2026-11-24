@@ -1629,7 +1629,3 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-skc h3 { margin: 6px 0 4px; }
 .pz-skc p { text-align: center; }
 .pz-skc .note span { white-space: nowrap; }
-/* 通關「下一關」換場：走路聲期間漸暗（--w），開門聲期間漸亮（--d） */
-.pz-walk { position: fixed; inset: 0; z-index: 2147483000; background: #05070b; opacity: 0; pointer-events: auto; transition: opacity var(--w, 2s) ease-in; }
-.pz-walk.on { opacity: 1; }
-.pz-walk.out { opacity: 0; transition: opacity var(--d, 1s) ease-out; }

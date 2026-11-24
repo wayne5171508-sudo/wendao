@@ -27,7 +27,7 @@ const BGM_FADE_IN = { pz_boss: 0.5 };
 // 轉珠音效音量表（相對值，之後只改這裡）：master＝整體倍率，其餘為各音效倍率；
 // 消除音量隨 Combo 遞增：每多 1 Combo +clearStep，最多 clearMax 倍
 const PZ_SFX_VOL = { master: 2.5, pz_pick: 1, pz_drag: 0.8, pz_land: 1, pz_heal: 1, sk_open: 1,
-  pz_combo_hi: 1, stage_enter: 1, stage_ready: 1, stage_next_walk: 1, stage_next_door: 1,
+  pz_combo_hi: 1, stage_select: 1, stage_start: 1, stage_next_walk: 1, stage_next_door: 1,
   atk_wood: 1, atk_water: 1, atk_fire: 1, atk_light: 1, atk_dark: 1, gacha_draw: 1, gacha_ssr_pre: 1, gacha_ssr: 1, pz_clear: 1, pz_cast: 1.1, pz_hit: 1, pz_hurt: 1.1, pz_five: 1.3, clearStep: 0.06, clearMax: 1.5 };
 // 轉珠音檔（之後只改這裡）：assets/audio/<file>_<n>.mp3（n 從 1 起）或 <file>.mp3；只載入 js/asset-list.js 有列的檔（缺檔不請求、不 404），一個都沒有就用合成音
 //   檔名開頭 pz_／atk_／fx_／sk_ 第一次點畫面就載；gacha_ 進轉珠地圖才載（Audio2.loadLazy）
@@ -39,9 +39,10 @@ const PZ_SFX_FILES = {
   pz_land: { file: 'pz_hit', pick: 'random', vol: 0.4, max: 1 },   // 放開後珠子落定；事件名不用 pz_hit（那是打到怪物的音效）
   pz_clear: { file: 'pz_cast', pick: 'combo', vol: 0.4, perFile: 1, rateStep: 0.06, maxRate: 1.5 },   // 只有 1 檔：每多 1 Combo 音高 +rateStep，最高 maxRate 倍
   pz_combo_hi: { file: 'pz_combo_hi', vol: 0.4, at: 8 },   // 高連擊：Combo 達到 at 時疊在消除音上（每回合一次）
-  stage_enter: { file: 'stage_enter', pick: 'random', vol: 0.4 },   // 進入任一關卡：stage_enter_1、2 隨機
-  stage_ready: { file: 'stage_ready', vol: 0.4 },   // 準備進遊戲：從洞府或標題進到轉珠地圖時播一次（原「進關卡音效3」）
-  stage_next_walk: { file: 'stage_next_walk', vol: 0.4 }, stage_next_door: { file: 'stage_next_door', vol: 0.4 },   // 通關按「下一關」：走路→開門
+  stage_select: { files: ['stage_enter_1', 'stage_enter_2'], pick: 'random', vol: 0.4 },   // 地圖選關、打開關卡詳情：1、2 隨機一個
+  stage_start: { file: 'stage_enter_3', vol: 0.4 },   // 按「開始挑戰」、戰鬥畫面載入、第一波開始前播一次（不在隨機池）
+  stage_next_walk: { file: 'stage_next_walk', vol: 0.4 },   // 同一關換波（1→2、2→3 含首領波）：先走路
+  stage_next_door: { file: 'stage_next_door', vol: 0.4 },   //   走路播完立刻接開門，開門播完才出下一波
   pz_five: { file: 'pz_five', vol: 0.4 },          // 5 連珠（取代消除音）
   pz_heal: { file: 'fx_heal', vol: 0.4 },          // 回血
   pz_hurt: { file: 'fx_enemy_atk', vol: 0.4 },     // 敵人攻擊
@@ -52,7 +53,7 @@ const PZ_SFX_FILES = {
 };
 // 隊員攻擊音：遊戲屬性 → 音檔（遊戲沒有光、闇：金→光、土→闇；改這裡就好）
 //   metalLayer：攻擊起音疊一個 0.1 秒內的合成金屬敲擊，音量為主音的 metalVol 倍；主音檔缺時不疊
-// 下一關走路聲尾端疊一個合成破風聲（whoosh）：開關、音量（相對走路聲）、長度（秒）
+// 換波走路聲尾端疊一個合成破風聲（whoosh）：開關、音量（相對走路聲）、長度（秒）
 const NEXT_SFX = { whoosh: true, whooshVol: 0.2, whooshLen: 0.25 };
 const ATK_SFX = { map: { wood: 'atk_wood', water: 'atk_water', fire: 'atk_fire', metal: 'atk_light', earth: 'atk_dark' }, metalLayer: true, metalVol: 0.3 };
 const FADE = 0.7, FADE_IN_DELAY = 0.4, SFX_MAX = 4, MEDITATE_VOL = 0.16;   // 先淡出、0.4 秒後再淡入：總長約 1.1 秒，兩首只重疊約 0.3 秒
@@ -144,7 +145,7 @@ const Audio2 = {
   // 轉珠音檔：依 PZ_SFX_FILES 選檔與音高；沒有已載入的檔回傳 null（改用合成音）
   pzPick(name, combo) {
     const pf = PZ_SFX_FILES[name]; if (!pf) return null;
-    const vs = Object.keys(this.buffers).filter((k) => k === pf.file || (k.startsWith(pf.file + '_') && /^\d+$/.test(k.slice(pf.file.length + 1)))).sort((a, b) => (+a.split('_').pop() || 0) - (+b.split('_').pop() || 0));
+    const vs = pf.files ? pf.files.filter((k) => this.buffers[k]) : Object.keys(this.buffers).filter((k) => k === pf.file || (k.startsWith(pf.file + '_') && /^\d+$/.test(k.slice(pf.file.length + 1)))).sort((a, b) => (+a.split('_').pop() || 0) - (+b.split('_').pop() || 0));
     if (!vs.length) return null;
     if (pf.pick !== 'combo') return { key: vs[Math.floor(Math.random() * vs.length)], rate: 1, pf };
     const lv = Math.max(0, (combo || 1) - 1), i = Math.min(vs.length - 1, Math.floor(lv / pf.perFile));
@@ -258,8 +259,8 @@ const Audio2 = {
     const rec = { src, g, done: false, dur: buf.duration / src.playbackRate.value }; src.onended = () => (rec.done = true); list.push(rec);
     return rec;
   },
-  // 通關「下一關」：走路聲→開門聲無縫接上，走路聲尾端疊破風聲；回傳 { walk, door } 秒數（缺走路聲回傳 null＝直接進關）
-  nextStage() {
+  // 換波：走路聲→開門聲無縫接上，走路聲尾端疊破風聲；回傳 { walk, door } 秒數（缺走路聲回傳 null＝照原本直接換波）
+  walkDoor() {
     if (!this.ctx || !this.has('stage_next_walk')) return null;
     const t0 = this.ctx.currentTime + 0.03, w = this.play('stage_next_walk', { when: t0 }).dur;
     const d = this.has('stage_next_door') ? this.play('stage_next_door', { when: t0 + w }).dur : 0;

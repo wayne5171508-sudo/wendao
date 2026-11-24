@@ -176,8 +176,6 @@ const Stage = {
   },
 
   // ════════ 章節地圖 ════════
-  // 從洞府或標題進入轉珠模式：播「準備進遊戲」再開地圖（戰鬥結束回地圖、抽卡返回都不播）
-  enterMode(ch = 1) { if (typeof Audio2 !== 'undefined') { Audio2.unlock(); Audio2.play('stage_ready'); } this.showMap(ch); },
   mapOn: false,
   showMap(ch = 1) {
     this.ch = PZ_CHAPTERS.find((c) => c.id === ch) || PZ_CHAPTERS[0];
@@ -273,8 +271,8 @@ const Stage = {
   // 關卡說明：波次、星級條件、獎勵、出戰、掃蕩
   detail(id) {
     const st = stageById(id), state = this.state(st);
-    if (st.bgm && typeof Audio2 !== 'undefined' && Audio2.tracks[st.bgm]) Audio2.loadTrack(st.bgm);   // 首領曲延後下載：看到首領關詳情才載
     if (state === 'lock') { this.toast('先通關前一關才能挑戰'); return; }
+    if (typeof Audio2 !== 'undefined') { Audio2.play('stage_select'); if (st.bgm && Audio2.tracks[st.bgm]) Audio2.loadTrack(st.bgm); }   // 選關音效；首領曲延後下載：看到首領關詳情才載
     const rec = this.rec(id), mons = st.waves.map((w, i) => `<li><em>${i === st.waves.length - 1 ? '首領' : `第 ${i + 1} 波`}</em>${w.map((m) => { const M = PZ_MONS[m]; return `<span style="--c:${PZ_EL[M.el].c}">${pzElI(M.el, 'pz-el')}${M.name}</span>`; }).join('')}</li>`).join('');
     const stars = st.stars.map((c, i) => `<li class="${rec.s & (1 << i) ? 'on' : ''}"><i>★</i>${this.starText(c)}</li>`).join('');
     const can = this.canSweep(st), left = this.swLeft(id), cost = this.swCost(st), B = SWEEP_CFG.batch;

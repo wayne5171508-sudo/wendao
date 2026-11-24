@@ -87,7 +87,7 @@ const Puzzle = {
     if (!root) { root = document.createElement('div'); root.id = 'pz'; document.body.appendChild(root); }
     this.root = root;
     document.body.classList.add('pz-on');
-    if (typeof Audio2 !== 'undefined') { Audio2.bgm(this.bgmKey()); Audio2.play('stage_enter'); }
+    if (typeof Audio2 !== 'undefined') { Audio2.bgm(this.bgmKey()); Audio2.play('stage_start'); }   // 準備進入關卡戰鬥（第一波開始前）
     this.reset();
     this.build();
     this.layout();
@@ -494,7 +494,9 @@ const Puzzle = {
   async waveCheck() {
     if (this.alive().length) return false;
     if (this.wave >= this.stage.waves.length - 1) { this.win(); return true; }
-    await this.sleep(500);
+    // 換波：走路聲播完接開門聲，開門聲播完才出下一波（缺走路聲照原本等 0.5 秒）
+    const seq = typeof Audio2 !== 'undefined' ? Audio2.walkDoor() : null;
+    await this.sleep(seq ? (seq.walk + seq.door) * 1000 : 500);
     this.spawn(this.wave + 1);
     await this.sleep(900);
     this.endTurn();
@@ -826,15 +828,6 @@ const Puzzle = {
   },
   // 戰鬥結束：首領曲淡出、換回一般轉珠戰鬥曲（離開時 close 再切回地圖音樂）
   endBgm() { if (typeof Audio2 !== 'undefined' && this.bgmKey() !== 'pz_battle') Audio2.bgm('pz_battle'); },
-  // 通關後「下一關」：走路聲期間畫面漸暗，開門聲開始時換到下一關說明、漸亮；沒有走路聲就直接換
-  nextStage(id) {
-    const seq = typeof Audio2 !== 'undefined' ? Audio2.nextStage() : null;
-    if (!seq) return this.close(true, id);
-    this.root.querySelectorAll('#pzEnd button').forEach((b) => (b.disabled = true));
-    const cv = document.createElement('div'); cv.className = 'pz-walk'; cv.style.setProperty('--w', seq.walk + 's'); cv.style.setProperty('--d', Math.max(0.3, seq.door) + 's');
-    document.body.appendChild(cv); requestAnimationFrame(() => cv.classList.add('on'));
-    setTimeout(() => { this.close(true, id); cv.classList.add('out'); setTimeout(() => cv.remove(), Math.max(0.3, seq.door) * 1000 + 100); }, seq.walk * 1000);
-  },
   result() { return { turns: this.turn, maxCombo: this.maxCombo, hpRatio: this.hp / this.hpMax }; },
   win() {
     if (this.state === 'end') return;
@@ -844,7 +837,7 @@ const Puzzle = {
     const stars = st.stars.map((c, i) => `<li class="${W.all & (1 << i) ? 'on' : ''}${W.newStars & (1 << i) ? ' pzm-new' : ''}"><i>★</i>${Stage.starText(c)}</li>`).join('');
     const i = PZ_STAGES.indexOf(st), next = PZ_STAGES[i + 1];
     const btns = [];
-    if (next) btns.push(['下一關', () => this.nextStage(st.id), 'go']);
+    if (next) btns.push(['下一關', () => this.close(true, st.id), 'go']);
     btns.push([`再戰（${st.cost}）`, () => this.again()], ['返回地圖', () => this.close()]);
     const panel = () => this.endPanel(`<h3 class="pz-res win">通關</h3><p class="c">${r.turns} 回合・最高 ${r.maxCombo} Combo・剩餘氣血 ${Math.round(r.hpRatio * 100)}%</p>
       <ul class="pzm-starlist">${stars}</ul>
@@ -893,14 +886,14 @@ if (typeof DEV !== 'undefined' && DEV) {
     b.className = 'region'; b.id = 'pzEntry';
     b.style.cssText = pzHas('entry_pz') ? 'background-image:linear-gradient(90deg,rgba(5,8,14,.72),rgba(5,8,14,.15) 70%),url(assets/ui/entry_pz.webp);background-position:50% 50%' : `background-image:url(${PZ_CHAPTERS[0].bg[0]});background-position:${PZ_ART.bgPos}`;
     b.innerHTML = `<h4>轉珠關卡</h4><p>${PZ_CHAPTERS[0].name}</p><span class="prog">測試・體力 ${Stage.sta()} / ${STA_CFG.max}</span>`;
-    b.onclick = () => Stage.enterMode();
+    b.onclick = () => Stage.showMap(1);
     t.after(b);
   };
   // 標題畫面也放一顆入口（沒有存檔也能測）
   const _title = Game.title;
   Game.title = function () {
     _title.apply(this, arguments);
-    const b = document.createElement('button'); b.className = 't-imp t-pz'; b.textContent = '轉珠關卡'; b.onclick = () => Stage.enterMode();
+    const b = document.createElement('button'); b.className = 't-imp t-pz'; b.textContent = '轉珠關卡'; b.onclick = () => Stage.showMap(1);
     const s = $('#sceneContent'); if (s) s.appendChild(b);
   };
   // 網址帶 &pz 直接開章節地圖
