@@ -1,5 +1,5 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
-const ASSET_VER = '20261124170924';
+const ASSET_VER = '20261125140105';
 // 轉珠與抽卡專用素材：不進全遊戲預載，進轉珠地圖時才在背景下載（js/stage.js 的 Stage.preloadPz）
 const PZ_ASSET = /^assets\/(orb|pz|char|gacha)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/((bgm_)?pz|atk|fx|sk|gacha|stage|boss)_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king)\.|^assets\/map\/|^assets\/ui\/(banner|bar|btn|card|cd|chapter|el|entry|fac|hp|icon|panel|rare|result|sk|st|star|tag|timer|toast)_/;
 const ASSET_LIST = [
