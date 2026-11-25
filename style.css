@@ -1053,6 +1053,9 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-hp.team { flex: none; height: 14px; margin: 3px 0 0; }
 .pz-hp.team i { background: linear-gradient(#7fe0a0, #2a8a4a); }
 .pz-hp.team span { line-height: 14px; }
+.pz-tst { position: absolute; left: 3px; top: 0; display: flex; gap: 3px; font: 600 9px/14px var(--serif); pointer-events: none; }
+.pz-tst em { font-style: normal; padding: 0 3px; border-radius: 3px; background: rgba(0,0,0,.55); text-shadow: 0 0 2px #000; }
+.pz-tst .rg { color: #ff9ccc; } .pz-tst .gd { color: #8ff0d8; } .pz-tst .ex { color: #f3e7b0; }
 .pz-warn i { font-style: normal; font-weight: 700; }
 .pz-warn .hv { color: #ff8a7a; animation: pzBlink 1s infinite; }
 .pz-fl { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
@@ -1629,3 +1632,51 @@ body.pz-on #app, body.pz-on #stagingTag { visibility: hidden; }
 .pz-skc h3 { margin: 6px 0 4px; }
 .pz-skc p { text-align: center; }
 .pz-skc .note span { white-space: nowrap; }
+
+/* ───────── 神通領悟（js/shentong.js）：自己的全螢幕層，蓋過章節地圖；按鈕固定在底部 ───────── */
+.st-ov { position: fixed; inset: 0; z-index: 9600; display: flex; align-items: center; justify-content: center; padding: 12px; padding-bottom: calc(12px + var(--safe-b, 0px)); background: rgba(3,5,9,.78); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.st-box { display: flex; flex-direction: column; width: 100%; max-width: 380px; max-height: 100%; padding: 14px 12px 10px; border: 1px solid var(--goldline); border-radius: 10px; background: linear-gradient(180deg, #121826, #0a0e17); color: var(--paper); box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+.st-box h3 { margin: 0; text-align: center; font-family: var(--brush); font-size: 26px; font-weight: 400; letter-spacing: 8px; color: var(--gold2); }
+.st-sub { margin: 4px 0 10px; text-align: center; font-size: 13px; opacity: .85; }
+.st-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 8px; }
+.st-opt { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; width: 100%; padding: 10px 12px; text-align: left; border: 1px solid rgba(216,196,138,.28); border-radius: 8px; background: rgba(255,255,255,.04); color: var(--paper); font: inherit; }
+.st-opt b { font-family: var(--brush); font-size: 19px; font-weight: 400; color: var(--gold2); }
+.st-opt em { align-self: center; padding: 0 6px; border: 1px solid rgba(159,232,255,.45); border-radius: 4px; font-size: 11px; font-style: normal; color: #9fe8ff; }
+.st-opt em.own { border-color: rgba(255,158,196,.55); color: #ff9ec4; }
+.st-opt span { grid-column: 1 / -1; font-size: 14px; line-height: 1.5; }
+button.st-opt.sel { border-color: var(--gold2); background: rgba(242,220,148,.14); box-shadow: 0 0 0 1px var(--gold2) inset; }
+.st-row { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px dashed rgba(216,196,138,.2); }
+.st-row h4 { margin: 0; font-family: var(--brush); font-weight: 400; font-size: 17px; color: var(--gold2); }
+.st-row .note { margin: 0; font-size: 13px; opacity: .75; }
+.st-row .seal.sm { align-self: flex-end; }
+.st-foot { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding-top: 10px; margin-top: 8px; border-top: 1px solid rgba(216,196,138,.2); }
+.st-foot p { flex: 1 0 100%; margin: 0; text-align: center; font-size: 14px; }
+.st-foot p.lack { color: #ff9a9a; }
+.st-foot .seal.sm { min-width: 96px; }
+
+/* ── 劇情流程（js/pz-story.js）：戰友招募與抽卡解鎖對話、道侶欄位 ── */
+.pz-mem.mate { grid-column: 5; }
+.pzr-card.mate.blank { border-style: dashed; opacity: .55; }
+.pzr-card.mate.off .pzr-face { filter: grayscale(.8) brightness(.7); }
+.pzr-stale { color: #ffb36a; font-weight: 700; }
+#pz > .pz-story { position: absolute; inset: 0; width: 100%; z-index: 40; display: flex; align-items: flex-end; justify-content: center; padding: 0 10px calc(14% + env(safe-area-inset-bottom)); background: rgba(5,8,14,.55); cursor: pointer; }
+.pz-story-box { display: flex; gap: 10px; align-items: flex-start; width: 100%; max-width: 440px; box-sizing: border-box; padding: 12px; border: 1px solid var(--goldline); border-radius: 10px; background: linear-gradient(rgba(22,18,12,.95), rgba(12,10,8,.97)); color: var(--paper); box-shadow: 0 6px 24px rgba(0,0,0,.6); animation: pzStoryIn .25s ease-out; }
+.pz-story-face { flex: none; width: 64px; height: 64px; object-fit: cover; object-position: 50% 15%; border-radius: 8px; border: 1px solid var(--goldline); }
+.pz-story-box b { display: block; color: var(--gold2); font-size: 15px; }
+.pz-story-box p { margin: 4px 0 2px; font-size: 15px; line-height: 1.55; }
+.pz-story-box small { font-size: 11px; color: var(--dim); }
+.pz-story-box.narr p { color: var(--gold2); }
+.pz-story-box.end { flex-direction: column; align-items: center; text-align: center; cursor: default; }
+.pz-story-box.end b { display: inline; }
+@keyframes pzStoryIn { from { opacity: 0; transform: translateY(12px); } }
+.pz-ovf-tip { display: inline-block; margin-top: 4px; font-size: 13px; color: var(--gold2); font-weight: 700; }
+.pzm-tip { margin: 4px 0; color: #ffb36a; font-weight: 700; }
+/* 地圖浮動鈕（簽到、抽卡）：節點最右只到約 74% 寬＋半個節點，改放右緣窄欄，任何寬度都不蓋關卡節點；測試用補滿體力移到左下 */
+.pzm-gacha { left: auto; right: 3px; width: 46px !important; padding: 3px 0 2px; border-radius: 8px; }
+.pzm-gacha i { width: 34px; height: 34px; }
+.pzm-gacha b { font-size: 11px; letter-spacing: 1px; }
+.pzm-daily { bottom: calc(66px + var(--safe-b, 0px)); }
+.pzm-daily i, .pa-icon_gacha_entry .pzm-daily i { font-size: 16px; }
+.pzm-dev { right: auto; left: 6px; }
+/* 矮螢幕標題：入道／續緣往上，「新的修行」不被左下「雲端登入」蓋住 */
+@media (max-height: 640px) and (orientation: portrait) { .tbtns { bottom: calc(10% + 44px + var(--safe-b)); } }

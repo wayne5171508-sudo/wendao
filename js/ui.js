@@ -420,7 +420,7 @@ const UI = {
     this.scene(`<div class="hero-stage cast"><img src="${CAST_IMG[best]}" alt="${escHtml(HERO_NAME)}施展${SKILLS.find((k) => k.id === best).name}"></div>`);
     const rows = ARTS.map((A) => {
       const st = S.artState(A), reqOk = S.d.lv >= A.req * 3;
-      const cost = st.learn ? `${mIco('scroll')}功法殘卷 ×${A.scroll}${A.req ? `・需 ${REALMS[A.req]}` : ''}` : st.lv >= ART_MAX ? '已臻圓滿' : `${stoneAmt(artCost(st.lv))}`;
+      const cost = st.learn ? `${mIco('scroll')}功法殘卷 ×${A.scroll}${A.req ? `・需 ${REALMS[A.req]}` : ''}` : st.lv >= ART_MAX ? '已臻圓滿' : `${stoneAmt(artCost(st.lv))}${st.sc ? `・${mIco('scroll')}殘卷 ${st.sc}（持有 ${S.d.inv.scroll || 0}）${S.has('scroll', st.sc) ? '' : '・殘卷不足'}` : ''}`;
       return `<div class="li ${reqOk || st.lv ? '' : 'locked'}">${artIco(A)}<div><h4>${A.name}<em>${st.lv ? `第 ${st.lv} 層` : '未習得'}</em></h4><p>${A.per}</p><span class="mat ${st.can ? '' : 'lack'}">${cost}</span></div>
         <button class="seal sm ${st.learn ? '' : 'ghost'}" data-a="${A.id}" ${st.can ? '' : 'disabled'}>${st.learn ? '參悟' : '精進'}</button></div>`;
     }).join('');

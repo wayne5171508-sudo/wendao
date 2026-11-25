@@ -89,29 +89,31 @@ const SWEEP_CFG = {
 // big 地圖上畫成大節點（章節重點關）；cost 進場體力；stone 靈石；expSec 修為（＝當下修煉速度幾秒的修為，跟著境界成長）
 // loseRefund 戰敗時退還進場體力的比例（0～1，沒填＝不退；撤退不退）。退還量無條件捨去，最多回到體力上限
 // first 首次通關額外獎勵（stone、expSec、items: { 物品 id: 數量 }）
+// tip 關卡說明裡多顯示的一行提醒
 // 體力 1123 驗收：1-1～1-4 每關 4／4／5／5 → 3（第一章一輪 60 → 54 點）
+// 劇情流程 1124（開局只有主角，1-3／1-6／1-10 首通招募）：k 依「當下人數」重算，見 js/pz-story-cfg.js；1-1、1-2 體力 3 → 2（第一章一輪 52 點）
 const PZ_CHAPTERS = [
   { id: 1, name: '第一章・青石山道', bg: ['assets/bg/pz_day.webp', 'assets/bg/pz_dusk.webp', 'assets/bg/pz_night.webp'],
     stages: [
-      { id: '1-1', name: '村口狼嚎', cost: 3, k: 0.7, waves: [['lang'], ['lang', 'lang_alpha']], stone: 30, expSec: 60,
+      { id: '1-1', name: '村口狼嚎', cost: 2, k: 0.45, waves: [['lang'], ['lang', 'lang_alpha']], stone: 30, expSec: 60,
         first: { stone: 60, items: { herb_q: 2 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 6 }, { t: 'combo', n: 3 }] },
-      { id: '1-2', name: '山徑遊魂', cost: 3, k: 0.75, waves: [['hun', 'hun'], ['hun_elite']], stone: 35, expSec: 70,
+      { id: '1-2', name: '山徑遊魂', cost: 2, k: 0.36, waves: [['hun', 'hun'], ['hun_elite']], stone: 35, expSec: 70,
         first: { stone: 60, items: { herb_c: 2 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 6 }, { t: 'combo', n: 4 }] },
-      { id: '1-3', name: '山精出沒', cost: 3, k: 0.85, waves: [['lang', 'hun'], ['jing_elite']], stone: 40, expSec: 80,
+      { id: '1-3', name: '山精出沒', cost: 3, k: 0.46, waves: [['lang', 'hun'], ['jing_elite']], stone: 40, expSec: 80,
         first: { stone: 80, items: { p_qi: 1 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 7 }, { t: 'hp', n: 0.6 }] },
-      { id: '1-4', name: '古道夜行', cost: 3, k: 0.95, waves: [['hun', 'hun', 'hun'], ['kui_elite']], stone: 45, expSec: 90,
+      { id: '1-4', name: '古道夜行', cost: 3, k: 0.28, waves: [['hun', 'hun', 'hun'], ['kui_elite']], stone: 45, expSec: 90,
         first: { stone: 80, items: { herb_q: 3 } } },
-      { id: '1-5', big: true, name: '狼王巢穴', cost: 6, k: 2.8, waves: [['lang', 'lang'], ['jing', 'lang'], ['lang_king']], stone: 60, expSec: 120,
+      { id: '1-5', big: true, name: '狼王巢穴', cost: 6, k: 0.8, waves: [['lang', 'lang'], ['jing', 'lang'], ['lang_king']], stone: 60, expSec: 120,
         first: { stone: 150, items: { scroll: 3 } } },
-      { id: '1-6', name: '魔修伏擊', cost: 6, k: 3.0, waves: [['mo'], ['mo', 'hun'], ['mo_elite']], stone: 55, expSec: 110,
+      { id: '1-6', name: '魔修伏擊', cost: 6, k: 0.72, waves: [['mo'], ['mo', 'hun'], ['mo_elite']], stone: 55, expSec: 110,
         first: { stone: 100, items: { herb_c: 3 } } },
-      { id: '1-7', name: '落霞嶺', cost: 6, k: 2.9, waves: [['kui', 'jing'], ['mo', 'mo'], ['mo', 'kui_elite']], stone: 60, expSec: 120,
+      { id: '1-7', name: '落霞嶺', cost: 6, k: 1.05, waves: [['kui', 'jing'], ['mo', 'mo'], ['mo', 'kui_elite']], stone: 60, expSec: 120,
         first: { stone: 100, items: { ore: 5 } } },
-      { id: '1-8', big: true, name: '魔修頭目', cost: 7, k: 2.4, waves: [['mo', 'hun'], ['mo', 'kui'], ['mo_boss']], stone: 80, expSec: 160,
+      { id: '1-8', big: true, name: '魔修頭目', cost: 7, k: 1, waves: [['mo', 'hun'], ['mo', 'kui'], ['mo_boss']], stone: 80, expSec: 160,
         first: { stone: 200, items: { p_qi: 2 } } },
-      { id: '1-9', name: '千年山精', cost: 7, k: 3.3, waves: [['jing', 'jing'], ['kui', 'lang', 'hun'], ['jing_old']], stone: 85, expSec: 170,
+      { id: '1-9', name: '千年山精', cost: 7, k: 1.12, waves: [['jing', 'jing'], ['kui', 'lang', 'hun'], ['jing_old']], stone: 85, expSec: 170,
         first: { stone: 200, items: { ore: 8 } } },
-      { id: '1-10', big: true, bgm: 'pz_boss', name: '血甲妖將', cost: 10, k: 1, loseRefund: 0.5, waves: [['mo', 'kui'], ['mo', 'mo', 'jing'], ['xuejia']], stone: 150, expSec: 300,
+      { id: '1-10', big: true, bgm: 'pz_boss', name: '血甲妖將', tip: '建議先突破到築基再挑戰', cost: 10, k: 0.48, loseRefund: 0.5, waves: [['mo', 'kui'], ['mo', 'mo', 'jing'], ['xuejia']], stone: 150, expSec: 300,
         first: { stone: 500, items: { p_break: 1, scroll: 5 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 14 }, { t: 'hp', n: 0.3 }] },
     ] },
 ];

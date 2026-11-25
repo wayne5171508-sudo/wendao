@@ -36,11 +36,11 @@ const NAME_BANNED = [
   'fuck', 'shit', 'bitch', 'cunt', 'dick',
 ];
 const STAGES = ['初期', '中期', '後期'];
-const REALMS = ['練氣', '築基', '金丹', '元嬰'];
+const REALMS = ['凝氣', '築基', '結丹', '元嬰'];   // 顯示名（1124 起：練氣→凝氣、金丹→結丹）；存檔只存 lv
 const MAX_LV = REALMS.length * 3 - 1;
 const lvName = (lv) => `${REALMS[Math.floor(lv / 3)]}・${STAGES[lv % 3]}`;
 const isMajor = (lv) => lv % 3 === 2;           // 後期 → 下一大境界
-// 每個小境界約需 100 息（練氣初期）到近五個時辰（元嬰初期）
+// 每個小境界約需 100 息（凝氣初期）到近五個時辰（元嬰初期）
 const expNeed = (lv) => Math.round(120 * Math.pow(2.6, lv));
 const baseRate = (lv) => 1.2 * Math.pow(1.55, lv);    // 每息修為
 const OFFLINE_CAP = 8 * 3600;
@@ -190,7 +190,7 @@ const QUESTS = [
   { id: 'q_wild',   name: '落霞平亂', desc: '擊敗落霞嶺魔修頭目', check: (S) => !!S.d.cleared['wild-4'], reward: { herb_b: 6, ore: 12 } },
   { id: 'q_boss',   name: '斬妖將',   desc: '擊敗血甲妖將・厲蒼', check: (S) => !!S.d.cleared['realm-2'], reward: { star: 3, scroll: 2 } },
   { id: 'q_four',   name: '劍心通明', desc: '收集凡器、靈器、玄器、仙器四階兵器', check: (S) => [0, 1, 2, 3].every((t) => WEAPONS.some((w) => w.tier === t && S.d.weapons[w.id])), reward: { star: 6 } },
-  { id: 'q_nitian', name: '逆天問道', desc: '金丹期，擊敗妖將五次，且青冥劍突破一次', check: (S) => S.d.lv >= 6 && (S.d.cleared['realm-2'] || 0) >= 5 && (S.d.weapons.qingming?.brk || 0) >= 1, reward: { w: 'nitian' } },
+  { id: 'q_nitian', name: '逆天問道', desc: '結丹期，擊敗妖將五次，且青冥劍突破一次', check: (S) => S.d.lv >= 6 && (S.d.cleared['realm-2'] || 0) >= 5 && (S.d.weapons.qingming?.brk || 0) >= 1, reward: { w: 'nitian' } },
 ];
 
 // 怪物：img 對應 assets/mon/*.webp（原圖以原生解析度去背，依局部背景色扣掉白邊）
@@ -201,7 +201,7 @@ const MONSTERS = {
   shikui:   { name: '屍傀',     img: 'shikui',   hp: 1.7, atk: 1.1, spd: 0.75 },
   moxiu:    { name: '魔修',     img: 'moxiu',    hp: 1.2, atk: 1.35, spd: 1.0 },
   moxiu_boss: { name: '魔修頭目', img: 'moxiu_boss', hp: 1.2, atk: 1.35, spd: 1.0 },   // 落霞嶺尾關精英，數值同魔修（不設 boss，免得野外掉秘境兵器）
-  yaojiang: { name: '血甲妖將・厲蒼', img: 'yaojiang', hp: 44, atk: 1.0, spd: 0.9, boss: true,   // 金丹中期標準配置約 45～50 息
+  yaojiang: { name: '血甲妖將・厲蒼', img: 'yaojiang', hp: 44, atk: 1.0, spd: 0.9, boss: true,   // 結丹中期標準配置約 45～50 息
     // 首領三相：at 血量比例門檻；atk、spd 為進入該相時的倍率；dr 受傷減免；leech 傷害吸血；
     // chargeCd 血刃斬間隔、chargeT 蓄力時間（雷法可打斷）、chargeMult 血刃斬倍率
     phases: [

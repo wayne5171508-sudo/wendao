@@ -255,11 +255,12 @@ const S = {
   artState(A) {
     const lv = this.artLv(A.id);
     if (lv === 0) return { lv, can: this.d.lv >= A.req * 3 && this.has('scroll', A.scroll), learn: true };
-    return { lv, can: lv < ART_MAX && this.has('stone', artCost(lv)), learn: false };
+    const sc = typeof artScroll === 'function' && lv < ART_MAX ? artScroll(lv + 1) : 0;   // 殘卷需求（js/pz-growth-cfg.js）
+    return { lv, sc, can: lv < ART_MAX && this.has('stone', artCost(lv)) && this.has('scroll', sc), learn: false };
   },
   upArt(A) {
     const st = this.artState(A); if (!st.can) return false;
-    if (st.learn) this.take('scroll', A.scroll); else this.take('stone', artCost(st.lv));
+    if (st.learn) this.take('scroll', A.scroll); else { this.take('stone', artCost(st.lv)); if (st.sc) this.take('scroll', st.sc); }
     this.d.arts[A.id] = st.lv + 1; this.save(); return true;
   },
   skillOpen(sk) { if (sk.wt !== undefined) { const t = this.wTop(); return !!t && t.tier >= sk.wt; } return this.artLv(sk.from) > 0; },
