@@ -1669,3 +1669,14 @@ button.st-opt.sel { border-color: var(--gold2); background: rgba(242,220,148,.14
 .pz-story-box.end { flex-direction: column; align-items: center; text-align: center; cursor: default; }
 .pz-story-box.end b { display: inline; }
 @keyframes pzStoryIn { from { opacity: 0; transform: translateY(12px); } }
+.pz-ovf-tip { display: inline-block; margin-top: 4px; font-size: 13px; color: var(--gold2); font-weight: 700; }
+.pzm-tip { margin: 4px 0; color: #ffb36a; font-weight: 700; }
+/* 地圖浮動鈕（簽到、抽卡）：節點最右只到約 74% 寬＋半個節點，改放右緣窄欄，任何寬度都不蓋關卡節點；測試用補滿體力移到左下 */
+.pzm-gacha { left: auto; right: 3px; width: 46px !important; padding: 3px 0 2px; border-radius: 8px; }
+.pzm-gacha i { width: 34px; height: 34px; }
+.pzm-gacha b { font-size: 11px; letter-spacing: 1px; }
+.pzm-daily { bottom: calc(66px + var(--safe-b, 0px)); }
+.pzm-daily i, .pa-icon_gacha_entry .pzm-daily i { font-size: 16px; }
+.pzm-dev { right: auto; left: 6px; }
+/* 矮螢幕標題：入道／續緣往上，「新的修行」不被左下「雲端登入」蓋住 */
+@media (max-height: 640px) and (orientation: portrait) { .tbtns { bottom: calc(10% + 44px + var(--safe-b)); } }

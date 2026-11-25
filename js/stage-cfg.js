@@ -89,6 +89,7 @@ const SWEEP_CFG = {
 // big 地圖上畫成大節點（章節重點關）；cost 進場體力；stone 靈石；expSec 修為（＝當下修煉速度幾秒的修為，跟著境界成長）
 // loseRefund 戰敗時退還進場體力的比例（0～1，沒填＝不退；撤退不退）。退還量無條件捨去，最多回到體力上限
 // first 首次通關額外獎勵（stone、expSec、items: { 物品 id: 數量 }）
+// tip 關卡說明裡多顯示的一行提醒
 // 體力 1123 驗收：1-1～1-4 每關 4／4／5／5 → 3（第一章一輪 60 → 54 點）
 // 劇情流程 1124（開局只有主角，1-3／1-6／1-10 首通招募）：k 依「當下人數」重算，見 js/pz-story-cfg.js；1-1、1-2 體力 3 → 2（第一章一輪 52 點）
 const PZ_CHAPTERS = [
@@ -112,7 +113,7 @@ const PZ_CHAPTERS = [
         first: { stone: 200, items: { p_qi: 2 } } },
       { id: '1-9', name: '千年山精', cost: 7, k: 1.12, waves: [['jing', 'jing'], ['kui', 'lang', 'hun'], ['jing_old']], stone: 85, expSec: 170,
         first: { stone: 200, items: { ore: 8 } } },
-      { id: '1-10', big: true, bgm: 'pz_boss', name: '血甲妖將', cost: 10, k: 0.48, loseRefund: 0.5, waves: [['mo', 'kui'], ['mo', 'mo', 'jing'], ['xuejia']], stone: 150, expSec: 300,
+      { id: '1-10', big: true, bgm: 'pz_boss', name: '血甲妖將', tip: '建議先突破到築基再挑戰', cost: 10, k: 0.48, loseRefund: 0.5, waves: [['mo', 'kui'], ['mo', 'mo', 'jing'], ['xuejia']], stone: 150, expSec: 300,
         first: { stone: 500, items: { p_break: 1, scroll: 5 } }, stars: [{ t: 'clear' }, { t: 'turns', n: 14 }, { t: 'hp', n: 0.3 }] },
     ] },
 ];

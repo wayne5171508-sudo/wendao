@@ -91,7 +91,7 @@ const Roster = {
   // 抽卡角色 → 隊員（數值乘星級）
   fromChar(id, pos) {
     const C = pzChar(id), star = (this.d.own[id] && this.d.own[id].star) || 1, k = 1 + (star - 1) * PZ_STAR.step;
-    return { id, src: 'char', name: C.name, short: C.short || C.name.split('·').pop(), el: C.el, role: C.role, fac: C.fac, rare: C.rare, star,
+    return { id, src: 'char', name: C.name, short: C.short || C.name.split('・').pop(), el: C.el, role: C.role, fac: C.fac, rare: C.rare, star,
       atk: Math.round(C.atk * k), hp: Math.round(C.hp * k), rcv: Math.round(C.rcv * k),
       img: C.face || C.art || '', port: !C.face && !!C.art, art: C.art || '', pos, sk: pzSk(C.sk), lead: pzSk(C.lead), leadId: C.lead };
   },
@@ -128,7 +128,7 @@ const Roster = {
     const hp = Math.round(T.reduce((a, m) => a + m.hp * this.mul(mods, 'hp', m), 0)), rcv = Math.round(T.reduce((a, m) => a + m.rcv * this.mul(mods, 'rcv', m), 0));
     const atk = Math.round(T.reduce((a, m) => a + m.atk * this.mul(mods, 'atk', m), 0));
     return { mods, facs, hp, rcv, atk, growth: G, bond, combo: sum('combo'), delay: sum('delay'), time: sum('time', 'sec'), comboUp: sum('comboUp', 'add'), regen: sum('regen', 'pct'), guard: mods.reduce((a, e) => (e.t === 'guard' ? a * (1 - (e.pct || 0)) : a), 1), pierce: mods.some((e) => e.t === 'pierce'),
-      leads: leads.map(([m, L], i) => ({ ...L, who: m.name, pos: i ? '副隊長技' : '隊長技' })) };
+      leads: leads.map(([m, L], i) => ({ ...L, who: m.name, pos: i ? '道侶技' : '隊長技' })) };
   },
   // 道侶同行加成（PZ_STORY.mate）：依親密度等級；s 為道侶快照
   bond(s) {
@@ -190,7 +190,7 @@ const Roster = {
     const F = PZ_FACS[m.fac], R = PZ_RARITY[m.rare], G = m.id === 'hero' ? this.calc(this.team()).growth : null;
     return `<div class="pzr-info${pzHas('card_detail') ? ' art' : ''}">${m.art ? `<img class="pzr-art" src="${m.art}" alt="${m.name}" onerror="this.remove()">` : this.face(m, 'lg')}<div><b>${m.name}</b>${R ? ` <span class="pzr-rare" data-r="${m.rare}" style="color:${R.c}">${m.rare}</span> <span class="pzr-star">${'★'.repeat(m.star)}</span>` : m.lv !== undefined ? ` <small>${typeof lvName !== 'undefined' ? lvName(m.lv) : ''}${m.wpn ? '・' + WEAPONS.find((w) => w.id === m.wpn).name : ''}</small>` : ''}
       <p><span class="pzr-tag" style="--c:${PZ_EL[m.el].c}">${pzElI(m.el, 'pz-el')}${PZ_EL[m.el].ch}</span><span class="pzr-tag">${PZ_ROLES[m.role]}</span><span class="pzr-tag" style="--c:${m.wild ? '#c9f' : F.c}"><i class="pzr-fac" data-fac="${m.wild ? 'wild' : m.fac}"></i>${m.wild ? '萬用陣營' : F.name}</span><small>攻 ${U.fmt(m.atk)}・血 ${U.fmt(m.hp)}・回 ${U.fmt(m.rcv)}${G ? `<br>修行後 攻 ${U.fmt(Math.round(m.atk * G.atkMult))}・血 ${U.fmt(Math.round(m.hp * G.hpMult))}` : ''}</small></p>
-      <p><em>${m.id === 'mate' ? '副隊長技' : '隊長技'}</em>${this.skText(m.lead)}</p><p><em>主動技</em>${this.skText(m.sk)}</p></div></div>`;
+      <p><em>${m.id === 'mate' ? '道侶技' : '隊長技'}</em>${this.skText(m.lead)}</p><p><em>主動技</em>${this.skText(m.sk)}</p></div></div>`;
   },
   growthText(G) {
     const pc = (v) => `+${Math.round(v * 100)}%`, src = Object.entries(G.by).map(([k, b]) => `${k}${b.atk ? '攻' + pc(b.atk) : ''}${b.hp ? '血' + pc(b.hp) : ''}`);

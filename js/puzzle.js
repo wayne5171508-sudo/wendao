@@ -80,9 +80,9 @@ const Puzzle = {
     if (this.on) return;
     this.stage = opts.stage || stageById('1-1');
     this.on = true;
-    const t = +(new URLSearchParams(location.search).get('pzt'));
+    const t = DEV ? +(new URLSearchParams(location.search).get('pzt')) : 0;   // &pzt、&pzdebug 只在 ?dev 有效
     this.moveTime = t >= 2 && t <= 30 ? t : PZ_CFG.moveTime;
-    this.dbg = /[?&]pzdebug(=|&|$)/.test(location.search);   // 拖曳除錯：盤面上方即時資訊＋手指紅點
+    this.dbg = DEV && /[?&]pzdebug(=|&|$)/.test(location.search);   // 拖曳除錯：盤面上方即時資訊＋手指紅點
     let root = document.getElementById('pz');
     if (!root) { root = document.createElement('div'); root.id = 'pz'; document.body.appendChild(root); }
     this.root = root;
@@ -881,7 +881,7 @@ const Puzzle = {
     if (typeof Audio2 !== 'undefined') Audio2.play('pickup');
   },
   lose() {
-    this.state = 'end'; this.endBgm();
+    this.state = 'end'; this.endBgm(); this.sfx('fail');   // 戰敗音效：先用合成 'fail'
     const st = this.stage, back = Stage.refund(st), alive = this.alive(), left = alive.reduce((a, f) => a + f.hp, 0), max = this.foes.reduce((a, f) => a + f.max, 0);
     this.endPanel(`<h3 class="pz-res lose">道消身殞</h3><p class="c">撐了 ${this.turn} 回合・<span class="nw">第 ${this.wave + 1} / ${st.waves.length} 波</span>・敵方剩 ${Math.round((100 * left) / Math.max(1, max))}%</p><p class="c note">${back ? `退還 ${back} 體力` : '進場體力不退還'}</p>`,
       [[`重試（${st.cost}）`, () => this.again(), 'go'], ['返回地圖', () => this.close()]]);
@@ -900,9 +900,8 @@ const Puzzle = {
   sfx(key, opt) { if (typeof Audio2 !== 'undefined') Audio2.play(key, opt); },
 };
 
-// ───────── 開發模式入口 ─────────
-if (typeof DEV !== 'undefined' && DEV) {
-  // 歷練頁最上方加「轉珠關卡」
+// ───────── 入口：歷練頁最上方「轉珠關卡」（正式功能，一直顯示）─────────
+{
   const _map = UI.map;
   UI.map = function () {
     _map.apply(this, arguments);
@@ -911,10 +910,13 @@ if (typeof DEV !== 'undefined' && DEV) {
     const b = document.createElement('button');
     b.className = 'region'; b.id = 'pzEntry';
     b.style.cssText = pzHas('entry_pz') ? 'background-image:linear-gradient(90deg,rgba(5,8,14,.72),rgba(5,8,14,.15) 70%),url(assets/ui/entry_pz.webp);background-position:50% 50%' : `background-image:url(${PZ_CHAPTERS[0].bg[0]});background-position:${PZ_ART.bgPos}`;
-    b.innerHTML = `<h4>轉珠關卡</h4><p>${PZ_CHAPTERS[0].name}</p><span class="prog">測試・體力 ${Stage.sta()} / ${STA_CFG.max}</span>`;
+    b.innerHTML = `<h4>轉珠關卡</h4><p>${PZ_CHAPTERS[0].name}</p><span class="prog">體力 ${Stage.sta()} / ${STA_CFG.max}</span>`;
     b.onclick = () => Stage.showMap(1);
     t.after(b);
   };
+}
+// ───────── 開發模式入口（只在 ?dev）─────────
+if (typeof DEV !== 'undefined' && DEV) {
   // 標題畫面也放一顆入口（沒有存檔也能測）
   const _title = Game.title;
   Game.title = function () {

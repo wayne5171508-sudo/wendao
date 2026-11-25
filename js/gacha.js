@@ -37,6 +37,8 @@ const Gacha = {
     if (g.sr + 1 >= GACHA_CFG.pity.srEvery) return 'SR';   // 第 10 抽還沒出 SR 以上：SSR 沒中就給 SR
     return r < ssr + GACHA_CFG.rates.SR ? 'SR' : 'R';
   },
+  // 這一稀有度目前可抽到的角色：劇情戰友（PZ_STORY.recruit）首通招募前不進池（已招募或已擁有照常），機率由同稀有度其餘角色平分
+  poolOf(rare) { return GACHA_CFG.pool[rare].filter((id) => typeof PzStory === 'undefined' || !PzStory.locked(id)); },
   // 角色進 ro：新角色 1 星；重複升星到上限；滿星轉星塵
   give(id) {
     const C = pzChar(id), own = Roster.d.own, max = PZ_RARITY[C.rare].maxStar;
@@ -59,7 +61,7 @@ const Gacha = {
     for (let i = 0; i < n; i++) {
       let rare = this.rollRare(g), id = null;
       if (DEV && this.force) { const F = this.force; rare = GACHA_CFG.pool[F] ? F : pzChar(F) ? pzChar(F).rare : rare; id = pzChar(F) ? F : null; }
-      id = id || U.pick(GACHA_CFG.pool[rare]);
+      id = id || U.pick(this.poolOf(rare));
       g.pity = rare === 'SSR' ? 0 : g.pity + 1;
       g.sr = rare === 'R' ? g.sr + 1 : 0;
       const r = this.give(id); r.rare = rare; res.push(r);
@@ -97,7 +99,7 @@ const Gacha = {
   ic(k) { return `<i class="ga-ic ga-ic-${k}"></i>`; },
   render() {
     const g = this.d, P = GACHA_CFG.pity, left = P.hard - g.pity, c1 = this.cost(1), c10 = this.cost(10);
-    const ssr = GACHA_CFG.pool.SSR.map((id) => { const C = pzChar(id); return `<span class="ga-ssr" style="--c:${PZ_EL[C.el].c}"><img src="${C.face}" alt="" onerror="this.remove()"><small>${C.short || C.name.split('·').pop()}</small></span>`; }).join('');
+    const ssr = GACHA_CFG.pool.SSR.map((id) => { const C = pzChar(id); return `<span class="ga-ssr" style="--c:${PZ_EL[C.el].c}"><img src="${C.face}" alt="" onerror="this.remove()"><small>${C.short || C.name.split('・').pop()}</small></span>`; }).join('');
     this.el.innerHTML = `<div class="ga-top"><button class="pz-btn" id="gaBack" aria-label="返回">返</button><b class="ga-title">仙緣召喚</b>
         <div class="ga-cur"><span>${this.ic('stone')}${U.fmt(S.d.inv.stone || 0)}</span><span>${this.ic('ticket')}${g.ticket}</span><span>${this.ic('dust')}${g.dust}</span></div></div>
       <div class="ga-body">
@@ -133,13 +135,13 @@ const Gacha = {
   shut() { this.el.querySelector('#gaPanel').classList.add('hidden'); },
   info() {
     const R = GACHA_CFG.rates, P = GACHA_CFG.pity, pct = (v) => `${+(v * 100).toFixed(2)}%`;
-    const rows = ['SSR', 'SR', 'R'].map((r) => { const L = GACHA_CFG.pool[r]; return `<tr><th style="color:${PZ_RARITY[r].c}">${r}</th><td>${pct(R[r])}</td><td>每位 ${pct(R[r] / L.length)}</td><td>${PZ_RARITY[r].maxStar} 星・滿星轉 ${GACHA_CFG.dust[r]} 星塵</td></tr><tr><td></td><td colspan="3" class="ga-who">${L.map((id) => pzChar(id).name).join('、')}</td></tr>`; }).join('');
+    const rows = ['SSR', 'SR', 'R'].map((r) => { const L = this.poolOf(r); return `<tr><th style="color:${PZ_RARITY[r].c}">${r}</th><td>${pct(R[r])}</td><td>每位 ${pct(R[r] / L.length)}</td><td>${PZ_RARITY[r].maxStar} 星・滿星轉 ${GACHA_CFG.dust[r]} 星塵</td></tr><tr><td></td><td colspan="3" class="ga-who">${L.map((id) => pzChar(id).name).join('、')}</td></tr>`; }).join('');
     this.panel(`<h3>機率與保底</h3><table class="ga-tbl">${rows}</table>
       <p><em>SSR 保底</em>每抽都會累計，第 ${P.softFrom} 抽起每抽 SSR 機率 +${pct(P.softStep)}（第 ${P.softFrom} 抽 ${pct(this.ssrRate(P.softFrom - 1))}、第 ${P.softFrom + 5} 抽 ${pct(this.ssrRate(P.softFrom + 4))}），第 ${P.hard} 抽必得 SSR。抽到 SSR 後重新計算。</p>
       <p><em>SR 保底</em>每 ${P.srEvery} 抽至少 1 個 SR 以上，十連必有。單抽也會累計。</p>
       <p><em>保底計數</em>存在存檔裡，不因換卡池或關閉遊戲歸零。</p>
       <p><em>重複角色</em>同一角色再抽到＝升 1 星；滿星後轉成星塵，星塵可換靈石（1：${GACHA_CFG.exchange.stone}）或仙緣券（${GACHA_CFG.exchange.ticket} 星塵 1 張）。</p>
-      <p><em>費用</em>單抽 ${GACHA_CFG.cost.one} 靈石、十連 ${U.fmt(GACHA_CFG.cost.ten)} 靈石；有仙緣券時優先用券（1 張＝1 抽）。主角與副隊長不在卡池。</p>`, [['知道了', () => this.shut()]]);
+      <p><em>費用</em>單抽 ${GACHA_CFG.cost.one} 靈石、十連 ${U.fmt(GACHA_CFG.cost.ten)} 靈石；有仙緣券時優先用券（1 張＝1 抽）。主角與道侶不在卡池；劇情戰友（林昭、白若水、鐵嶽）在章節中結識前也不在卡池。</p>`, [['知道了', () => this.shut()]]);
   },
   dust() {
     const g = this.d, E = GACHA_CFG.exchange, all = g.dust;
@@ -167,7 +169,7 @@ const Gacha = {
   wait(ms) { return this.skip ? Promise.resolve() : new Promise((res) => { const t = setTimeout(res, ms); this._sk = () => { clearTimeout(t); res(); }; }); },
   rank(r) { return { R: 0, SR: 1, SSR: 2 }[r]; },
   face(o, big) {
-    const C = pzChar(o.id), short = C.short || C.name.split('·').pop(), R = PZ_RARITY[C.rare];
+    const C = pzChar(o.id), short = C.short || C.name.split('・').pop(), R = PZ_RARITY[C.rare];
     const tag = o.k === 'new' ? '<i class="ga-tag new">NEW</i>' : o.k === 'up' ? '<i class="ga-tag up">升星</i>' : `<i class="ga-tag dust">${this.ic('dust')}+${o.n}</i>`;
     const star = Roster.d.own[o.id].star;
     return `<div class="ga-face r-${C.rare}" style="--c:${R.c}"><img class="ga-art" src="${big ? C.art : C.face}" alt="${C.name}" onerror="this.remove()">

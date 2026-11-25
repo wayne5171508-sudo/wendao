@@ -4,7 +4,7 @@
 //  角色資料（名字、立繪、技能、星級上限）在 js/roster-cfg.js 的 PZ_CHARS／PZ_RARITY
 // ════════════════════════════════════════════
 const GACHA_CFG = {
-  // 卡池：主角與副隊長不進卡池；同稀有度內平均
+  // 卡池：主角與道侶不進卡池；同稀有度內平均（劇情戰友結識前排除，見 Gacha.poolOf）
   pool: {
     SSR: ['xuanqiong', 'litianjue', 'zhuji', 'suningxue'],
     SR:  ['luqingchuan', 'langye', 'suhongyu', 'tianjizi'],

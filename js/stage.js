@@ -100,7 +100,7 @@ const Stage = {
     for (const [k, n] of Object.entries(o.items || {})) p.push(`${ic(k)}${(ITEMS[k] && ITEMS[k].name) || k} ×${n}</span>`);
     return p.join('、<wbr>') || '無';   // <wbr>：每項是不換行的圖示＋文字，Safari 不會在「、」後自己斷行（章節獎勵合計會連成一條撐破面板）
   },
-  ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入<span class="nw">（共 ${U.fmt(this.d.ovf)}）</span>`; },
+  ovfText(n) { return `修為已滿，溢出 +${U.fmt(n)}，突破後補入<span class="nw">（共 ${U.fmt(this.d.ovf)}）</span><br><b class="pz-ovf-tip">先到地圖右上『突破』提升境界，再挑戰後面的關卡</b>`; },
   // 預覽用（還沒發）：修為以目前速度估
   rwPreview(rw) { return this.rwText({ stone: rw.stone || 0, exp: rw.expSec ? this.expOf(rw.expSec) : 0, items: rw.items }); },
 
@@ -227,7 +227,7 @@ const Stage = {
       <div class="pzm-scroll" id="pzmScroll" style="background-image:${C.id === 1 && pzHas('ch1_bg') ? 'linear-gradient(rgba(8,10,14,.15),rgba(8,10,14,.3)),url(assets/map/ch1_bg.webp)' : `linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})`}"><div class="pzm-path">${nodes.join('')}</div></div>
       ${DEV && STA_CFG.devRefill ? '<button class="pzm-dev" id="pzmDev">補滿體力（測試）</button>' : ''}
       ${typeof Gacha !== 'undefined' && PzStory.gachaOpen() ? '<button class="pzm-gacha" id="pzmGacha" aria-label="抽卡"><i></i><b>抽卡</b></button>' : ''}
-      ${DEV && typeof Gacha !== 'undefined' ? `<button class="pzm-gacha pzm-daily${this.dailyInfo().can ? ' dot' : ''}" id="pzmDaily" aria-label="每日簽到"><i>簽</i><b>簽到</b></button>` : ''}
+      ${typeof Gacha !== 'undefined' ? `<button class="pzm-gacha pzm-daily${this.dailyInfo().can ? ' dot' : ''}" id="pzmDaily" aria-label="每日簽到"><i>簽</i><b>簽到</b></button>` : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-toast" id="pzmToast"></div><div class="pz-end hidden" id="pzmPanel"></div>`;
     this.el.querySelector('#pzmBack').onclick = () => this.closeMap();
@@ -279,6 +279,7 @@ const Stage = {
     const html = `<h3>${st.id}　${st.name}</h3>
       <ul class="pzm-waves">${mons}</ul>
       <ul class="pzm-starlist">${stars}</ul>
+      ${st.tip ? `<p class="c pzm-tip">${st.tip}</p>` : ''}
       ${typeof Roster !== 'undefined' ? Roster.summary() : ''}
       <p class="pzm-rw"><b>獎勵</b>${this.rwPreview(st)}</p>
       ${st.first ? `<p class="pzm-rw${rec.c ? ' done' : ''}"><b>${rec.c ? '首通・已領' : '首通'}</b>${this.rwPreview(st.first)}</p>` : ''}

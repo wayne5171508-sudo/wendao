@@ -10,6 +10,8 @@ const PzStory = {
   pending: [],
   get d() { return S.d.pzs; },
   cleared(d, id) { const r = d.pz && d.pz.st && d.pz.st[id]; return !!(r && r.c > 0); },
+  // 劇情戰友還沒結識（沒 met、也沒擁有）：不進卡池
+  locked(id) { return PZ_STORY.recruit.some((R) => R.id === id) && !(S.d.pzs && S.d.pzs.met[id]) && !(S.d.pz && S.d.pz.ro.own[id]); },
   gachaOpen() { return !!(S.d && S.d.pz && (this.cleared(S.d, PZ_STORY.gacha.stage) || (S.d.pzs && S.d.pzs.gift))); },
 
   // 讀檔、匯入、雲端套用都會經過：補欄位、依進度補發戰友（安靜補，不跳對話）
@@ -43,7 +45,7 @@ const PzStory = {
   speaker(who) {
     if (who === 'narr') return { name: '', img: '' };
     if (who === 'hero') return { name: HERO_NAME, img: `assets/ui/char_${(S.d.dao && S.d.dao.char) || 'qingyuan'}.webp` };
-    const C = pzChar(who); return { name: C ? C.short || C.name.split('·').pop() : who, img: C ? C.face || C.art || '' : '' };
+    const C = pzChar(who); return { name: C ? C.short || C.name.split('・').pop() : who, img: C ? C.face || C.art || '' : '' };
   },
   show(list, root, done) {
     const ev = list.shift(); if (!ev) return done && done();
