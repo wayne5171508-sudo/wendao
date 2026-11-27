@@ -3,7 +3,7 @@
 //  超級大放送（限時靈石倍率、放送券、每日保底）與靈石礦脈。數值全在 js/bonus-cfg.js
 //  狀態存本機另一個 key（FANG_KEY），不進 S.d，所以不會隨雲端存檔上傳；舊存檔沒有這個 key＝全部預設值（礦脈首通未領）
 //    seen 看過的最晚時間（防回撥）、day／earn 保底記帳的台北日序與當日靈石收入、
-//    fDay／fEnd 首通放送觸發日與結束時間、tEnd 放送券結束時間、tk 放送券張數、mDay／mN 礦脈今日日序與破關次數、mFirst 礦脈首通已領
+//    fDay／fEnd 首通放送觸發日與結束時間、tStart／tEnd 放送券開始與結束時間（tAfter＝延後時等的是哪個倍率）、tk 放送券張數、mDay／mN 礦脈今日日序與破關次數、mFirst 礦脈首通已領
 //    gDay／gPz／gOld 抽卡每日上限的日序與今日轉珠召喚、舊機緣抽數
 //  接法：包住既有函式（Stage.give／merge／sweep／onWin／rwText／dailyClaim、S.sign／offline／save／reset、UI.hud／map），不改原本邏輯
 // ════════════════════════════════════════════
@@ -12,10 +12,15 @@ const FANG_KEY = 'wendao_fang_v1';
 Object.assign(PZ_MONS, MINE_MONS);
 ICON_BALL.fang = ['放', '#ffcf5a'];
 ICON_BALL.fang_tk = ['券', '#ffcf5a'];
+ICON_BALL.fang_first = ['首', '#ffcf5a'];
+ICON_BALL.fang_weekend = ['週', '#ffcf5a'];
+ICON_BALL.icon_mine_entry = ['礦', '#3aa58a'];
+ICON_BALL.icon_sign_entry = ['簽', '#c98a2a'];
+const FANG_ICO = { first: 'fang_first', weekend: 'fang_weekend', ticket: 'fang_tk' };
 
 const Bonus = {
   d: null,
-  fresh() { return { seen: 0, day: -1, earn: 0, fDay: -1, fEnd: 0, tEnd: 0, tk: 0, mDay: -1, mN: 0, mFirst: 0, gDay: -1, gPz: 0, gOld: 0 }; },
+  fresh() { return { seen: 0, day: -1, earn: 0, fDay: -1, fEnd: 0, tStart: 0, tEnd: 0, tAfter: 0, tk: 0, mDay: -1, mN: 0, mFirst: 0, gDay: -1, gPz: 0, gOld: 0 }; },
   load() {
     let p = {}; try { p = JSON.parse(localStorage.getItem(FANG_KEY)) || {}; } catch (e) {}
     const f = this.fresh();
@@ -44,7 +49,7 @@ const Bonus = {
     if (this.back(now)) return [];
     const d = this.d, a = [];
     if (d.fEnd > now) a.push({ k: 'first', name: '首通放送', mult: FANG_CFG.first.mult, end: d.fEnd });
-    if (d.tEnd > now) a.push({ k: 'ticket', name: '放送券', mult: FANG_CFG.ticket.mult, end: d.tEnd });
+    if (d.tEnd > now && d.tStart <= now) a.push({ k: 'ticket', name: '放送券', mult: FANG_CFG.ticket.mult, end: d.tEnd });
     if (this.weekend(now)) a.push({ k: 'weekend', name: '週末放送', mult: FANG_CFG.mult, end: this.weekendEnd(now) });
     return a.sort((x, y) => y.mult - x.mult);
   },
@@ -55,7 +60,9 @@ const Bonus = {
   // 來源已經發完 base 之後呼叫：補發放送加成、記帳，回傳加成量
   apply(base, kind) {
     if (!(base > 0)) return 0;
-    const extra = this.ok(kind) ? Math.round(base * (this.mult() - 1)) : 0;
+    let m = this.ok(kind) ? this.mult() : 1;
+    if (kind === 'mine') m = Math.min(m, MINE_BONUS_CAP);   // 礦脈加成有上限
+    const extra = Math.round(base * (m - 1));
     if (extra > 0) S.add('stone', extra);
     this.track(base + extra); return extra;
   },
@@ -90,7 +97,15 @@ const Bonus = {
     const now = Date.now(), d = this.d;
     if (d.tk <= 0) return '沒有放送券';
     if (this.back(now)) return '手機時間早於上次紀錄，請先校正時間';
-    d.tk--; d.tEnd = Math.max(now, d.tEnd) + FANG_CFG.ticket.min * 6e4; this.save(); return true;   // 時間疊加，倍率不疊加
+    d.tk--;
+    if (d.tEnd > now) d.tEnd += FANG_CFG.ticket.min * 6e4;   // 已在跑或排隊中：時間疊加，倍率不疊加
+    else {
+      // 已有更高倍率：延到高倍率結束才開始計時，免得 20 分鐘被蓋掉白白浪費
+      const hi = this.active(now).filter((x) => x.k !== 'ticket' && x.mult > FANG_CFG.ticket.mult);
+      d.tStart = hi.length ? Math.max(...hi.map((x) => x.end)) : now; d.tAfter = hi.length ? Math.max(...hi.map((x) => x.mult)) : 0;
+      d.tEnd = d.tStart + FANG_CFG.ticket.min * 6e4;
+    }
+    this.save(); return true;
   },
 
   // ───────── 介面 ─────────
@@ -109,11 +124,11 @@ const Bonus = {
   },
   panel() {
     const a = this.active(), F = FANG_CFG, d = this.d, now = Date.now();
-    const rows = a.length ? a.map((x, i) => `<div class="li">${gIco('ui', 'fang')}<div><h4>${x.name}<em>×${x.mult}${i ? '（未採用）' : '（生效中）'}</em></h4><p>剩 ${Stage.mmss(x.end - now)}</p></div><span></span></div>`).join('')
+    const rows = a.length ? a.map((x, i) => `<div class="li">${gIco('ui', FANG_ICO[x.k])}<div><h4>${x.name}<em>×${x.mult}${i ? '（未採用）' : '（生效中）'}</em></h4><p>剩 ${Stage.mmss(x.end - now)}</p></div><span></span></div>`).join('')
       : '<p class="note" style="text-align:center">目前沒有放送</p>';
     UI.modal('超級大放送', `${rows}
-      <div class="list"><div class="li">${gIco('ui', 'fang_tk')}<div><h4>放送券<em>×${d.tk}</em></h4><p>使用後 ${F.ticket.min} 分鐘靈石 ×${F.ticket.mult}；可疊加時間，不疊加倍率</p></div><button class="seal sm" id="fangUse" ${d.tk ? '' : 'disabled'}>使用</button></div></div>
-      <p class="note">・每日第一次通關任一關後 ${F.first.min} 分鐘 ×${F.first.mult}<br>・週六、週日全天 ×${F.mult}（離線只算週末時段）<br>・多個放送同時生效取最高，不相乘<br>・算進放送：轉珠通關、首通、掃蕩、離線、歷練、兩種簽到；星塵兌換、任務、靈石礦脈不算<br>・保底：當日靈石收入未達 ${U.fmt(F.floor.min)}，隔天登入補發差額（最多 ${U.fmt(F.floor.cap)}）。今日已得 ${U.fmt(d.earn)}</p>
+      <div class="list"><div class="li">${gIco('ui', 'fang_tk')}<div><h4>放送券<em>×${d.tk}</em></h4><p>${d.tStart > now ? `<b class="fang-wait">將於 ×${d.tAfter} 結束後生效</b>（共 ${Stage.mmss(d.tEnd - d.tStart)}）<br>` : ''}${F.ticket.min} 分鐘 ×${F.ticket.mult}・時間可疊加・遇更高倍率延後開始</p></div><button class="seal sm" id="fangUse" ${d.tk ? '' : 'disabled'}>使用</button></div></div>
+      <p class="note">・每日第一次通關任一關後 ${F.first.min} 分鐘 ×${F.first.mult}<br>・週六、週日全天 ×${F.mult}（離線只算週末時段）<br>・多個放送同時生效取最高，不相乘<br>・算進放送：轉珠通關、首通、掃蕩、離線、歷練、兩種簽到；靈石礦脈放送加成最高 ×${MINE_BONUS_CAP}；星塵兌換、任務不算<br>・保底：當日靈石收入未達 ${U.fmt(F.floor.min)}，隔天登入補發差額（最多 ${U.fmt(F.floor.cap)}）。今日已得 ${U.fmt(d.earn)}</p>
       <div class="row center"><button class="seal ghost" id="fangOk">知道了</button></div>`, {
       '#fangUse': () => { const r = this.useTicket(); if (r === true) { UI.toast(`放送券生效：${F.ticket.min} 分鐘靈石 ×${F.ticket.mult}`, '#ffe7a0'); this.hud(); this.panel(); } else UI.toast(r, '#ff9a9a'); },
       '#fangOk': () => UI.close(),
@@ -131,20 +146,24 @@ const Mine = {
   // 今日破關次數；換日重置（時間倒退時不重置）
   today() { const d = Bonus.d, t = Bonus.dayNo(Date.now()); if (d.mDay !== t && !Bonus.back()) { d.mDay = t; d.mN = 0; Bonus.save(); } return d.mN; },
   left() { return Math.max(0, MINE_CFG.daily - this.today()); },
-  kFor(lv) { const K = MINE_CFG.scale; return U.clamp(K.base * Math.pow(K.step, lv - K.ref), K.min, K.max); },
+  kFor(lv, T = pzTeam()) {
+    const K = MINE_CFG.scale, hero = T.find((m) => m.id === 'hero') || T[0], sum = T.reduce((a, m) => a + (m.atk || 0), 0);
+    const team = hero && hero.atk > 0 ? Math.max(1, sum / hero.atk) : 1;
+    return U.clamp(K.base * Math.pow(K.step, lv - K.ref) * Math.pow(team, K.team || 0), K.min, K.max);
+  },
   play() {
     if (!this.open()) return Stage.toast('通過青冥宗三場試劍後開放'), false;
     if (!this.left()) return Stage.toast('今日礦脈次數已用完，明天再來'), false;
     if (!Stage.spend(this.st.cost)) { Stage.noSta(this.st.cost); return false; }
     this.st.k = this.kFor(S.d.lv); Stage.hideMap(); Puzzle.open({ stage: this.st }); return true;
   },
-  // 破關：固定靈石，不吃放送；回傳 Stage.onWin 同格式
+  // 破關：固定靈石，放送加成最高 ×MINE_BONUS_CAP；回傳 Stage.onWin 同格式
   onWin() {
     const d = Bonus.d, firstClear = !d.mFirst, add = MINE_CFG.stone + (firstClear ? MINE_CFG.first : 0);
     this.today(); d.mN++; d.mFirst = 1;
-    S.add('stone', add); Bonus.track(add); S.save();
+    S.add('stone', add); const bonus = Bonus.apply(add, 'mine'); S.save();
     if (typeof UI !== 'undefined' && UI.hud) UI.hud();
-    return { got: 1, newStars: firstClear ? 1 : 0, all: 1, firstClear, first: firstClear ? { stone: MINE_CFG.first, exp: 0, items: {} } : null, rw: { stone: add, exp: 0, items: {} } };
+    return { got: 1, newStars: firstClear ? 1 : 0, all: 1, firstClear, first: firstClear ? { stone: MINE_CFG.first, exp: 0, items: {} } : null, rw: { stone: add, bonus, exp: 0, items: {}, mineDay: d.mN } };
   },
   detail() {
     if (!this.open()) { Stage.toast('通過青冥宗三場試劍後開放'); return; }
@@ -154,7 +173,7 @@ const Mine = {
       ${typeof Roster !== 'undefined' ? Roster.summary() : ''}
       <p class="pzm-rw"><b>獎勵</b>${Stage.rwText({ stone: MINE_CFG.stone, exp: 0, items: {} })}</p>
       <p class="pzm-rw${first ? '' : ' done'}"><b>${first ? '首通' : '首通・已領'}</b>${Stage.rwText({ stone: MINE_CFG.first, exp: 0, items: {} })}</p>
-      <p class="c note">進場體力 ${st.cost}・失敗不退・不吃放送<br>今日破關 ${n} / ${MINE_CFG.daily}・體力 ${Stage.sta()} / ${STA_CFG.max}</p>`,
+      <p class="c note">進場體力 ${st.cost}・失敗不退・放送加成最高 ×${MINE_BONUS_CAP}<br>今日破關 ${n} / ${MINE_CFG.daily}・體力 ${Stage.sta()} / ${STA_CFG.max}</p>`,
     [[`出戰（${st.cost}）`, () => { Stage.closePanel(); this.play(); }, 'go', n >= MINE_CFG.daily], ...(typeof Roster !== 'undefined' ? [['編隊', () => Roster.editor(() => this.detail())]] : []), ['關閉', () => Stage.closePanel()]]);
   },
 };
@@ -181,6 +200,7 @@ const Mine = {
     let s = rt0(o);
     if (o.bonus) s += `、<wbr><span class="pz-rw fang-rw">${gIco('ui', 'fang')}放送加成 +${U.fmt(o.bonus)}</span>`;
     if (o.tk) s += `、<wbr><span class="pz-rw fang-rw">${gIco('ui', 'fang_tk')}放送券 ×${o.tk}</span>`;
+    if (o.mineDay) s += `<br><small class="mine-day">今日 ${o.mineDay} / ${MINE_CFG.daily}</small>`;
     if (o.fang) s += `<br><small class="fang-on">今日首次通關：接下來 ${FANG_CFG.first.min} 分鐘靈石 ×${FANG_CFG.first.mult}</small>`;
     return s;
   };
@@ -194,6 +214,9 @@ const Mine = {
 
   const hud0 = UI.hud.bind(UI), map0 = UI.map, sta0 = Stage.staHud.bind(Stage), rm0 = Stage.renderMap.bind(Stage);
   UI.hud = () => { hud0(); Bonus.hud(); };
+  // 突破／渡劫演出期間隱藏頂部放送條（不擋演出畫面）
+  const bs0 = Story._breakShow.bind(Story);
+  Story._breakShow = async (...a) => { document.body.classList.add('fang-off'); try { return await bs0(...a); } finally { document.body.classList.remove('fang-off'); } };
   Stage.staHud = () => { sta0(); const el = Stage.el && Stage.el.querySelector('#pzmSta'); if (el) el.insertAdjacentHTML('beforeend', Bonus.mapLine()); };
   // 歷練頁：轉珠關卡入口下方
   UI.map = function () {
@@ -204,15 +227,15 @@ const Mine = {
     // 入口：洞口去背圖靠右，疊在暗色水晶洞（中段背景）上，左邊留給標題；沒有洞口圖就只用背景
     b.style.cssText = pzHas('entry_mine') ? `background-image:url(assets/ui/entry_mine.webp),linear-gradient(rgba(5,8,14,.35),rgba(5,8,14,.35)),url(${MINE_STAGE.bg[1]});background-size:auto 112%,cover,cover;background-position:right -6px bottom -4px,0 0,50% 55%;background-repeat:no-repeat`
       : `background-image:url(${MINE_STAGE.bg[1]});background-position:50% 55%`;
-    b.innerHTML = `<h4>${MINE_STAGE.name}</h4><p>${open ? `每次破關 靈石 ${U.fmt(MINE_CFG.stone)}・不吃放送` : '通過青冥宗三場試劍後開放'}</p><span class="prog">${open ? `今日 ${Mine.today()} / ${MINE_CFG.daily}` : ''}</span>`;
-    b.onclick = () => { Stage.showMap(1); Mine.detail(); };
+    b.innerHTML = `<h4>${MINE_STAGE.name}</h4><p>${open ? `每次破關 靈石 ${U.fmt(MINE_CFG.stone)}・放送加成最高 ×${MINE_BONUS_CAP}` : '通過青冥宗三場試劍後開放'}</p><span class="prog">${open ? `今日 ${Mine.today()} / ${MINE_CFG.daily}` : ''}</span>`;
+    b.onclick = () => { if (!open) { UI.toast('通過青冥宗三場試劍後開放', '#ffe7a0'); return; } Stage.showMap(1); Mine.detail(); };
     pz.after(b);
   };
   // 轉珠地圖：右緣浮動鈕多一顆「礦脈」
   Stage.renderMap = () => {
     rm0();
     if (!Mine.open()) return;
-    Stage.el.insertAdjacentHTML('beforeend', `<button class="pzm-gacha pzm-daily pzm-mine" id="pzmMine" aria-label="靈石礦脈"><i>礦</i><b>礦脈</b></button>`);
+    Stage.el.insertAdjacentHTML('beforeend', `<button class="pzm-gacha pzm-daily pzm-mine" id="pzmMine" aria-label="靈石礦脈">${gIco('ui', 'icon_mine_entry')}<b>礦脈</b></button>`);
     Stage.el.querySelector('#pzmMine').onclick = () => Mine.detail();
   };
 })();

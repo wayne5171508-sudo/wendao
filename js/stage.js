@@ -21,7 +21,7 @@ const Stage = {
   fix(d) {
     const f = this.fresh(), p = d.pz && typeof d.pz === 'object' && !Array.isArray(d.pz) ? d.pz : {};
     const num = (v, def) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : def);
-    const g = { v: 1, sta: num(p.sta, f.sta), staAt: num(p.staAt, f.staAt), st: {}, sw: { date: '', n: {} }, ovf: Math.max(0, Math.floor(num(p.ovf, 0))), tut: p.tut ? 1 : 0 };
+    const g = { v: 1, sta: num(p.sta, f.sta), staAt: num(p.staAt, f.staAt), st: {}, sw: { date: '', n: {} }, ovf: Math.max(0, Math.round(num(p.ovf, 0))), tut: p.tut ? 1 : 0 };
     g.sta = U.clamp(Math.floor(g.sta), 0, 9999);
     d.settings = d.settings && typeof d.settings === 'object' ? d.settings : {};
     if (typeof d.settings.skConfirm !== 'boolean') d.settings.skConfirm = true;   // 技能施放前確認（舊存檔補預設：開）
@@ -87,7 +87,7 @@ const Stage = {
   give(rw) {
     const out = { stone: 0, exp: 0, items: {} };
     if (rw.stone) { S.add('stone', rw.stone); out.stone += rw.stone; }
-    if (rw.expSec) { const n = this.expOf(rw.expSec), b = S.d.exp; S.addExp(n); const got = S.d.exp - b; out.exp += got; if (got < n) { out.ovf = (out.ovf || 0) + (n - got); this.d.ovf += n - got; } }
+    if (rw.expSec) { const n = this.expOf(rw.expSec), b = S.d.exp; S.addExp(n); const got = Math.round(S.d.exp - b), lost = n - got; out.exp += got; if (lost >= 1) { out.ovf = (out.ovf || 0) + lost; this.d.ovf += lost; } }   // 整數加減；差不到 1 不算溢出
     for (const [k, n] of Object.entries(rw.items || {})) { S.add(k, n); out.items[k] = (out.items[k] || 0) + n; }
     return out;
   },
@@ -222,12 +222,12 @@ const Stage = {
     const total = list.reduce((a, st) => a + this.stars(st.id), 0);
     this.el.innerHTML = `<div class="pzm-top"><button class="pz-btn" id="pzmBack" aria-label="返回">返</button>
         <div class="pzm-title"><b>${C.name.split('・').map((t) => `<span>${t}</span>`).join('<i>・</i>')}</b><small>★ ${total} / ${list.length * 3}</small></div>
-        ${S.d.root ? `<button class="pz-btn pzm-break${S.full() ? ' ready' : ''}" id="pzmBreak">突破${this.d.ovf ? `<small>溢 ${U.fmt(this.d.ovf)}</small>` : ''}</button>` : ''}
+        ${S.d.root ? `<button class="pz-btn pzm-break${S.full() ? ' ready' : ''}" id="pzmBreak">突破${this.d.ovf >= 1 ? `<small>溢 ${U.fmt(this.d.ovf)}</small>` : ''}</button>` : ''}
         <div class="pzm-sta" id="pzmSta"></div></div>
       <div class="pzm-scroll" id="pzmScroll" style="background-image:${C.id === 1 && pzHas('ch1_bg') ? 'linear-gradient(rgba(8,10,14,.15),rgba(8,10,14,.3)),url(assets/map/ch1_bg.webp)' : `linear-gradient(rgba(8,10,14,.55),rgba(8,10,14,.75)),url(${C.bg[0]})`}"><div class="pzm-path">${nodes.join('')}</div></div>
       ${DEV && STA_CFG.devRefill ? '<button class="pzm-dev" id="pzmDev">補滿體力（測試）</button>' : ''}
       ${typeof Gacha !== 'undefined' && PzStory.gachaOpen() ? '<button class="pzm-gacha" id="pzmGacha" aria-label="抽卡"><i></i><b>抽卡</b></button>' : ''}
-      ${typeof Gacha !== 'undefined' ? `<button class="pzm-gacha pzm-daily${this.dailyInfo().can ? ' dot' : ''}" id="pzmDaily" aria-label="每日簽到"><i>簽</i><b>簽到</b></button>` : ''}
+      ${typeof Gacha !== 'undefined' ? `<button class="pzm-gacha pzm-daily${this.dailyInfo().can ? ' dot' : ''}" id="pzmDaily" aria-label="每日簽到">${gIco('ui', 'icon_sign_entry')}<b>簽到</b></button>` : ''}
       <div class="pz-rotate"><b>請將手機轉為直式</b><small>轉珠關卡只支援直式畫面</small></div>
       <div class="pz-toast" id="pzmToast"></div><div class="pz-end hidden" id="pzmPanel"></div>`;
     this.el.querySelector('#pzmBack').onclick = () => this.closeMap();
@@ -313,7 +313,7 @@ const Stage = {
   const bt0 = S.breakthrough.bind(S);
   S.breakthrough = (use, bonus) => {
     const r = bt0(use, bonus), g = S.d.pz;
-    if (r && r.ok && g && g.ovf > 0) { const b = S.d.exp; S.addExp(g.ovf); g.ovf -= Math.round(S.d.exp - b); r.ovfIn = Math.round(S.d.exp - b); S.save(); }
+    if (r && r.ok && g && g.ovf > 0) { const b = S.d.exp; S.addExp(g.ovf); const add = Math.round(S.d.exp - b); g.ovf = Math.max(0, Math.round(g.ovf - add)); r.ovfIn = add; S.save(); }   // 夾在 ≥0、取整：不再出現「溢 -1」
     return r;
   };
 })();

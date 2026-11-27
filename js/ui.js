@@ -231,7 +231,7 @@ const UI = {
     const d = S.d;
     $('#hudSeal').textContent = REALMS[Math.floor(d.lv / 3)][0];
     $('#hudLv').textContent = lvName(d.lv);
-    $('#hudRoot').textContent = d.root ? `${ROOTS[d.root].name}（${d.grade}品）・戰力 ${U.fmt(S.stats().power)}` : '';
+    $('#hudRoot').textContent = d.root ? `${ROOTS[d.root].name}（${d.grade}品）・戰力\u00a0${U.fmt(S.stats().power)}` : '';
     $('#hudStone').textContent = U.fmt(d.inv.stone || 0);
     const g = document.querySelector('#nav button[data-tab="gear"]'); if (g) g.classList.toggle('badge', !!d.root && (S.questsReady() > 0 || (!!d.freshW && d.wslot[1] === d.freshW)));
   },
@@ -302,7 +302,7 @@ const UI = {
     const render = () => {
       const rate = Math.round(S.breakRate(use) * 100);
       this.modal(major ? '渡劫' : '突破', `
-        <p class="big">${lvName(d.lv)} → ${lvName(d.lv + 1)}</p>
+        <p class="big bt-lv">${lvName(d.lv)} → ${lvName(d.lv + 1)}</p>
         <p class="note" style="text-align:center">${major ? '大境界突破將引動天劫，失敗會跌落一個小境界並散去修為。' : '衝擊小境界瓶頸，失敗會跌落一個小境界並散去修為。'}</p>
         <div class="list">
           <div class="li">${ico('p_break')}<div><h4>破障丹<em>持有 ${d.inv.p_break || 0}</em></h4><p>成功率 +15%</p></div><button class="seal sm ${use.break ? '' : 'ghost'}" data-p="break" ${S.has('p_break') ? '' : 'disabled'}>${use.break ? '已服' : '服用'}</button></div>

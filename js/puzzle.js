@@ -111,6 +111,7 @@ const Puzzle = {
     let el = this.root.querySelector('#pzTut');
     const done = () => { if (el) el.remove(); S.d.pz.tut = 1; S.save(); };
     if (i >= T.length) return done();
+    if (!this.on || !this.root || !this.root.isConnected) return;   // 已結算或關閉：不再定位
     const [sel, title, txt] = T[i], tg = this.root.querySelector(sel); if (!tg) return this.tutorial(i + 1);
     if (!el) { el = document.createElement('div'); el.id = 'pzTut'; el.className = 'pz-tut'; this.root.appendChild(el); }
     const r = tg.getBoundingClientRect(), R = this.root.getBoundingClientRect(), pad = 4, below = r.top - R.top < R.height / 2;
@@ -360,11 +361,12 @@ const Puzzle = {
   },
 
   // ───────── 拖曳轉珠 ─────────
-  pt(e) { const b = this.cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; },
+  pt(e) { if (!this.cv || !this.cv.isConnected) return { x: -1, y: -1 }; const b = this.cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; },
   down(e) {
-    if (this.state !== 'idle') return;
+    if (this.state !== 'idle' || !this.on) return;
     this.dbgEv(e);
-    const p = this.pt(e), c = U.clamp(Math.floor(p.x / this.cell), 0, PZ_CFG.cols - 1), r = U.clamp(Math.floor(p.y / this.cell), 0, PZ_CFG.rows - 1);
+    const p = this.pt(e); if (p.x < 0) return;
+    const c = U.clamp(Math.floor(p.x / this.cell), 0, PZ_CFG.cols - 1), r = U.clamp(Math.floor(p.y / this.cell), 0, PZ_CFG.rows - 1);
     if (!this.grid[r][c]) return;
     e.preventDefault();
     try { this.cv.setPointerCapture(e.pointerId); } catch (er) {}
@@ -787,6 +789,7 @@ const Puzzle = {
   },
   // 5 連珠特效：屬性圖光爆（PZ_ART.five；沒圖就程式光爆）＋往首領區的光柱＋螢幕閃光＋震動
   fiveFx(G, ghost) {
+    if (!this.on || !this.root || !this.cv) return;
     const cell = this.cell, E = PZ_EL[G.c], rb = this.root.getBoundingClientRect(), cb = this.cv.getBoundingClientRect();
     const cx = cb.left - rb.left + (G.cells.reduce((a, [, c]) => a + c, 0) / G.cells.length + 0.5) * cell;
     const cy = cb.top - rb.top + (G.cells.reduce((a, [r]) => a + r, 0) / G.cells.length + 0.5) * cell;
