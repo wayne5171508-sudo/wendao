@@ -201,7 +201,9 @@ const Mine = {
     const pz = document.getElementById('pzEntry'); if (!pz) return;
     const b = document.createElement('button'), open = Mine.open();
     b.className = `region${open ? '' : ' locked'}`; b.id = 'mineEntry';
-    b.style.cssText = `background-image:url(${MINE_STAGE.bg[0]});background-position:50% 60%`;
+    // 入口：洞口去背圖靠右，疊在暗色水晶洞（中段背景）上，左邊留給標題；沒有洞口圖就只用背景
+    b.style.cssText = pzHas('entry_mine') ? `background-image:url(assets/ui/entry_mine.webp),linear-gradient(rgba(5,8,14,.35),rgba(5,8,14,.35)),url(${MINE_STAGE.bg[1]});background-size:auto 112%,cover,cover;background-position:right -6px bottom -4px,0 0,50% 55%;background-repeat:no-repeat`
+      : `background-image:url(${MINE_STAGE.bg[1]});background-position:50% 55%`;
     b.innerHTML = `<h4>${MINE_STAGE.name}</h4><p>${open ? `每次破關 靈石 ${U.fmt(MINE_CFG.stone)}・不吃放送` : '通過青冥宗三場試劍後開放'}</p><span class="prog">${open ? `今日 ${Mine.today()} / ${MINE_CFG.daily}` : ''}</span>`;
     b.onclick = () => { Stage.showMap(1); Mine.detail(); };
     pz.after(b);

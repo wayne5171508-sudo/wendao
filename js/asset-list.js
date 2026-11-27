@@ -1,7 +1,7 @@
 // 由 deploy.sh 產生：網頁版用到的素材清單（預載與離線快取）
 const ASSET_VER = '20261127205029';
 // 轉珠與抽卡專用素材：不進全遊戲預載，進轉珠地圖時才在背景下載（js/stage.js 的 Stage.preloadPz）
-const PZ_ASSET = /^assets\/(orb|pz|char|gacha)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/((bgm_)?pz|atk|fx|sk|gacha|stage|boss)_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king)\.|^assets\/map\/|^assets\/ui\/(banner|bar|btn|card|cd|chapter|el|entry|fac|hp|icon|panel|rare|result|sk|st|star|tag|timer|toast)_/;
+const PZ_ASSET = /^assets\/(orb|pz|char|gacha)\/|^assets\/fx\/pz_|^assets\/bg\/pz_|^assets\/audio\/((bgm_)?pz|atk|fx|sk|gacha|stage|boss)_|^assets\/mon\/(xuejia|lang_king|jing_old|kui_king|mine_\w+)\.|^assets\/map\/|^assets\/ui\/(banner|bar|btn|card|cd|chapter|el|entry|fac|hp|icon|panel|rare|result|sk|st|star|tag|timer|toast)_/;
 const ASSET_LIST = [
   'assets/alch/furnace_fail.webp',
   'assets/alch/furnace_idle.webp',
@@ -40,6 +40,9 @@ const ASSET_LIST = [
   'assets/bg/gacha_wpn.webp',
   'assets/bg/pz_day.webp',
   'assets/bg/pz_dusk.webp',
+  'assets/bg/pz_mine1.webp',
+  'assets/bg/pz_mine2.webp',
+  'assets/bg/pz_mine3.webp',
   'assets/bg/pz_night.webp',
   'assets/bg/realm.webp',
   'assets/bg/sect.webp',
@@ -234,6 +237,9 @@ const ASSET_LIST = [
   'assets/mon/lang_king.webp',
   'assets/mon/jing_old.webp',
   'assets/mon/kui_king.webp',
+  'assets/mon/mine_boss.webp',
+  'assets/mon/mine_kui.webp',
+  'assets/mon/mine_ling.webp',
   'assets/mon/moxiu.webp',
   'assets/mon/moxiu_boss.webp',
   'assets/mon/shanjing.webp',
@@ -308,6 +314,9 @@ const ASSET_LIST = [
   'assets/stage/stage_village_2.webp',
   'assets/stage/stage_village_3.webp',
   'assets/stage/stage_village_4.webp',
+  'assets/ui/entry_mine.webp',
+  'assets/ui/fang.webp',
+  'assets/ui/fang_tk.webp',
   'assets/ui/icon_gacha_entry.webp',
   'assets/ui/icon_stardust.webp',
   'assets/ui/icon_ticket.webp',

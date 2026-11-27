@@ -33,11 +33,11 @@ const MINE_CFG = {
 
 // 礦脈關卡：沿用轉珠戰鬥結構；怪物偏肉不偏兇（血量高、傷害低），鼓勵連消
 const MINE_MONS = {
-  mine_ling: { name: '礦脈石靈', el: 'earth', hp: 4200, atk: 260, def: 20, cd: 3, img: 'assets/mon/shanjing.webp' },
-  mine_kui:  { name: '晶甲礦傀', el: 'metal', hp: 5600, atk: 320, def: 30, cd: 3, img: 'assets/mon/shikui.webp' },
-  mine_boss: { name: '靈脈守礦獸', el: 'earth', hp: 26000, atk: 420, def: 40, cd: 3, img: 'assets/mon/jing_old.webp', boss: true,
+  mine_ling: { name: '礦脈石靈', el: 'earth', hp: 4200, atk: 260, def: 20, cd: 3, img: 'assets/mon/mine_ling.webp' },
+  mine_kui:  { name: '晶甲礦傀', el: 'metal', hp: 5600, atk: 320, def: 30, cd: 3, img: 'assets/mon/mine_kui.webp' },
+  mine_boss: { name: '靈脈守礦獸', el: 'earth', hp: 26000, atk: 420, def: 40, cd: 3, img: 'assets/mon/mine_boss.webp', boss: true,
     heavy: { every: 3, mult: 1.6, name: '礦石崩落' } },
 };
 const MINE_STAGE = { id: 'mine', mine: true, name: '靈石礦脈', cost: MINE_CFG.cost, k: 1,
   waves: [['mine_ling', 'mine_ling'], ['mine_kui', 'mine_ling'], ['mine_boss']],
-  tip: '礦脈守衛皮厚但出手不重，多連消、打大 Combo 最快', bg: ['assets/bg/realm.webp', 'assets/bg/realm.webp', 'assets/bg/realm.webp'] };
+  tip: '礦脈守衛皮厚但出手不重，多連消、打大 Combo 最快', bg: ['assets/bg/pz_mine1.webp', 'assets/bg/pz_mine2.webp', 'assets/bg/pz_mine3.webp'] };   // 前段木架坑道 → 中段藍水晶深洞 → 首領金色晶礦廳
