@@ -17,6 +17,7 @@ const GACHA_CFG = {
     softStep: 0.06,
     srEvery: 10,     // 每 10 抽至少 1 個 SR 以上（單抽也累計）
   },
+  dailyMax: { pz: 30, old: 30 },   // 每日召喚上限（抽數，含仙緣券與免費抽）：pz 轉珠仙緣召喚、old 舊機緣（法寶池＋功法池合計）；台北時間換日重置，邏輯在 js/bonus.js 的 GachaCap
   cost: { one: 160, ten: 1500 },   // 靈石；仙緣券 1 張＝單抽 1 次（十連要 10 張）
   // 重複角色：升星 +1 到 PZ_RARITY[稀有度].maxStar；滿星後轉星塵
   dust: { R: 2, SR: 10, SSR: 40 },

@@ -1692,3 +1692,7 @@ button.st-opt.sel { border-color: var(--gold2); background: rgba(242,220,148,.14
 .pzm-sta small.pzm-fang { color: #ffcf5a; font-weight: 700; }
 .pzm-mine { bottom: calc(122px + var(--safe-b, 0px)); }
 .pzm-mine i, .pa-icon_gacha_entry .pzm-mine i { background: radial-gradient(circle at 50% 40%, #d8fff0, #3aa58a 60%, #0f3a30); color: #0a2a22; }
+/* 抽卡每日上限（js/bonus.js GachaCap） */
+.ga-cap { margin: 6px 0 0; text-align: center; font-size: 12px; color: var(--dim, #9aa); }
+.ga-cap.full { color: #ff9a9a; font-weight: 700; }
+.ga-pull:disabled, .gacha-btns .seal:disabled { filter: grayscale(1) brightness(.6); cursor: not-allowed; }

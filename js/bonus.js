@@ -4,6 +4,7 @@
 //  狀態存本機另一個 key（FANG_KEY），不進 S.d，所以不會隨雲端存檔上傳；舊存檔沒有這個 key＝全部預設值（礦脈首通未領）
 //    seen 看過的最晚時間（防回撥）、day／earn 保底記帳的台北日序與當日靈石收入、
 //    fDay／fEnd 首通放送觸發日與結束時間、tEnd 放送券結束時間、tk 放送券張數、mDay／mN 礦脈今日日序與破關次數、mFirst 礦脈首通已領
+//    gDay／gPz／gOld 抽卡每日上限的日序與今日轉珠召喚、舊機緣抽數
 //  接法：包住既有函式（Stage.give／merge／sweep／onWin／rwText／dailyClaim、S.sign／offline／save／reset、UI.hud／map），不改原本邏輯
 // ════════════════════════════════════════════
 
@@ -14,7 +15,7 @@ ICON_BALL.fang_tk = ['券', '#ffcf5a'];
 
 const Bonus = {
   d: null,
-  fresh() { return { seen: 0, day: -1, earn: 0, fDay: -1, fEnd: 0, tEnd: 0, tk: 0, mDay: -1, mN: 0, mFirst: 0 }; },
+  fresh() { return { seen: 0, day: -1, earn: 0, fDay: -1, fEnd: 0, tEnd: 0, tk: 0, mDay: -1, mN: 0, mFirst: 0, gDay: -1, gPz: 0, gOld: 0 }; },
   load() {
     let p = {}; try { p = JSON.parse(localStorage.getItem(FANG_KEY)) || {}; } catch (e) {}
     const f = this.fresh();
@@ -130,11 +131,12 @@ const Mine = {
   // 今日破關次數；換日重置（時間倒退時不重置）
   today() { const d = Bonus.d, t = Bonus.dayNo(Date.now()); if (d.mDay !== t && !Bonus.back()) { d.mDay = t; d.mN = 0; Bonus.save(); } return d.mN; },
   left() { return Math.max(0, MINE_CFG.daily - this.today()); },
+  kFor(lv) { const K = MINE_CFG.scale; return U.clamp(K.base * Math.pow(K.step, lv - K.ref), K.min, K.max); },
   play() {
     if (!this.open()) return Stage.toast('通過青冥宗三場試劍後開放'), false;
     if (!this.left()) return Stage.toast('今日礦脈次數已用完，明天再來'), false;
     if (!Stage.spend(this.st.cost)) { Stage.noSta(this.st.cost); return false; }
-    Stage.hideMap(); Puzzle.open({ stage: this.st }); return true;
+    this.st.k = this.kFor(S.d.lv); Stage.hideMap(); Puzzle.open({ stage: this.st }); return true;
   },
   // 破關：固定靈石，不吃放送；回傳 Stage.onWin 同格式
   onWin() {
@@ -210,5 +212,34 @@ const Mine = {
     if (!Mine.open()) return;
     Stage.el.insertAdjacentHTML('beforeend', `<button class="pzm-gacha pzm-daily pzm-mine" id="pzmMine" aria-label="靈石礦脈"><i>礦</i><b>礦脈</b></button>`);
     Stage.el.querySelector('#pzmMine').onclick = () => Mine.detail();
+  };
+})();
+
+// ════════ 抽卡每日上限（數值 GACHA_CFG.dailyMax）：只擋抽數，星塵與保底計數照原本流程 ════════
+const GachaCap = {
+  // 今日已抽；換日重置（時間倒退時不重置）
+  used(k) { const d = Bonus.d, t = Bonus.dayNo(Date.now()); if (d.gDay !== t && !Bonus.back()) { d.gDay = t; d.gPz = 0; d.gOld = 0; Bonus.save(); } return k === 'pz' ? d.gPz : d.gOld; },
+  left(k) { return Math.max(0, GACHA_CFG.dailyMax[k] - this.used(k)); },
+  add(k, n) { this.used(k); Bonus.d[k === 'pz' ? 'gPz' : 'gOld'] += n; Bonus.save(); },
+  why(k, n) { const l = this.left(k); return l <= 0 ? '今日召喚已達上限' : n > l ? `今日只剩 ${l} 抽` : ''; },
+  line(k) { const l = this.left(k); return l ? `今日召喚 ${GACHA_CFG.dailyMax[k] - l} / ${GACHA_CFG.dailyMax[k]}` : '今日召喚已達上限'; },
+};
+(() => {
+  // 轉珠仙緣召喚
+  const pull0 = Gacha.pull.bind(Gacha), render0 = Gacha.render.bind(Gacha);
+  Gacha.pull = (n) => { const w = GachaCap.why('pz', n); if (w) return { err: w }; const r = pull0(n); if (!r.err) GachaCap.add('pz', n); return r; };
+  Gacha.render = () => {
+    render0();
+    Gacha.el.querySelectorAll('.ga-pull').forEach((b) => { b.disabled = !!GachaCap.why('pz', +b.dataset.n); });
+    const box = Gacha.el.querySelector('.ga-btns'); if (box) box.insertAdjacentHTML('afterend', `<p class="ga-cap${GachaCap.left('pz') ? '' : ' full'}">${GachaCap.line('pz')}</p>`);
+  };
+  // 舊機緣（法寶池、功法池共用一個上限）
+  const draw0 = S.draw.bind(S), uiDraw0 = UI.draw.bind(UI), uiPull0 = UI.pull.bind(UI);
+  S.draw = (pool, n) => { if (GachaCap.why('old', n)) return null; const r = draw0(pool, n); if (r) GachaCap.add('old', n); return r; };
+  UI.pull = (n) => { const w = GachaCap.why('old', n); if (w) { UI.toast(w, '#ff9a9a'); return; } return uiPull0(n); };
+  UI.draw = (pool) => {
+    uiDraw0(pool);
+    [['#g1', 1], ['#g10', 10]].forEach(([s, n]) => { const b = document.querySelector(s); if (b) b.disabled = !!GachaCap.why('old', n); });
+    const box = document.querySelector('.gacha-btns'); if (box) box.insertAdjacentHTML('afterend', `<p class="note ga-cap${GachaCap.left('old') ? '' : ' full'}" style="text-align:center">${GachaCap.line('old')}</p>`);
   };
 })();
