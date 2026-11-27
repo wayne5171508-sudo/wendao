@@ -1680,3 +1680,19 @@ button.st-opt.sel { border-color: var(--gold2); background: rgba(242,220,148,.14
 .pzm-dev { right: auto; left: 6px; }
 /* 矮螢幕標題：入道／續緣往上，「新的修行」不被左下「雲端登入」蓋住 */
 @media (max-height: 640px) and (orientation: portrait) { .tbtns { bottom: calc(10% + 44px + var(--safe-b)); } }
+/* 超級大放送（js/bonus.js）：頂列下方置中的倍率與倒數；沒圖時 gIco 退回「放」字圓球 */
+#fangBar { position: absolute; left: 50%; top: calc(100% - 16px); transform: translateX(-50%); display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px); padding: 2px 10px 2px 3px; border: 1px solid #c9973a; border-radius: 14px; background: linear-gradient(90deg, rgba(90,52,10,.92), rgba(40,22,6,.92)); color: #ffe7a0; white-space: nowrap; box-shadow: 0 0 10px rgba(255,190,80,.35); animation: fangGlow 2.4s ease-in-out infinite; }
+#fangBar.hidden { display: none; }
+#fangBar .ico { width: 22px; height: 22px; font-size: 13px; flex: none; }
+#fangBar b { font: 700 13px var(--serif); letter-spacing: 1px; }
+#fangBar small { font-size: 11px; color: #ffd37a; font-variant-numeric: tabular-nums; }
+@keyframes fangGlow { 50% { box-shadow: 0 0 16px rgba(255,200,90,.6); } }
+.fang-rw { color: #ffcf5a; }
+.fang-on { color: #ffcf5a; font-weight: 700; }
+.pzm-sta small.pzm-fang { color: #ffcf5a; font-weight: 700; }
+.pzm-mine { bottom: calc(122px + var(--safe-b, 0px)); }
+.pzm-mine i, .pa-icon_gacha_entry .pzm-mine i { background: radial-gradient(circle at 50% 40%, #d8fff0, #3aa58a 60%, #0f3a30); color: #0a2a22; }
+/* 抽卡每日上限（js/bonus.js GachaCap） */
+.ga-cap { margin: 6px 0 0; text-align: center; font-size: 12px; color: var(--dim, #9aa); }
+.ga-cap.full { color: #ff9a9a; font-weight: 700; }
+.ga-pull:disabled, .gacha-btns .seal:disabled { filter: grayscale(1) brightness(.6); cursor: not-allowed; }
