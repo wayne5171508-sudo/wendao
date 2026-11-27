@@ -123,6 +123,7 @@ button:focus-visible { outline: 2px solid var(--gold2); outline-offset: 3px; }
 .region p { margin: 0 0 0 16px; font-family: var(--serif); font-size: 12.5px; color: var(--gold); }
 .region .prog { position: absolute; right: 14px; bottom: 10px; font-family: var(--serif); font-size: 12px; color: var(--paper); }
 .region.locked { filter: grayscale(1) brightness(.55); pointer-events: none; }
+#mineEntry.locked { pointer-events: auto; cursor: pointer; }   /* 礦脈入口鎖定時仍可點，點了跳開放條件（js/bonus.js）；其他舊區域維持不可點 */
 .region.locked .prog::before { content: "未解鎖　"; }
 .region.cur { box-shadow: 0 0 0 1px var(--gold2), 0 0 16px rgba(242,226,176,.3); }
 
@@ -1696,3 +1697,32 @@ button.st-opt.sel { border-color: var(--gold2); background: rgba(242,220,148,.14
 .ga-cap { margin: 6px 0 0; text-align: center; font-size: 12px; color: var(--dim, #9aa); }
 .ga-cap.full { color: #ff9a9a; font-weight: 700; }
 .ga-pull:disabled, .gacha-btns .seal:disabled { filter: grayscale(1) brightness(.6); cursor: not-allowed; }
+/* 轉珠地圖浮動鈕（簽到、礦脈）走 gIco：有圖用圖，沒圖退回原本的圓形文字鈕 */
+.pzm-gacha i.ico.img { border-radius: 0; background: none; }
+.pzm-gacha i.ico.img .item-ico { width: 100%; height: 100%; filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
+.fang-wait { color: #ffcf5a; }
+.mine-day { color: var(--gold2, #f2e2b0); }
+body.fang-off #fangBar { display: none; }
+/* ───── 320 寬版面（QA 1127）───── */
+@media (max-width: 359px) {
+  /* 頂列：靈根與戰力改成最多兩行，戰力不被省略號切掉 */
+  #hudRealm small { white-space: normal; text-wrap: wrap; overflow: visible; text-overflow: clip; word-break: keep-all; line-height: 1.25; }
+  /* 突破標題「築基・中期 → 築基・後期」一行放完 */
+  #mBody .big.bt-lv { white-space: nowrap; font-size: min(22px, 5.4vw); letter-spacing: 0; }
+  /* 洞府按鈕列：聚氣、道侶不被擠成直排 */
+  #hAct .seal { min-width: 0; padding-left: 12px; padding-right: 12px; }
+  #hAct .seal.sm { flex: none; white-space: nowrap; padding: 6px 10px; letter-spacing: 0; }
+  #hAct .seal.sm small { white-space: nowrap; }
+  /* 編隊卡：名字下移避開紙邊，數值只在空白處換行 */
+  .pzr-info.art { padding-top: 40px; }
+  .pzr-info small, .pzr-info b { word-break: keep-all; }
+  #hTip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* 提示維持一行，不被按鈕列推進底部導覽 */
+}
+/* 矮螢幕（iPhone SE 568 高）：關卡說明的按鈕排成一列，內容不被出戰鈕擋住；可捲動時底部淡出提示 */
+@media (max-height: 640px) {
+  #pzmPanel .pz-row.wrap { flex-wrap: nowrap; gap: 6px; }
+  #pzmPanel .pz-row.wrap .pz-btn.wide { flex: 1 1 auto; min-width: 0; padding-left: 4px; padding-right: 4px; white-space: nowrap; font-size: 14px; letter-spacing: 0; }
+  #pzmPanel .pz-pbody { mask-image: linear-gradient(#000 calc(100% - 18px), transparent); padding-bottom: 14px; }
+}
+/* 章節地圖標題：320 寬兩行標題＋星數時，上緣不被切 */
+@media (max-width: 359px) { .pa-bar_title .pzm-title, .pzm-title { padding-top: 7px; padding-bottom: 4px; justify-content: center; } .pzm-top { min-height: 58px; } }

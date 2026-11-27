@@ -83,7 +83,10 @@ const PzStory = {
   const win0 = Puzzle.win;
   Puzzle.win = function () {
     PzStory.pending = [];
-    win0.apply(this, arguments);
+    // 章節最後一關首通（例：1-10）：先看章節完成面板，按「繼續」後再跳招募對話
+    const cc0 = this.chapterClear;
+    this.chapterClear = (C, then) => { const l = PzStory.pending; PzStory.pending = []; return cc0.call(this, C, () => { then(); if (l.length) setTimeout(() => this.on && PzStory.show(l, this.root), 400); }); };
+    try { win0.apply(this, arguments); } finally { this.chapterClear = cc0; }
     if (PzStory.pending.length) { const l = PzStory.pending; PzStory.pending = []; setTimeout(() => this.on && PzStory.show(l, this.root), 400); }
   };
   // 抽卡頁：沒解鎖時不能從任何入口打開（地圖、編組按鈕已隱藏，這裡再擋一次）
