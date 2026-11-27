@@ -775,7 +775,7 @@ const UI = {
   offlineModal(o) {
     this.modal('出關', `<p class="big">閉關 ${U.dur(o.sec)}${o.capped ? '（已達上限）' : ''}</p>
       <div class="list"><div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(o.gain)}</h4><p>${o.full ? '修為已滿，可嘗試突破' : '靈氣自行運轉，不曾停歇'}</p></div><span></span></div>
-      <div class="li">${ico('stone')}<div><h4>${stoneAmt(o.stone, '+')}</h4><p>洞府靈脈所產</p></div><span></span></div></div>
+      <div class="li">${ico('stone')}<div><h4>${stoneAmt(o.stone, '+')}</h4><p>洞府靈脈所產${o.bonus ? `・週末放送加成 +${U.fmt(o.bonus)}` : ''}</p></div><span></span></div></div>
       <div class="row center"><button class="seal" id="oOk">收下</button></div>`, { '#oOk': () => { this.close(); this.go('home'); } });
   },
 };

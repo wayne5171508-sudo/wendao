@@ -443,6 +443,7 @@ const Battle = {
     }
     // 結算
     S.addExp(this.loot.exp); S.add('stone', this.loot.stone);
+    const fang = typeof Bonus !== 'undefined' ? Bonus.apply(this.loot.stone, 'battle') : 0, fangOn = typeof Bonus !== 'undefined' && Bonus.cleared();   // 超級大放送（js/bonus.js）
     Dao.onExplore();   // 道侶同行（在線）時親密度提升
     const got = [];
     for (const [id, pr, a, b] of DROPS[R.id]) if (U.chance(pr * (first ? 1.5 : 1))) { const n = U.randi(a, b); S.add(id, n); got.push(`${ico(id)}<span>${ITEMS[id].name} ×${n}</span>`); }
@@ -461,7 +462,7 @@ const Battle = {
     Audio2.play('up');
     UI.modal(first ? '初勝' : '得勝', `<p class="big">${this.st.name}</p>
       <div class="list loot-list"><div class="li">${ico('exp')}<div><h4>修為 +${U.fmt(this.loot.exp)}</h4></div><span></span></div>
-      <div class="li">${ico('stone')}<div><h4>靈石 +${U.fmt(this.loot.stone)}</h4></div><span></span></div>
+      <div class="li">${ico('stone')}<div><h4>靈石 +${U.fmt(this.loot.stone)}</h4>${fang ? `<p>放送加成 +${U.fmt(fang)}</p>` : ''}${fangOn ? `<p>今日首次通關：接下來 ${FANG_CFG.first.min} 分鐘靈石 ×${FANG_CFG.first.mult}</p>` : ''}</div><span></span></div>
       ${got.map((g) => `<div class="li">${g.split('</i>')[0]}</i><div><h4>${g.split('</i>')[1]}</h4></div><span></span></div>`).join('')}</div>
       <div class="row center"><button class="seal" id="wNext">${lastStage ? '返回' : '下一關'}</button><button class="seal ghost sm" id="wHome">洞府</button></div>`,
       {

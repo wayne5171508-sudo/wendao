@@ -231,7 +231,7 @@ const Puzzle = {
     const T = this.team, st = this.stage;
     this.root.innerHTML = `
       <div class="pz-top" style="background-position:${PZ_ART.bgPos}">
-        <div class="pz-bar"><button class="pz-btn" id="pzExit" aria-label="撤退">撤</button><span><b>${st.id} ${st.name}</b><small id="pzWave"></small></span><div class="pz-bar-r"><button class="pz-btn" id="pzHelp" aria-label="說明">？</button><button class="pz-btn" id="pzSet" aria-label="設定">設</button></div></div>
+        <div class="pz-bar"><button class="pz-btn" id="pzExit" aria-label="撤退">撤</button><span><b>${st.mine ? '' : st.id + ' '}${st.name}</b><small id="pzWave"></small></span><div class="pz-bar-r"><button class="pz-btn" id="pzHelp" aria-label="說明">？</button><button class="pz-btn" id="pzSet" aria-label="設定">設</button></div></div>
         <div class="pz-warn" id="pzWarn"></div>
         <div class="pz-foes" id="pzFoes"></div>
         <div class="pz-fl" id="pzFl"></div>
@@ -861,7 +861,7 @@ const Puzzle = {
     if (typeof Audio2 !== 'undefined') Audio2.play('boom');
     const st = this.stage, r = this.result(), W = Stage.onWin(st.id, r);
     const stars = st.stars.map((c, i) => `<li class="${W.all & (1 << i) ? 'on' : ''}${W.newStars & (1 << i) ? ' pzm-new' : ''}"><i>★</i>${Stage.starText(c)}</li>`).join('');
-    const i = PZ_STAGES.indexOf(st), next = PZ_STAGES[i + 1];
+    const i = PZ_STAGES.indexOf(st), next = st.mine ? null : PZ_STAGES[i + 1];   // 靈石礦脈不在章節裡，沒有下一關
     const btns = [];
     if (next) btns.push(['下一關', () => this.close(true, st.id), 'go']);
     btns.push([`再戰（${st.cost}）`, () => this.again()], ['返回地圖', () => this.close()]);
@@ -889,6 +889,7 @@ const Puzzle = {
   // 再戰／重試：再扣一次體力，不夠就提示
   again() {
     const st = this.stage;
+    if (st.mine && !Mine.left()) { this.endPanel(`<h3>今日次數已用完</h3><p class="c">靈石礦脈每日最多破關 ${MINE_CFG.daily} 次，明天再來</p>`, [['返回地圖', () => this.close()]]); return; }
     if (!Stage.spend(st.cost)) { this.endPanel(Stage.noSta(st.cost), [['返回地圖', () => this.close()]]); return; }
     this.reset(); this.root.querySelector('#pzFl').innerHTML = ''; this.endClose();
     if (typeof Audio2 !== 'undefined') Audio2.bgm(this.bgmKey());   // 首領關重試：換回首領曲
