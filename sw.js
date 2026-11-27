@@ -1,6 +1,6 @@
 // 離線快取：安裝時只預載網頁與程式（核心檔案），素材用到時才存進快取
 // 網頁與程式先連網、失敗再用快取；素材先讀快取。CACHE 版本由 deploy.sh 每次部署自動改，舊快取（含素材）整批換新
-const CACHE = 'wendao-20261127213910';
+const CACHE = 'wendao-20261128011448';
 const CORE = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/asset-list.js', 'js/data.js', 'js/audio.js', 'js/state.js', 'js/fx.js', 'js/aura.js', 'js/story.js', 'js/halo.js', 'js/battle.js', 'js/ui.js', 'js/dao.js', 'js/cloud.js', 'js/main.js', 'js/stage-cfg.js', 'js/daily-cfg.js', 'js/roster-cfg.js', 'js/pz-story-cfg.js', 'js/pz-growth-cfg.js', 'js/puzzle.js', 'js/stage.js', 'js/roster.js', 'js/shentong-cfg.js', 'js/shentong.js', 'js/gacha-cfg.js', 'js/gacha.js', 'js/pz-story.js', 'js/bonus-cfg.js', 'js/bonus.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
